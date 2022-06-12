@@ -23,7 +23,7 @@ public protocol StateMachine {
     var state: State { get set }
     
     /// All transitions in the state machine.
-    var transitions: [Transition<Event, State>] { get }
+    var transitions: Set<Transition<Event, State>> { get }
     
     /// The state machine has reached an end state when there
     /// are no events leading to a transition to another state.
@@ -50,14 +50,14 @@ public protocol StateMachine {
     /// All defined and available events handled at a state.
     /// - Parameter state: State.
     /// - Returns: All defined events.
-    func events(for state: State) -> [Event]
+    func events(for state: State) -> Set<Event>
     
     /// All events defined to go from one state to another state.
     /// - Parameters:
     ///   - from: From state.
     ///   - to: To state.
     /// - Returns: All events leading from state to another state.
-    func events(from: State, to: State) -> [Event]
+    func events(from: State, to: State) -> Set<Event>
     
     /// The state machine is processing an event and will soon
     /// transition and change to another state.
@@ -100,20 +100,20 @@ extension StateMachine {
         }
     }
     
-    func events(for state: State) -> [Event] {
-        return transitions.filter {
+    func events(for state: State) -> Set<Event> {
+        return Set<Event>(transitions.filter {
             $0.from == state
         }.map {
             $0.event
-        }
+        })
     }
     
-    func events(from: State, to: State) -> [Event] {
-        return transitions.filter {
+    func events(from: State, to: State) -> Set<Event> {
+        return Set<Event>(transitions.filter {
             $0.from == from && $0.to == to
         }.map {
             $0.event
-        }
+        })
     }
     
     func transition(from state: State, for event: Event) -> Transition<Event, State>? {
