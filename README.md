@@ -93,15 +93,22 @@ To use this state machine:
 ```
 var m = MyClass()
 print("Current state: \(m.state)")
+
 // SM is in s1
+
 m.process(.s1ToS2)
 print("Current state: \(m.state)")
+
 // SM is in s2
+
 m.process(.s2ToS3)
 print("Current state: \(m.state)")
+
 // SM is in s3
+
 m.process(.s1ToS2)
 print("Current state: \(m.state)")
+
 // SM is still in s3. Event had no effect.
 ```
 
