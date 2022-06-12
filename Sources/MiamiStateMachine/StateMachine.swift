@@ -47,6 +47,23 @@ public protocol StateMachine {
     /// - Returns: Transition if there is one for the event at state.
     func transition(from state: State, for event: Event) -> Transition<Event, State>?
     
+    /// All possible transitions from a state to another state.
+    /// - Parameters:
+    ///   - state: Starting state.
+    ///   - newState: New state to transition to.
+    /// - Returns: All possible transitions to the new state.
+    func transitions(from state: State, to newState: State) -> Set<Transition<Event, State>>
+    
+    /// All possible transitions from the current state to a new state.
+    /// - Parameter newState: New state.
+    /// - Returns: All transitions from the current state to a new state.
+    func transitions(to newState: State) -> Set<Transition<Event, State>>
+    
+    /// Is it possible to transition from the current state to the new state.
+    /// - Parameter newState: The new state.
+    /// - Returns: If it is possible to go from the current state to a new state.
+    func canTransition(to newState: State) -> Bool
+    
     /// All defined and available events handled at a state.
     /// - Parameter state: State.
     /// - Returns: All defined events.
@@ -126,6 +143,20 @@ extension StateMachine {
         }
 
         return ts.first
+    }
+    
+    func transitions(from state: State, to newState: State) -> Set<Transition<Event, State>> {
+        return transitions.filter {
+            $0.from == state && $0.to == newState
+        }
+    }
+    
+    func transitions(to newState: State) -> Set<Transition<Event, State>> {
+        return transitions(from: state, to: newState)
+    }
+    
+    func canTransition(to newState: State) -> Bool {
+        return !transitions(from: state, to: newState).isEmpty
     }
     
     func willChangeState(with transition: Transition<Event, State>) { }
