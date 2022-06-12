@@ -112,19 +112,19 @@ public protocol StateMachine {
 
 extension StateMachine {
     
-    var atEndingState: Bool {
+    public var atEndingState: Bool {
         return events(for: state).isEmpty
     }
     
-    var eventsAtCurrentState: Set<Event> {
+    public var eventsAtCurrentState: Set<Event> {
         return events(for: state)
     }
     
-    var transitionsAtCurrentState: Set<Transition<Event, State>> {
+    public var transitionsAtCurrentState: Set<Transition<Event, State>> {
         return transitions(from: state)
     }
     
-    mutating func process(_ event: Event) {
+    public mutating func process(_ event: Event) {
         if let t = transition(from: state, for: event) {
             willChangeState(with: t)
             state = t.to
@@ -136,7 +136,7 @@ extension StateMachine {
         }
     }
     
-    func events(for state: State) -> Set<Event> {
+    public func events(for state: State) -> Set<Event> {
         return Set<Event>(transitions.filter {
             $0.from == state
         }.map {
@@ -144,7 +144,7 @@ extension StateMachine {
         })
     }
     
-    func events(from: State, to: State) -> Set<Event> {
+    public func events(from: State, to: State) -> Set<Event> {
         return Set<Event>(transitions.filter {
             $0.from == from && $0.to == to
         }.map {
@@ -152,7 +152,7 @@ extension StateMachine {
         })
     }
     
-    func transition(from state: State, for event: Event) -> Transition<Event, State>? {
+    public func transition(from state: State, for event: Event) -> Transition<Event, State>? {
         let ts = transitions.filter { t in
             return t.from == state && t.event == event
         }
@@ -164,30 +164,30 @@ extension StateMachine {
         return ts.first
     }
     
-    func transitions(from state: State, to newState: State) -> Set<Transition<Event, State>> {
+    public func transitions(from state: State, to newState: State) -> Set<Transition<Event, State>> {
         return transitions.filter {
             $0.from == state && $0.to == newState
         }
     }
     
-    func transitions(from state: State) -> Set<Transition<Event, State>> {
+    public func transitions(from state: State) -> Set<Transition<Event, State>> {
         return transitions.filter {
             $0.from == state
         }
     }
     
-    func transitions(to newState: State) -> Set<Transition<Event, State>> {
+    public func transitions(to newState: State) -> Set<Transition<Event, State>> {
         return transitions(from: state, to: newState)
     }
     
-    func canTransition(to newState: State) -> Bool {
+    public func canTransition(to newState: State) -> Bool {
         return !transitions(from: state, to: newState).isEmpty
     }
     
-    func willChangeState(with transition: Transition<Event, State>) { }
-    func willNotChangeState(for event: Event) { }
-    func didChangeState(with transition: Transition<Event, State>) { }
-    func didNotChangeState(for event: Event) { }
+    public func willChangeState(with transition: Transition<Event, State>) { }
+    public func willNotChangeState(for event: Event) { }
+    public func didChangeState(with transition: Transition<Event, State>) { }
+    public func didNotChangeState(for event: Event) { }
 }
 
 
