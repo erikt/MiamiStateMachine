@@ -27,7 +27,13 @@ public protocol StateMachine {
     
     /// The state machine has reached an end state when there
     /// are no events leading to a transition to another state.
-    var hasReachedEnd: Bool { get }
+    var atEndingState: Bool { get }
+    
+    /// All possible events at the current state.
+    var eventsAtCurrentState: Set<Event> { get }
+    
+    /// All possible transitions from the current state.
+    var transitionsAtCurrentState: Set<Transition<Event, State>> { get }
     
     /// Process an event. The state machine will change state
     /// if there is a transition from the current state with
@@ -53,6 +59,11 @@ public protocol StateMachine {
     ///   - newState: New state to transition to.
     /// - Returns: All possible transitions to the new state.
     func transitions(from state: State, to newState: State) -> Set<Transition<Event, State>>
+    
+    /// All possible transitions from a state.
+    /// - Parameter state: State to start from.
+    /// - Returns: All possible transitions from state.
+    func transitions(from state: State) -> Set<Transition<Event, State>>
     
     /// All possible transitions from the current state to a new state.
     /// - Parameter newState: New state.
@@ -101,8 +112,16 @@ public protocol StateMachine {
 
 extension StateMachine {
     
-    var hasReachedEnd: Bool {
+    var atEndingState: Bool {
         return events(for: state).isEmpty
+    }
+    
+    var eventsAtCurrentState: Set<Event> {
+        return events(for: state)
+    }
+    
+    var transitionsAtCurrentState: Set<Transition<Event, State>> {
+        return transitions(from: state)
     }
     
     mutating func process(_ event: Event) {
@@ -148,6 +167,12 @@ extension StateMachine {
     func transitions(from state: State, to newState: State) -> Set<Transition<Event, State>> {
         return transitions.filter {
             $0.from == state && $0.to == newState
+        }
+    }
+    
+    func transitions(from state: State) -> Set<Transition<Event, State>> {
+        return transitions.filter {
+            $0.from == state
         }
     }
     

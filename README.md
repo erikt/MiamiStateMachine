@@ -1,9 +1,10 @@
 # MiamiStateMachine
+![Floreda](images/lisa_simpson_floreda.jpg)
 > *Come on, shake your body, baby, do the conga<br/>
 > I know you can't control yourself any longer*<br/>
 > —Enrique Garcia
 
-A very simple and small state machine written in Swift.
+A simple and small state machine written in Swift.
 
 ## Usage
 

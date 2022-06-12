@@ -29,7 +29,7 @@ fileprivate final class MyClass: StateMachine {
 final class MiamiStateMachineTests: XCTestCase {
     func testStartState() throws {
         let m = MyClass()
-        XCTAssertEqual(m.hasReachedEnd, false, "State machine should not have reached an end state.")
+        XCTAssertEqual(m.atEndingState, false, "State machine should not have reached an end state.")
         XCTAssertEqual(m.transitions.count, 4, "State machine should have 5 defined transitions.")
         XCTAssertEqual(m.canTransition(to: .end), false, "No possible transition to end state.")
         XCTAssertEqual(m.canTransition(to: .s2), true, "Should be possible to transition to s2 state from s1.")
@@ -47,6 +47,6 @@ final class MiamiStateMachineTests: XCTestCase {
         m.process(.s2ToS3)
         m.process(.s3ToEnd)
         XCTAssertEqual(m.state, .end, "State machine should be at end state.")
-        XCTAssertTrue(m.hasReachedEnd, "State machine should have reached an end state.")
+        XCTAssertTrue(m.atEndingState, "State machine should have reached an end state.")
     }
 }
