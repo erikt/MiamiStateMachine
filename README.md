@@ -116,10 +116,13 @@ print("Current state: \(m.state)")
 
 The obvious needed improvement is the modifiable state machine current `state`. This 
 should really only be changed internally and not be directly modifiable. Only processing
-events should change the state.
+events should change the state. But, you know, Swift generics and type theory in 
+general ... sigh ... how does it all work?! I have no idea ...
 
 A `StateMachineDelegate` protocol, defining the side effect methods, would be preferable to
-the current architecture
+the current architecture.
+
+As usual, more extensive tests could be written and coverage could be improved.
 
 ## What's with the name?
 
