@@ -5,9 +5,8 @@
 > 
 —Enrique Garcia
 
-MiamiStateMachine is a simple, small and—honestly—a somewhat naive Swift finite state machine.
-I'm using it in "production", but before you run your nuclear power plant or high-frequency 
-trading platform on it, maybe "invent it here" with your c++-footgun tools instead ... 
+MiamiStateMachine is a simple, small and—honestly—a naive Swift finite state machine
+implementation.
 
 ## Concepts
 
@@ -120,6 +119,8 @@ The obvious needed improvement is the modifiable state machine current `state`. 
 should really only be changed internally and not be directly modifiable. Only processing
 events should change the state. But, you know, Swift generics and type theory in 
 general ... sigh ... how does it all work?! I have no idea ...
+
+Thread-safety. 
 
 A `StateMachineDelegate` protocol, defining the side effect methods, would be preferable to
 the current architecture.
