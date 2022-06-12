@@ -5,7 +5,7 @@
 > 
 —Enrique Garcia
 
-MiamiStateMachine is a simple, small and—honestly—a naive Swift finite state machine
+MiamiStateMachine is a simple, small and—honestly—quite naive Swift finite state machine
 implementation.
 
 ## Concepts
