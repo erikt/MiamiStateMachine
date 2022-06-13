@@ -91,7 +91,7 @@ public protocol StateMachine {
     /// defined transition from the current state for this event.
     /// There was no change of state.
     /// - Parameter event: Event that did not change state.
-    func didNotChangeState(for event: Event)
+    func didNotChangeState(from state: State, for event: Event)
 }
 
 extension StateMachine {
@@ -133,8 +133,9 @@ extension StateMachine {
                 didChangeState(with: t)
             }
         } else {
+            let currentState = await smGuard.state
             await MainActor.run {
-                didNotChangeState(for: event)
+                didNotChangeState(from: currentState, for: event)
             }
         }
     }
@@ -188,5 +189,5 @@ extension StateMachine {
     }
     
     public func didChangeState(with transition: Transition<Event, State>) { }
-    public func didNotChangeState(for event: Event) { }
+    public func didNotChangeState(from state: State, for event: Event) { }
 }
