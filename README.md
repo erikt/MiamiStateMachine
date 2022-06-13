@@ -25,7 +25,8 @@ To make the state machine process an event, the `mutating func process(_ event: 
 If a transition is defined for the event from the current state, the state machine's 
 current state will change.
 
-Side effects when transitioning between states, can be handled by implementing any of:
+Side effects when transitioning between states, can be handled by implementing any of the `willChange` or `didChange` methods. Be aware, there is concept of protecting the state machine from state change within these methods! Bad things will happen if you do.
+
 ```
 func willChangeState(with transition: Transition<Event, State>)
 func didChangeState(with transition: Transition<Event, State>)
