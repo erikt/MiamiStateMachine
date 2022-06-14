@@ -23,7 +23,7 @@ fileprivate final class MyClass: StateMachineDelegate {
         Transition(from: .s3, event: .s3ToEnd, to: .end)
     ]
 
-    var stateMachine: StateMachine<MyEvent, MyState> = StateMachine(initialState: .s1, transitions: transitions)
+    let stateMachine: StateMachine<MyEvent, MyState> = StateMachine(initialState: .s1, transitions: transitions)
 }
 
 final class MiamiStateMachineTests: XCTestCase {
@@ -60,5 +60,30 @@ final class MiamiStateMachineTests: XCTestCase {
         let atEnd = await m.atEndingState
         XCTAssertEqual(st4, .end, "State machine should be at end state.")
         XCTAssertTrue(atEnd, "State machine should have reached an end state.")
+    }
+    
+    func testTransitionLog() async {
+        let m = MyClass()
+        await m.process(.s1ToS2)
+        await m.process(.s2ToS3)
+        await m.process(.s3ToEnd)
+        
+        var transitions = await m.stateMachine.commitStack
+        let t1 = transitions.pop()!
+        XCTAssertEqual(t1.from, .s3, "Transition should be from S3")
+        XCTAssertEqual(t1.to, .end, "Transition should be to end")
+        XCTAssertEqual(t1.event, .s3ToEnd, "Transition event should be s3ToEnd")
+        
+        let t2 = transitions.pop()!
+        XCTAssertEqual(t2.from, .s2, "Transition should be from S2")
+        XCTAssertEqual(t2.to, .s3, "Transition should be to S3")
+        XCTAssertEqual(t2.event, .s2ToS3, "Transition event should be s2ToS3")
+
+        let t3 = transitions.pop()!
+        XCTAssertEqual(t3.from, .s1, "Transition should be from S1")
+        XCTAssertEqual(t3.to, .s2, "Transition should be to S2")
+        XCTAssertEqual(t3.event, .s1ToS2, "Transition event should be s1ToS2")
+
+        XCTAssertEqual(transitions.pop(), nil, "There should be no more commited transitions")
     }
 }

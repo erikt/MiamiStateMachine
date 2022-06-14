@@ -5,12 +5,19 @@ import Foundation
 /// when the state machine processes an event.
 ///
 /// A conforming type needs to define the possible states (with
-/// an enum for example, but anything hashable works as well) and
-/// the transitions between the states.
+/// an enum for example, but anything hashable works as well), all the
+/// events used and the transitions between the states.
 ///
-/// Any possible side effects when doing a transition between
-/// states, can be after the actual state change. The same goes
-/// for when an event does not trigger a state change.
+/// Any possible side-effects when doing a transition between
+/// states, is handled by the delegate method, called after the actual
+/// state change. The same goes for when an event does not trigger
+/// a state change.
+///
+/// Please note, there is not a delegate method called *before* the
+/// state change (when an event leads to a state change). This is
+/// by design to protect from the difficult situation where the
+/// side-effect delegate method itself changes the state. The state
+/// machine would then most likely be in an undefined, illegal state.
 public protocol StateMachineDelegate {
     associatedtype State: Hashable
     associatedtype Event: Hashable
@@ -139,7 +146,7 @@ extension StateMachineDelegate {
     
     public func process(_ event: Event, callbackOn queue: DispatchQueue? = .main) async {
         if let t = await transition(from: stateMachine.state, for: event) {
-            await stateMachine.changeState(t.to)
+            await stateMachine.commitTransition(t)
             if let queue = queue {
                 queue.async {
                     didChangeState(with: t)
