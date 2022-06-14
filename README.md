@@ -80,7 +80,7 @@ extension MyClass {
    func didChangeState(with transition: Transition<MyEvent, MyState>) {
       switch (from: transition.from, to: transition.to) {
       case (from: .s1, to: .s2):
-         print("Did change state from s1 to s2.")
+         print("Did change state from s1 to s2 by event \(transition.event).")
       default:
          break
       }

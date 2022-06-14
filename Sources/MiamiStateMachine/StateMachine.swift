@@ -20,13 +20,13 @@ public actor StateMachine<Event: Hashable, State: Hashable> {
     
     /// The transition that lead to the current state.
     public var enteredWith: Transition<Event, State>? {
-        return commitStack.peek
+        return transistionLog.peek
     }
     
     /// A stack keeping track of all processed transitions
     /// of the state machine. At some later date, this stack
     /// should be limited at some resonable capacity ... 
-    public private(set) var commitStack: Stack<Transition<Event, State>> = Stack()
+    public private(set) var transistionLog: Stack<Transition<Event, State>> = Stack()
     
     /// Creates a new state machine.
     /// - Parameters:
@@ -43,7 +43,7 @@ public actor StateMachine<Event: Hashable, State: Hashable> {
     /// - Parameter transition: State machine accepted transition.
     internal func commitTransition(_ transition: Transition<Event, State>) {
         self.state = transition.to
-        commitStack.push(transition)
+        transistionLog.push(transition)
     }
 }
 

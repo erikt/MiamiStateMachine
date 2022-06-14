@@ -24,15 +24,6 @@ fileprivate final class MyClass: StateMachineDelegate {
     ]
 
     let stateMachine: StateMachine<MyEvent, MyState> = StateMachine(initialState: .s1, transitions: transitions)
-    
-    func didChangeState(with transition: Transition<MyEvent, MyState>) {
-       switch (from: transition.from, to: transition.to) {
-       case (from: .s1, to: .s2):
-          print("Did change state from s1 to s2.")
-       default:
-          break
-       }
-    }
 }
 
 final class MiamiStateMachineTests: XCTestCase {
@@ -77,7 +68,7 @@ final class MiamiStateMachineTests: XCTestCase {
         await m.process(.s2ToS3)
         await m.process(.s3ToEnd)
         
-        var transitions = await m.stateMachine.commitStack
+        var transitions = await m.stateMachine.transistionLog
         let t1 = transitions.pop()!
         XCTAssertEqual(t1.from, .s3, "Transition should be from S3")
         XCTAssertEqual(t1.to, .end, "Transition should be to end")
