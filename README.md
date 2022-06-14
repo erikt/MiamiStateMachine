@@ -108,7 +108,6 @@ await m.process(.s2ToS3)
 // SM is in s3
 
 await m.process(.s1ToS2)
-print("Current state: \(m.state)")
 
 // SM is still in s3. Event had no effect.
 ```
