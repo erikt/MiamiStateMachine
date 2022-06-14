@@ -24,6 +24,15 @@ fileprivate final class MyClass: StateMachineDelegate {
     ]
 
     let stateMachine: StateMachine<MyEvent, MyState> = StateMachine(initialState: .s1, transitions: transitions)
+    
+    func didChangeState(with transition: Transition<MyEvent, MyState>) {
+       switch (from: transition.from, to: transition.to) {
+       case (from: .s1, to: .s2):
+          print("Did change state from s1 to s2.")
+       default:
+          break
+       }
+    }
 }
 
 final class MiamiStateMachineTests: XCTestCase {
