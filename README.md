@@ -72,7 +72,7 @@ final class MyClass: StateMachineDelegate {
 }
 ```
 
-To handle possible side effects related to state changes or when an event does not lead 
+To handle possible side-effects related to state changes or when an event does not lead 
 to a state change, implement:
 
 ```
@@ -92,7 +92,7 @@ extension MyClass {
 }
 ``` 
 
-To use this state machine:
+To use this state machine (in an async context):
 
 ```
 var m = MyClass()
