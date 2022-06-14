@@ -1,8 +1,7 @@
 import XCTest
 @testable import MiamiStateMachine
 
-fileprivate final class MyClass: StateMachine {
-
+fileprivate final class MyClass: StateMachineDelegate {
     enum MyState {
         case s1
         case s2
@@ -24,7 +23,7 @@ fileprivate final class MyClass: StateMachine {
         Transition(from: .s3, event: .s3ToEnd, to: .end)
     ]
 
-    var smGuard: StateMachineGuard<MyEvent, MyState> = StateMachineGuard(initialState: .s1, transitions: transitions)
+    var stateMachine: StateMachine<MyEvent, MyState> = StateMachine(initialState: .s1, transitions: transitions)
 }
 
 final class MiamiStateMachineTests: XCTestCase {
