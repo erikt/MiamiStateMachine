@@ -116,7 +116,7 @@ await m.process(.e3)
 await m.atEndingState
 
 // true
-// There are no events that could change the state from s3.
+// The s3 state has no transitions defined for any event.
 ```
 
 ## What's with the name?
