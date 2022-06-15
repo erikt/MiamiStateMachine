@@ -127,5 +127,7 @@ named *StateMachine*, but the actor protecting the current state and state machi
 is `StateMachine`. I have been going back and forth regarding these names and they could 
 definitely be improved.
 
+Suggestions and or PRs welcome, but remember: *kindness before code*. 
+
 ## Author
 Copyright &copy; 2022 Erik Tjernlund <erik@tjernlund.net>
