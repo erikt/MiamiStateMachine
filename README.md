@@ -111,13 +111,21 @@ await m.process(.e2)
 
 await m.process(.e3)
 
-// SM is still in s3. Event had no effect.
+// SM is still in s3. Event e3 had no effect.
 ```
 
 ## What's with the name?
 
 Look, naming is hard, ok? If nothing else, we all know *the rhythm is gonna get you*. 
 Just be happy I didn't name it `RageAgainstTheStateMachine`.
+
+## Improvements
+
+Speaking of naming, I do not like the protocol name `StateMachineDelegate`. It is not a delegate
+in the traditional Cocoa sense of the word. It is actually a state machine trait and should be 
+named *StateMachine*, but the actor protecting the current state and state machine definition
+is `StateMachine`. I have been going back and forth regarding these names and they could 
+definitely be improved.
 
 ## Author
 Copyright &copy; 2022 Erik Tjernlund <erik@tjernlund.net>
