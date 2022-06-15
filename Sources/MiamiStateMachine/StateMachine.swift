@@ -30,10 +30,32 @@ public actor StateMachine<Event: Hashable, State: Hashable> {
     public private(set) var transitionLog: Stack<Transition<Event, State>> = Stack()
     
     /// Creates a new state machine.
+    /// This fails if the provided set of transitions does not define
+    /// a consistent state machine. There can not be a state where the
+    /// same event leads to more than one transition to another state.
     /// - Parameters:
     ///   - initialState: Initial state.
     ///   - transitions: All defined transitions.
-    public init(initialState: State, transitions: Set<Transition<Event,State>>) {
+    public init?(initialState: State, transitions: Set<Transition<Event,State>>) {
+        // Check if transitions define a consistent
+        // state machine. All pairs of from state and
+        // events, must be unique. Otherwise there is
+        // a state where an event leads to different
+        // to-states.
+        let fromStateAndEventPairs = transitions.map {
+            (from: $0.from, event: $0.event)
+        }
+        
+        for pair in fromStateAndEventPairs {
+            // Check if each pair in the sequence is unique.
+            // If it isn't there is a state with the same
+            // event more than once.
+            let t = fromStateAndEventPairs.filter { $0 == pair }
+            if t.count > 1 {
+                return nil
+            }
+        }
+
         self.state = initialState
         self.transitions = transitions
     }
@@ -48,5 +70,6 @@ public actor StateMachine<Event: Hashable, State: Hashable> {
     }
 }
 
-
-
+public enum StateMachineDefinitionError: Error {
+    case sameStateMultipleEvents
+}

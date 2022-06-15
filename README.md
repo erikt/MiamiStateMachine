@@ -70,7 +70,7 @@ final class MyClass: StateMachineDelegate {
         Transition(from: .s2, event: .e3, to: .s3),
     ]
 
-    let stateMachine: StateMachine<MyEvent, MyState> = StateMachine(initialState: .s1, transitions: transitions)
+    let stateMachine: StateMachine<MyEvent, MyState> = StateMachine(initialState: .s1, transitions: transitions)!
 }
 ```
 

@@ -23,7 +23,7 @@ fileprivate final class MyClass: StateMachineDelegate {
         Transition(from: .s3, event: .s3ToEnd, to: .end)
     ]
 
-    let stateMachine: StateMachine<MyEvent, MyState> = StateMachine(initialState: .s1, transitions: transitions)
+    let stateMachine: StateMachine<MyEvent, MyState> = StateMachine(initialState: .s1, transitions: transitions)!
 }
 
 final class MiamiStateMachineTests: XCTestCase {
