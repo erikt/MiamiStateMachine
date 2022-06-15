@@ -112,6 +112,11 @@ await m.process(.e2)
 await m.process(.e3)
 
 // SM is still in s3. Event e3 had no effect.
+
+await m.atEndingState
+
+// true
+// There are no events that could change the state from s3.
 ```
 
 ## What's with the name?
