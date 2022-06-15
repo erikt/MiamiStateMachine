@@ -46,6 +46,8 @@ Define the state and event type (an enum works well for example), define the
 transitions in the state machine and lastly, set the `stateMachine` property with
 the initial state and the transitions.
 
+![State Machine Example](images/state-machine-example.png)
+
 ```
 import MiamiStateMachine 
    
@@ -57,15 +59,15 @@ final class MyClass: StateMachineDelegate {
     }
     
     enum MyEvent {
-        case s1ToS2
-        case s2ToS3
-        case s1ToS3
+        case e1
+        case e2
+        case e3
     }
     
     static let transitions: Set<Transition<MyEvent, MyState>> = [
-        Transition(from: .s1, event: .s1ToS2, to: .s2),
-        Transition(from: .s1, event: .s1ToS3, to: .s3),
-        Transition(from: .s2, event: .s2ToS3, to: .s3),
+        Transition(from: .s1, event: .e1, to: .s2),
+        Transition(from: .s1, event: .e2, to: .s3),
+        Transition(from: .s2, event: .e3, to: .s3),
     ]
 
     let stateMachine: StateMachine<MyEvent, MyState> = StateMachine(initialState: .s1, transitions: transitions)
@@ -99,15 +101,15 @@ var m = MyClass()
 
 // SM is in s1
 
-await m.process(.s1ToS2)
+await m.process(.e1)
 
 // SM is in s2
 
-await m.process(.s2ToS3)
+await m.process(.e2)
 
 // SM is in s3
 
-await m.process(.s1ToS2)
+await m.process(.e3)
 
 // SM is still in s3. Event had no effect.
 ```
