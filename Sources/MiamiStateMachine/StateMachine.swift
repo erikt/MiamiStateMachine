@@ -68,6 +68,19 @@ public actor StateMachine<Event: Hashable, State: Hashable> {
         self.state = transition.to
         transitionLog.push(transition)
     }
+    
+    /// Create a state machine with an initial state and defined by transitions.
+    /// - Parameters:
+    ///   - initialState: State machine initial state.
+    ///   - transitions: All defined transitions.
+    /// - Returns: A state machine
+    public static func create(initialState: State, transitions: Set<Transition<Event, State>>) throws -> StateMachine<Event, State> {
+        if let sm = StateMachine(initialState: initialState, transitions: transitions) {
+            return sm
+        } else {
+            throw StateMachineDefinitionError.sameStateMultipleEvents
+        }
+    }
 }
 
 public enum StateMachineDefinitionError: Error {
