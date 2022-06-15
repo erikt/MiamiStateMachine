@@ -38,10 +38,10 @@ public actor StateMachine<Event: Hashable, State: Hashable> {
     ///   - transitions: All defined transitions.
     public init?(initialState: State, transitions: Set<Transition<Event,State>>) {
         // Check if transitions define a consistent
-        // state machine. All pairs of from state and
+        // state machine. All pairs of from-state and
         // events, must be unique. Otherwise there is
-        // a state where an event leads to different
-        // to-states.
+        // a state where an event leads to multiple 
+        // different to-states.
         let fromStateAndEventPairs = transitions.map {
             (from: $0.from, event: $0.event)
         }
