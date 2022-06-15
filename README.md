@@ -51,7 +51,7 @@ the initial state and the transitions.
 ```
 import MiamiStateMachine 
    
-final class MyClass: StateMachineDelegate {
+struct MyStateMachine: StateMachineDelegate {
     enum MyState {
         case s1
         case s2
@@ -78,7 +78,7 @@ To handle possible side-effects related to state changes or when an event does n
 to a state change, implement:
 
 ```
-extension MyClass {
+extension MyStateMachine {
    func didChangeState(with transition: Transition<MyEvent, MyState>) {
       switch (from: transition.from, to: transition.to) {
       case (from: .s1, to: .s2):
@@ -97,7 +97,7 @@ extension MyClass {
 To use this state machine (in an async context):
 
 ```
-var m = MyClass()
+var m = MyStateMachine()
 
 // SM is in s1
 
