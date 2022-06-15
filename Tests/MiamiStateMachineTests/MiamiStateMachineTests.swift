@@ -1,31 +1,6 @@
 import XCTest
 @testable import MiamiStateMachine
 
-fileprivate final class MyClass: StateMachineDelegate {
-    enum MyState {
-        case s1
-        case s2
-        case s3
-        case end
-    }
-    
-    enum MyEvent {
-        case s1ToS2
-        case s2ToS3
-        case s1ToS3
-        case s3ToEnd
-    }
-    
-    static let transitions: Set<Transition<MyEvent, MyState>> = [
-        Transition(from: .s1, event: .s1ToS2, to: .s2),
-        Transition(from: .s1, event: .s1ToS3, to: .s3),
-        Transition(from: .s2, event: .s2ToS3, to: .s3),
-        Transition(from: .s3, event: .s3ToEnd, to: .end)
-    ]
-
-    let stateMachine: StateMachine<MyEvent, MyState> = StateMachine(initialState: .s1, transitions: transitions)!
-}
-
 final class MiamiStateMachineTests: XCTestCase {
     func testStartState() async {
         let m = MyClass()
@@ -85,5 +60,11 @@ final class MiamiStateMachineTests: XCTestCase {
         XCTAssertEqual(t3.event, .s1ToS2, "Transition event should be s1ToS2")
 
         XCTAssertEqual(transitions.pop(), nil, "There should be no more commited transitions")
+    }
+    
+    func testIllegalStateMachine() async {
+        let illegalM = MyBrokenClass()
+        let broken = (illegalM == nil)
+        XCTAssertTrue(broken, "Should not be possible to create an inconsistent state machine.")
     }
 }
