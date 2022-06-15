@@ -18,8 +18,9 @@ public actor StateMachine<Event: Hashable, State: Hashable> {
     /// The current state of the state machine
     public private(set) var state: State
     
-    /// The transition that lead to the current state.
+    /// The transition that led to the current state.
     public var enteredWith: Transition<Event, State>? {
+        // Transition on top of the stack is the last commited.
         return transitionLog.peek
     }
     
