@@ -52,17 +52,8 @@ the initial state and the transitions.
 import MiamiStateMachine 
    
 struct MyStateMachine: StateMachineDelegate {
-    enum MyState {
-        case s1
-        case s2
-        case s3
-    }
-    
-    enum MyEvent {
-        case e1
-        case e2
-        case e3
-    }
+    enum MyState { case s1, s2, s3 }    
+    enum MyEvent { case e1, e2, e3 }
     
     static let transitions: Set<Transition<MyEvent, MyState>> = [
         Transition(from: .s1, event: .e1, to: .s2),
