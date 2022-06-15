@@ -1,7 +1,7 @@
 import Foundation
 @testable import MiamiStateMachine
 
-final class MyClass: StateMachineDelegate {
+struct MySMValue: StateMachineDelegate {
     enum MyState {
         case s1, s2, s3, end
     }
@@ -21,7 +21,7 @@ final class MyClass: StateMachineDelegate {
 }
 
 /// A demo state machine with an inconsistent state machine definition.
-final class MyBrokenClass: StateMachineDelegate {
+struct MyBrokenSMValue: StateMachineDelegate {
     enum MyState {
         case s1, s2, s3
     }
@@ -40,7 +40,7 @@ final class MyBrokenClass: StateMachineDelegate {
     let stateMachine: StateMachine<MyEvent, MyState>
     
     init?() {
-        if let sm = StateMachine(initialState: .s1, transitions: MyBrokenClass.illegalTransitions) {
+        if let sm = StateMachine(initialState: .s1, transitions: MyBrokenSMValue.illegalTransitions) {
             self.stateMachine = sm
         } else {
             return nil
@@ -49,7 +49,7 @@ final class MyBrokenClass: StateMachineDelegate {
 }
 
 /// A demo state machine with the same states and events as the documentation.
-final class MyDemoClass: StateMachineDelegate {
+ struct MyDemoSMValue: StateMachineDelegate {
     
     typealias MyTransition = Transition<MyEvent, MyState>
     
@@ -70,7 +70,7 @@ final class MyDemoClass: StateMachineDelegate {
     let stateMachine: StateMachine<MyEvent, MyState>
     
     init() {
-        if let sm = StateMachine(initialState: .s1, transitions: MyDemoClass.transitions) {
+        if let sm = StateMachine(initialState: .s1, transitions: MyDemoSMValue.transitions) {
             self.stateMachine = sm
         } else {
             self.stateMachine = StateMachine(initialState: .s1, transitions: Set<MyTransition>())!

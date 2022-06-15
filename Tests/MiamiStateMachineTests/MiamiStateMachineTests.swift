@@ -3,7 +3,7 @@ import XCTest
 
 final class MiamiStateMachineTests: XCTestCase {
     func testStartState() async {
-        let m = MyClass()
+        let m = MySMValue()
         let atEnd = await m.atEndingState
         let toEnd = await m.canTransition(to: .end)
         let toS2 = await m.canTransition(to: .s2)
@@ -20,7 +20,7 @@ final class MiamiStateMachineTests: XCTestCase {
     }
     
     func testProcessEvent() async {
-        let m = MyClass()
+        let m = MySMValue()
         let st1 = await m.state
         XCTAssertEqual(st1, .s1, "State machine should start at s1.")
         await m.process(.s3ToEnd)
@@ -38,7 +38,7 @@ final class MiamiStateMachineTests: XCTestCase {
     }
     
     func testTransitionLog() async {
-        let m = MyClass()
+        let m = MySMValue()
         await m.process(.s1ToS2)
         await m.process(.s2ToS3)
         await m.process(.s3ToEnd)
@@ -63,7 +63,7 @@ final class MiamiStateMachineTests: XCTestCase {
     }
     
     func testIllegalStateMachine() async {
-        let illegalM = MyBrokenClass()
+        let illegalM = MyBrokenSMValue()
         let broken = (illegalM == nil)
         XCTAssertTrue(broken, "Should not be possible to create an inconsistent state machine.")
     }
