@@ -145,6 +145,9 @@ extension StateMachineDelegate {
     }
     
     public func process(_ event: Event, callbackOn queue: DispatchQueue? = .main) async {
+        
+        await stateMachine.increaseProcessedEventCount()
+        
         if let t = await transition(from: stateMachine.state, for: event) {
             await stateMachine.commitTransition(t)
             if let queue = queue {

@@ -26,6 +26,11 @@ final class MiamiStateMachineTests: XCTestCase {
         await m.process(.s3ToEnd)
         let st2 = await m.state
         XCTAssertEqual(st2, .s1, "State machine should not change state after processing s3ToEnd event.")
+        var eventsProcessed = await m.stateMachine.processedEventsCount
+        var stateChanges = await m.stateMachine.stateChangeCount
+        XCTAssertEqual(eventsProcessed, 1, "Processed events should be 1")
+        XCTAssertEqual(stateChanges, 0, "State changes should be 0")
+        
         await m.process(.s1ToS2)
         let st3 = await m.state
         XCTAssertEqual(st3, .s2, "State machine should have transitioned to s2 after processing s1ToS2 event.")
@@ -35,6 +40,13 @@ final class MiamiStateMachineTests: XCTestCase {
         let atEnd = await m.atEndingState
         XCTAssertEqual(st4, .end, "State machine should be at end state.")
         XCTAssertTrue(atEnd, "State machine should have reached an end state.")
+
+        eventsProcessed = await m.stateMachine.processedEventsCount
+        stateChanges = await m.stateMachine.stateChangeCount
+        let rejected = await m.stateMachine.rejectedEventsCount
+        XCTAssertEqual(eventsProcessed, 4, "Events processed should be 4")
+        XCTAssertEqual(stateChanges, 3, "State changes should be 3")
+        XCTAssertEqual(rejected, 1, "Rejected events should be 1")
     }
     
     func testTransitionLog() async {

@@ -31,6 +31,19 @@ public actor StateMachine<Event: Hashable, State: Hashable> {
     /// entry.
     public private(set) var transitionLog: RestrictedLog<Transition<Event, State>>
     
+    /// Number of events processed. Includes events that
+    /// did not lead to a state change for the state machine.
+    public private(set) var processedEventsCount: Int = 0
+    
+    /// Counter for the number of state changes for this state machine.
+    public private(set) var stateChangeCount: Int = 0
+    
+    /// Counter for the number of events processed that did
+    /// not lead to a state change.
+    public var rejectedEventsCount: Int {
+        return processedEventsCount - stateChangeCount
+    }
+    
     /// Creates a new state machine.
     /// This fails if the provided set of transitions does not define
     /// a consistent state machine. There can not be a state where the
@@ -74,6 +87,14 @@ public actor StateMachine<Event: Hashable, State: Hashable> {
     internal func commitTransition(_ transition: Transition<Event, State>) {
         self.state = transition.to
         transitionLog.push(transition)
+        stateChangeCount += 1
+    }
+    
+    /// Increase the counter for the number of processed events
+    /// by the state machine. This includes events process that
+    /// did not lead to a state change.
+    internal func increaseProcessedEventCount() {
+        processedEventsCount += 1
     }
     
     /// Create a state machine with an initial state and defined by transitions.
