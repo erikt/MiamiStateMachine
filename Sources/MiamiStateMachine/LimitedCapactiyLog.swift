@@ -7,7 +7,7 @@ import DequeModule
 ///
 /// The log is implemented with the Apple Swift Collection
 /// deque and should be performant.
-public struct RestrictedLog<Element: Hashable> {
+public struct LimitedCapactiyLog<Element: Hashable> {
     private var log: Deque<Element> = []
     private var capacity: UInt?
     

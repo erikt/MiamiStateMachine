@@ -29,7 +29,7 @@ public actor StateMachine<Event: Hashable, State: Hashable> {
     /// transitions it keeps track of. When the max capacity
     /// has been reached, it throws away the oldest log
     /// entry.
-    public private(set) var transitionLog: RestrictedLog<Transition<Event, State>>
+    public private(set) var transitionLog: LimitedCapactiyLog<Transition<Event, State>>
     
     /// Number of events processed. Includes events that
     /// did not lead to a state change for the state machine.
@@ -76,7 +76,7 @@ public actor StateMachine<Event: Hashable, State: Hashable> {
             }
         }
 
-        self.transitionLog = RestrictedLog(capacity: logCapacity)
+        self.transitionLog = LimitedCapactiyLog(capacity: logCapacity)
         self.state = initialState
         self.transitions = transitions
     }

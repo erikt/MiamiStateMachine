@@ -1,9 +1,13 @@
-.DS_Store
-/.build
-/Packages
-/*.xcodeproj
+# Mac OS X
+*.DS_Store
+
+# Xcode
+*.pbxuser
+*.mode1v3
+*.mode2v3
+*.perspectivev3
+*.xcuserstate
+project.xcworkspace/
 xcuserdata/
-DerivedData/
-.swiftpm/config/registries.json
-.swiftpm/xcode/package.xcworkspace/contents.xcworkspacedata
-.netrc
+.build/
+Package.resolved
