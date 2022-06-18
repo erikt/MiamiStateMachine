@@ -51,10 +51,11 @@ public actor StateMachine<Event: Hashable, State: Hashable> {
     /// - Parameters:
     ///   - initialState: Initial state.
     ///   - transitions: All defined transitions.
-    ///   - logCapacity: Max number of log entries kept track of.
+    ///   - logCapacity: Max capacity of transition log. Set to nil for unlimited
+    ///   number of entries in the transition log.
     public init?(initialState: State,
                  transitions: Set<Transition<Event,State>>,
-                 logCapacity: Int = 100)
+                 logCapacity: UInt? = 100)
     {
         // Check if transitions define a consistent
         // state machine. All pairs of from-state and

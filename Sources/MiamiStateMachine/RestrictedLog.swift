@@ -9,7 +9,7 @@ import DequeModule
 /// deque and should be performant.
 public struct RestrictedLog<Element: Hashable> {
     private var log: Deque<Element> = []
-    private var capacity: Int
+    private var capacity: UInt?
     
     /// Peek at the latest element in the log.
     public var peek: Element? {
@@ -31,20 +31,30 @@ public struct RestrictedLog<Element: Hashable> {
         return log.count
     }
     
-    /// Create a log with a max capacity.
+    /// Create a log with a max capacity. If the max capacity is not
+    /// set, the log memory is treated as unlimited.
     /// - Parameter capacity: The max capacity.
-    public init(capacity: Int) {
+    public init(capacity: UInt? = nil) {
         self.capacity = capacity
     }
     
     /// Push a new element to the log.
     /// - Parameter element: Element to be pushed on the log.
     public mutating func push(_ element: Element) {
-        if count < capacity {
-            log.append(element)
+        if let capacity = capacity {
+            // There is a max capacity set.
+            if count < capacity {
+                // Max capacity not reached, just append to log.
+                log.append(element)
+            } else {
+                // Max capacity reached. Remove oldest log entry,
+                // then append the new log entry.
+                log.append(element)
+                log.removeFirst()
+            }
         } else {
+            // No max capacity set. Treat log as unlimited.
             log.append(element)
-            log.removeFirst()
         }
     }
     
