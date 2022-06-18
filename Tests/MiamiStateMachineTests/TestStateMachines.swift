@@ -1,7 +1,7 @@
 import Foundation
 @testable import MiamiStateMachine
 
-struct MySMValue: StateMachineDelegate {
+struct MyStateMachine: StateMachineDelegate {
     enum MyState {
         case s1, s2, s3, end
     }
@@ -21,7 +21,7 @@ struct MySMValue: StateMachineDelegate {
 }
 
 /// A demo state machine with an inconsistent state machine definition.
-struct MyBrokenSMValue: StateMachineDelegate {
+struct MyBrokenStateMachine: StateMachineDelegate {
     enum MyState {
         case s1, s2, s3
     }
@@ -40,7 +40,7 @@ struct MyBrokenSMValue: StateMachineDelegate {
     let stateMachine: StateMachine<MyEvent, MyState>
     
     init?() {
-        if let sm = StateMachine(initialState: .s1, transitions: MyBrokenSMValue.illegalTransitions) {
+        if let sm = StateMachine(initialState: .s1, transitions: MyBrokenStateMachine.illegalTransitions) {
             self.stateMachine = sm
         } else {
             return nil
@@ -49,7 +49,7 @@ struct MyBrokenSMValue: StateMachineDelegate {
 }
 
 /// A demo state machine with the same states and events as the documentation.
- struct MyDemoSMValue: StateMachineDelegate {
+ struct MyDemoStateMachine: StateMachineDelegate {
     
     typealias MyTransition = Transition<MyEvent, MyState>
     
@@ -58,23 +58,20 @@ struct MyBrokenSMValue: StateMachineDelegate {
     }
     
     enum MyEvent {
-        case e1, e2, e3
+        case e1, e2, e3, e4
     }
     
     static let transitions: Set<MyTransition> = [
         Transition(from: .s1, event: .e1, to: .s2),
         Transition(from: .s2, event: .e2, to: .s3),
-        Transition(from: .s1, event: .e3, to: .s3)
+        Transition(from: .s1, event: .e3, to: .s3),
+        Transition(from: .s1, event: .e4, to: .s1)
     ]
     
     let stateMachine: StateMachine<MyEvent, MyState>
     
     init() {
-        if let sm = StateMachine(initialState: .s1, transitions: MyDemoSMValue.transitions) {
-            self.stateMachine = sm
-        } else {
-            self.stateMachine = StateMachine(initialState: .s1, transitions: Set<MyTransition>())!
-        }
+        self.stateMachine = StateMachine(initialState: .s1, transitions: MyDemoStateMachine.transitions, logCapacity: 5)!
     }
 }
 

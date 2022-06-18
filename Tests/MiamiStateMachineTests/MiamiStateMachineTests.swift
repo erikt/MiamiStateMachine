@@ -3,7 +3,7 @@ import XCTest
 
 final class MiamiStateMachineTests: XCTestCase {
     func testStartState() async {
-        let m = MySMValue()
+        let m = MyStateMachine()
         let atEnd = await m.atEndingState
         let toEnd = await m.canTransition(to: .end)
         let toS2 = await m.canTransition(to: .s2)
@@ -20,7 +20,7 @@ final class MiamiStateMachineTests: XCTestCase {
     }
     
     func testProcessEvent() async {
-        let m = MySMValue()
+        let m = MyStateMachine()
         let st1 = await m.state
         XCTAssertEqual(st1, .s1, "State machine should start at s1.")
         await m.process(.s3ToEnd)
@@ -38,7 +38,7 @@ final class MiamiStateMachineTests: XCTestCase {
     }
     
     func testTransitionLog() async {
-        let m = MySMValue()
+        let m = MyStateMachine()
         await m.process(.s1ToS2)
         await m.process(.s2ToS3)
         await m.process(.s3ToEnd)
@@ -63,8 +63,50 @@ final class MiamiStateMachineTests: XCTestCase {
     }
     
     func testIllegalStateMachine() async {
-        let illegalM = MyBrokenSMValue()
+        let illegalM = MyBrokenStateMachine()
         let broken = (illegalM == nil)
         XCTAssertTrue(broken, "Should not be possible to create an inconsistent state machine.")
+    }
+    
+    func testTransitionLogCapacity() async {
+        let m = MyDemoStateMachine()
+        
+        await m.process(.e4)
+        var log = await m.stateMachine.transitionLog
+        let expectedT1 = Transition(from: MyDemoStateMachine.MyState.s1,
+                                   event: MyDemoStateMachine.MyEvent.e4,
+                                   to: MyDemoStateMachine.MyState.s1)
+        XCTAssertEqual(log.peek, log.peekOldest, "Last log entry and oldest log entry should be the same")
+        XCTAssertEqual(log.count, 1, "Number of log entries should be 1")
+        XCTAssertEqual(log.peek, expectedT1, "Last log entry should be from s1")
+        
+        await m.process(.e4)
+        log = await m.stateMachine.transitionLog
+        XCTAssertEqual(log.count, 2, "There should be 2 log entries")
+        
+        await m.process(.e4)
+        log = await m.stateMachine.transitionLog
+        XCTAssertEqual(log.count, 3, "There should be 3 log entries")
+
+        await m.process(.e4)
+        log = await m.stateMachine.transitionLog
+        XCTAssertEqual(log.count, 4, "There should be 4 log entries")
+
+        await m.process(.e1)
+        log = await m.stateMachine.transitionLog
+        XCTAssertEqual(log.count, 5, "There should be 5 log entries")
+
+        await m.process(.e2)
+        log = await m.stateMachine.transitionLog
+        XCTAssertEqual(log.count, 5, "There should be 5 log entries, not \(log.count)")
+
+        let expOld = Transition(from: MyDemoStateMachine.MyState.s1,
+                                event: MyDemoStateMachine.MyEvent.e4,
+                                to: MyDemoStateMachine.MyState.s1)
+        let expLast = Transition(from: MyDemoStateMachine.MyState.s2,
+                                event: MyDemoStateMachine.MyEvent.e2,
+                                to: MyDemoStateMachine.MyState.s3)
+        XCTAssertEqual(log.peekOldest, expOld, "Oldest entry is not expected")
+        XCTAssertEqual(log.peek, expLast, "Last entry is not expected")        
     }
 }

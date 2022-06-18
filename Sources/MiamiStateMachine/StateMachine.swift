@@ -24,10 +24,12 @@ public actor StateMachine<Event: Hashable, State: Hashable> {
         return transitionLog.peek
     }
     
-    /// A stack keeping track of all processed transitions
-    /// of the state machine. At some later date, this stack
-    /// should be limited at some resonable capacity ... 
-    public private(set) var transitionLog: Stack<Transition<Event, State>> = Stack()
+    /// A log keeping track of all processed transitions
+    /// of the state machine. The log has a max capacity of
+    /// transitions it keeps track of. When the max capacity
+    /// has been reached, it throws away the oldest log
+    /// entry.
+    public private(set) var transitionLog: RestrictedLog<Transition<Event, State>>
     
     /// Creates a new state machine.
     /// This fails if the provided set of transitions does not define
@@ -36,7 +38,11 @@ public actor StateMachine<Event: Hashable, State: Hashable> {
     /// - Parameters:
     ///   - initialState: Initial state.
     ///   - transitions: All defined transitions.
-    public init?(initialState: State, transitions: Set<Transition<Event,State>>) {
+    ///   - logCapacity: Max number of log entries kept track of.
+    public init?(initialState: State,
+                 transitions: Set<Transition<Event,State>>,
+                 logCapacity: Int = 100)
+    {
         // Check if transitions define a consistent
         // state machine. All pairs of from-state and
         // events, must be unique. Otherwise there is
@@ -56,6 +62,7 @@ public actor StateMachine<Event: Hashable, State: Hashable> {
             }
         }
 
+        self.transitionLog = RestrictedLog(capacity: logCapacity)
         self.state = initialState
         self.transitions = transitions
     }
