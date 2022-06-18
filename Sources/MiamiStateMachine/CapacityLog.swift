@@ -7,7 +7,7 @@ import DequeModule
 ///
 /// The log is implemented with the Apple Swift Collection
 /// deque and should be performant.
-public struct LimitedCapactiyLog<Element: Hashable> {
+public struct CapacityLog<Element: Hashable> {
     private var log: Deque<Element> = []
     private var capacity: UInt?
     
@@ -38,9 +38,10 @@ public struct LimitedCapactiyLog<Element: Hashable> {
         self.capacity = capacity
     }
     
-    /// Push a new element to the log.
-    /// - Parameter element: Element to be pushed on the log.
-    public mutating func push(_ element: Element) {
+    /// Append (push) a new element to the log. If max capacity of the log
+    /// has been reached, the oldest element in the log will be removed.
+    /// - Parameter element: Element to be appended to the log.
+    public mutating func append(_ element: Element) {
         if let capacity = capacity {
             // There is a max capacity set.
             if count < capacity {
@@ -71,13 +72,13 @@ public struct LimitedCapactiyLog<Element: Hashable> {
     }
 }
 
-extension LimitedCapactiyLog: CustomStringConvertible {
+extension CapacityLog: CustomStringConvertible {
     public var description: String {
         return log.description
     }
 }
 
-extension LimitedCapactiyLog: CustomDebugStringConvertible {
+extension CapacityLog: CustomDebugStringConvertible {
     public var debugDescription: String {
         return log.map { "\($0)" }.joined(separator: "\n")
     }
