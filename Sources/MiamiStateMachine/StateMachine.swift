@@ -102,13 +102,21 @@ public actor StateMachine<Event: Hashable, State: Hashable> {
     /// - Parameters:
     ///   - initialState: State machine initial state.
     ///   - transitions: All defined transitions.
+    ///   - logCapacity: Max capacity of transition log. Set to nil for unlimited
     /// - Returns: A state machine
-    public static func create(initialState: State, transitions: Set<Transition<Event, State>>) throws -> StateMachine<Event, State> {
-        if let sm = StateMachine(initialState: initialState, transitions: transitions) {
-            return sm
-        } else {
+    public static func create(initialState: State,
+                              transitions: Set<Transition<Event, State>>,
+                              logCapacity: UInt? = 100)
+    throws -> StateMachine<Event, State>
+    {
+        guard let sm = StateMachine(initialState: initialState,
+                                    transitions: transitions,
+                                    logCapacity: logCapacity)
+        else {
             throw StateMachineDefinitionError.sameStateMultipleEvents
         }
+        
+        return sm
     }
 }
 
