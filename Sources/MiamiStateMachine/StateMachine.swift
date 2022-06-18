@@ -55,7 +55,7 @@ public actor StateMachine<Event: Hashable, State: Hashable> {
     ///   number of entries in the transition log.
     public init?(initialState: State,
                  transitions: Set<Transition<Event,State>>,
-                 logCapacity: UInt? = 100)
+                 logCapacity: UInt? = nil)
     {
         // Check if transitions define a consistent
         // state machine. All pairs of from-state and
@@ -85,7 +85,7 @@ public actor StateMachine<Event: Hashable, State: Hashable> {
     /// in the transition and keep track of processed and accepted
     /// transitions in a stack.
     /// - Parameter transition: State machine accepted transition.
-    internal func commitTransition(_ transition: Transition<Event, State>) {
+    internal func commit(_ transition: Transition<Event, State>) {
         self.state = transition.to
         transitionLog.push(transition)
         stateChangeCount += 1
@@ -94,7 +94,7 @@ public actor StateMachine<Event: Hashable, State: Hashable> {
     /// Increase the counter for the number of processed events
     /// by the state machine. This includes events process that
     /// did not lead to a state change.
-    internal func increaseProcessedEventCount() {
+    internal func incProcessedEventCount() {
         processedEventsCount += 1
     }
     
@@ -106,8 +106,7 @@ public actor StateMachine<Event: Hashable, State: Hashable> {
     /// - Returns: A state machine
     public static func create(initialState: State,
                               transitions: Set<Transition<Event, State>>,
-                              logCapacity: UInt? = 100)
-    throws -> StateMachine<Event, State>
+                              logCapacity: UInt? = nil) throws -> StateMachine<Event, State>
     {
         guard let sm = StateMachine(initialState: initialState,
                                     transitions: transitions,

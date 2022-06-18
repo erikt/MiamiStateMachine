@@ -70,3 +70,15 @@ public struct LimitedCapactiyLog<Element: Hashable> {
         return log.popFirst()
     }
 }
+
+extension LimitedCapactiyLog: CustomStringConvertible {
+    public var description: String {
+        return log.description
+    }
+}
+
+extension LimitedCapactiyLog: CustomDebugStringConvertible {
+    public var debugDescription: String {
+        return log.map { "\($0)" }.joined(separator: "\n")
+    }
+}

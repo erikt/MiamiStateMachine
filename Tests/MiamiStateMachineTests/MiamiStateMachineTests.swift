@@ -94,19 +94,19 @@ final class MiamiStateMachineTests: XCTestCase {
         
         await m.process(.e4)
         log = await m.stateMachine.transitionLog
-        XCTAssertEqual(log.count, 2, "There should be 2 log entries")
+        XCTAssertEqual(log.count, 2, "There should be 2 log entries, not \(log.count)")
         
         await m.process(.e4)
         log = await m.stateMachine.transitionLog
-        XCTAssertEqual(log.count, 3, "There should be 3 log entries")
+        XCTAssertEqual(log.count, 3, "There should be 3 log entries, not \(log.count)")
 
         await m.process(.e4)
         log = await m.stateMachine.transitionLog
-        XCTAssertEqual(log.count, 4, "There should be 4 log entries")
+        XCTAssertEqual(log.count, 4, "There should be 4 log entries, not \(log.count)")
 
         await m.process(.e1)
         log = await m.stateMachine.transitionLog
-        XCTAssertEqual(log.count, 5, "There should be 5 log entries")
+        XCTAssertEqual(log.count, 5, "There should be 5 log entries, not \(log.count)")
 
         await m.process(.e2)
         log = await m.stateMachine.transitionLog
@@ -119,6 +119,6 @@ final class MiamiStateMachineTests: XCTestCase {
                                 event: MyDemoStateMachine.MyEvent.e2,
                                 to: MyDemoStateMachine.MyState.s3)
         XCTAssertEqual(log.peekOldest, expOld, "Oldest entry is not expected")
-        XCTAssertEqual(log.peek, expLast, "Last entry is not expected")        
+        XCTAssertEqual(log.peek, expLast, "Last entry is not expected")
     }
 }

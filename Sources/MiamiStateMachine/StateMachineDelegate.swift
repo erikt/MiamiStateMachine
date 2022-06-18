@@ -146,10 +146,10 @@ extension StateMachineDelegate {
     
     public func process(_ event: Event, callbackOn queue: DispatchQueue? = .main) async {
         
-        await stateMachine.increaseProcessedEventCount()
+        await stateMachine.incProcessedEventCount()
         
         if let t = await transition(from: stateMachine.state, for: event) {
-            await stateMachine.commitTransition(t)
+            await stateMachine.commit(t)
             if let queue = queue {
                 queue.async {
                     didChangeState(with: t)
