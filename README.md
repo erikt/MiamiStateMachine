@@ -20,13 +20,13 @@ the framework.
 
 ## Concepts
 
-A `StateMachine` has a `state: State` (the current state). The `State` is an associated type
+A `StateMachine` has a `state: State` (the current state). The `State` is a type
 conforming to `Hashable`. An `enum` defining the possible states works well. 
 
 The transitions between states are defined by `Transition`, a value with the `from: State`, the
 `event: Event` needed to do the transition and the `to: State` where the state machine ends up.
 
-The `Event` is also an associated type conforming to `Hashable`, usually an enum.
+The `Event` is also a type conforming to `Hashable`, usually an enum.
 
 To make the state machine process an event, the `process(:)` is used. If a transition is 
 defined for the event from the current state, the state machine's current state will change.
