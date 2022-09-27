@@ -41,32 +41,17 @@ func didNotChangeState(from: State, for: Event)
 
 ## Usage
 
-To use the state machine, make your type conform to the `StateMachineDelegate` protocol.
+TODO: Rewrite usage documentation after the major rewrite of the state machine code.
+
+~~To use the state machine, make your type conform to the `StateMachineDelegate` protocol.
 Define the state and event type (an enum works well for example), define the 
 transitions in the state machine and lastly, set the `stateMachine` property with
-the initial state and the transitions.
+the initial state and the transitions.~~
 
 ![State Machine Example](images/state-machine-example.png)
 
-```
-import MiamiStateMachine 
-   
-struct MyStateMachine: StateMachineDelegate {
-    enum MyState { case s1, s2, s3 }    
-    enum MyEvent { case e1, e2, e3 }
-    
-    static let transitions: Set<Transition<MyEvent, MyState>> = [
-        Transition(from: .s1, event: .e1, to: .s2),
-        Transition(from: .s1, event: .e2, to: .s3),
-        Transition(from: .s2, event: .e3, to: .s3),
-    ]
-
-    let stateMachine: StateMachine<MyEvent, MyState> = StateMachine(initialState: .s1, transitions: transitions)!
-}
-```
-
-To handle possible side-effects related to state changes or when an event does not lead 
-to a state change, implement:
+~~To handle possible side-effects related to state changes or when an event does not lead 
+to a state change, implement:~~
 
 ```
 extension MyStateMachine {
@@ -85,7 +70,7 @@ extension MyStateMachine {
 }
 ``` 
 
-To use this state machine (in an async context):
+~~To use this state machine (in an async context):~~
 
 ```
 var m = MyStateMachine()
@@ -117,11 +102,11 @@ Just be happy I didn't name it `RageAgainstTheStateMachine`.
 
 ## Improvements
 
-Speaking of naming, I do not like the protocol name `StateMachineDelegate`. It is not a delegate
+~~Speaking of naming, I do not like the protocol name `StateMachineDelegate`. It is not a delegate
 in the traditional Cocoa sense of the word. It is actually a state machine trait and should be 
 named *StateMachine*, but the actor protecting the current state and state machine definition
 is `StateMachine`. I have been going back and forth regarding these names and they could 
-definitely be improved.
+definitely be improved.~~
 
 Suggestions and or PRs welcome, but remember: *kindness before code*. 
 
