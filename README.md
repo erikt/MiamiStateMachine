@@ -83,24 +83,23 @@ an asynchronous context:
 
 ```
 Task {
-
-    // Initial state is s1
+  // Initial state is s1
     
-    await stateMachine?.process(.e1)
+  await stateMachine?.process(.e1)
 
-    // State is s2
+  // State is s2
     
-    await stateMachine?.process(.e2)
+  await stateMachine?.process(.e2)
 
-    // State is s3
+  // State is s3
 
-    await stateMachine?.process(.e3)
+  await stateMachine?.process(.e3)
     
-    // State is still s3. Event e3 had no effect.
+  // State is still s3. Event e3 had no effect.
 
-    await stateMachine?.atEndingState
+  await stateMachine?.atEndingState
     
-    // True as s3 state has no transitions defined for any event.
+  // True as s3 state has no transitions defined for any event.
 }
 ```
 
@@ -110,26 +109,25 @@ the `StateMachine` actor.
 
 ```
 class A: StateMachineDelegate {
-    var sm: StateMachine<MyEvent, MyState>!
+  var sm: StateMachine<MyEvent, MyState>!
     
-    init() {
-        self.sm = StateMachine(transitions: transitions, initialState: .s1, delegate: self)!
-    }
+  init() {
+    self.sm = StateMachine(transitions: transitions, initialState: .s1, delegate: self)!
+  }
     
-    func didChangeState<MyEvent, MyState>(with transition: Transition<MyEvent, MyState>) {
-      case (from: .s1, to: .s2):
-         print("Did change state from s1 to s2 by event \(transition.event).")
-      default:
-         break
-      }
+  func didChangeState<MyEvent, MyState>(with transition: Transition<MyEvent, MyState>) {
+    switch (from: transition.from, to: transition.to) {
+    case (from: .s1, to: .s2):
+      print("Did change state from s1 to s2 by event \(transition.event).")
+    default:
+      break
     }
+  }
     
-    func didNotChangeState<MyEvent, MyState>(from state: MyState, for event: MyEvent) {
-      print("Warning: \(event) did not change state from state \(state).")
-    }
+  func didNotChangeState<MyEvent, MyState>(from state: MyState, for event: MyEvent) {
+    print("Warning: \(event) did not change state from state \(state).")
+  }
 }
-
-
 ```
 
 ## What's with the name?
@@ -139,10 +137,7 @@ Just be happy I didn't name it `RageAgainstTheStateMachine`.
 
 ## Improvements
 
-This project is used Best Before the Day After ...
-
-Just kidding. Suggestions and or PRs are more than welcome, but 
-remember: *kindness before code*. 
+Suggestions and or PRs are more than welcome, but remember: *kindness before code*. 
 
 ## Author
 Copyright &copy; 2022 Erik Tjernlund <erik@tjernlund.net>
