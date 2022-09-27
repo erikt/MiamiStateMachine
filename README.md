@@ -31,8 +31,8 @@ The `Event` is also an associated type conforming to `Hashable`, usually an enum
 To make the state machine process an event, the `process(:)` is used. If a transition is 
 defined for the event from the current state, the state machine's current state will change.
 
-Side-effects when transitioning between states, can be handled by implementing either the
-`didChangeState` or the `didNotChangeState` method.
+Side-effects when transitioning between states, can be handled by creating a `StateMachineDelegate`
+implementing the `didChangeState` or the `didNotChangeState` methods.
 
 ```
 func didChangeState(with: Transition<Event, State>)
