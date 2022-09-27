@@ -49,7 +49,7 @@ enum MyState {
 }
 
 enum MyEvent {
-    case e1, e2, e3, e4
+    case e1, e2, e3
 }
 ```
 
@@ -62,7 +62,6 @@ let transitions: Set<MyTransition> = [
     Transition(from: .s1, event: .e1, to: .s2),
     Transition(from: .s2, event: .e2, to: .s3),
     Transition(from: .s1, event: .e3, to: .s3),
-    Transition(from: .s1, event: .e4, to: .s1)
 ]
 ```
 
