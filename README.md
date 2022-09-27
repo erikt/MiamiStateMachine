@@ -41,58 +41,96 @@ func didNotChangeState(from: State, for: Event)
 
 ## Usage
 
-TODO: Rewrite usage documentation after the major rewrite of the state machine code.
+Start by defining the possible states and events. Enumerations works well for this:
 
-~~To use the state machine, make your type conform to the `StateMachineDelegate` protocol.
-Define the state and event type (an enum works well for example), define the 
-transitions in the state machine and lastly, set the `stateMachine` property with
-the initial state and the transitions.~~
+```
+enum MyState {
+    case s1, s2, s3
+}
+
+enum MyEvent {
+    case e1, e2, e3, e4
+}
+```
+
+The state machine is defined by the transitions it can do:
+
+```
+typealias MyTransition = Transition<MyEvent, MyState>
+
+let transitions: Set<MyTransition> = [
+    Transition(from: .s1, event: .e1, to: .s2),
+    Transition(from: .s2, event: .e2, to: .s3),
+    Transition(from: .s1, event: .e3, to: .s3),
+    Transition(from: .s1, event: .e4, to: .s1)
+]
+```
+
+The state machine can now be created with the transitions:
+
+```
+let stateMachine = StateMachine(transitions: transitions, initialState: .s1)
+```
 
 ![State Machine Example](images/state-machine-example.png)
 
-~~To handle possible side-effects related to state changes or when an event does not lead 
-to a state change, implement:~~
+The state machine is now an `StateMachine<MyEvent, MyState>?` optional due to 
+the failable initializer. Creation of the state machine will fail if the transitions
+define an inconsistent state machine. A consistent state machine is one where an event
+at a state always leads to the same transition.
+
+Now the state machine can process events. Processing events needs to be done in
+an asynchronous context:
 
 ```
-extension MyStateMachine {
-   func didChangeState(with transition: Transition<MyEvent, MyState>) {
-      switch (from: transition.from, to: transition.to) {
+Task {
+
+    // Initial state is s1
+    
+    await stateMachine?.process(.e1)
+
+    // State is s2
+    
+    await stateMachine?.process(.e2)
+
+    // State is s3
+
+    await stateMachine?.process(.e3)
+    
+    // State is still s3. Event e3 had no effect.
+
+    await stateMachine?.atEndingState
+    
+    // True as s3 state has no transitions defined for any event.
+}
+```
+
+To handle possible side-effects related to state changes or when an event does not
+lead to a state change, a `StateMachineDelegate` needs to be defined when creating
+the `StateMachine` actor.
+
+```
+class A: StateMachineDelegate {
+    var sm: StateMachine<MyEvent, MyState>!
+    
+    init() {
+        self.sm = StateMachine(transitions: transitions, initialState: .s1, delegate: self)!
+    }
+    
+    func didChangeState<MyEvent, MyState>(with transition: Transition<MyEvent, MyState>) {
       case (from: .s1, to: .s2):
          print("Did change state from s1 to s2 by event \(transition.event).")
       default:
          break
       }
-   }
+    }
     
-   func didNotChangeState(from state: MyState, for event: MyEvent) {
+    func didNotChangeState<MyEvent, MyState>(from state: MyState, for event: MyEvent) {
       print("Warning: \(event) did not change state from state \(state).")
-   }
+    }
 }
-``` 
 
-~~To use this state machine (in an async context):~~
 
-```
-var m = MyStateMachine()
-
-// SM is in s1
-
-await m.process(.e1)
-
-// SM is in s2
-
-await m.process(.e2)
-
-// SM is in s3
-
-await m.process(.e3)
-
-// SM is still in s3. Event e3 had no effect.
-
-await m.atEndingState
-
-// true
-// The s3 state has no transitions defined for any event.
 ```
 
 ## What's with the name?
@@ -102,13 +140,10 @@ Just be happy I didn't name it `RageAgainstTheStateMachine`.
 
 ## Improvements
 
-~~Speaking of naming, I do not like the protocol name `StateMachineDelegate`. It is not a delegate
-in the traditional Cocoa sense of the word. It is actually a state machine trait and should be 
-named *StateMachine*, but the actor protecting the current state and state machine definition
-is `StateMachine`. I have been going back and forth regarding these names and they could 
-definitely be improved.~~
+This project is used Best Before the Day After ...
 
-Suggestions and or PRs welcome, but remember: *kindness before code*. 
+Just kidding. Suggestions and or PRs are more than welcome, but 
+remember: *kindness before code*. 
 
 ## Author
 Copyright &copy; 2022 Erik Tjernlund <erik@tjernlund.net>
