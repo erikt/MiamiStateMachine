@@ -134,7 +134,7 @@ final class MiamiStateMachineTests: XCTestCase {
         q.sync { }
 
         XCTAssertEqual(a.stateChangeCounter, 6, "State did change delegate method should've been called 6 times, not \(a.stateChangeCounter)")
-        XCTAssertEqual(a.stateDidNotChangeCounter, 1, "State did not change delegate method should've been called 0 times, not \(a.stateDidNotChangeCounter)")
+        XCTAssertEqual(a.stateDidNotChangeCounter, 1, "State did not change delegate method should've been called 1 time, not \(a.stateDidNotChangeCounter)")
     }
 }
 
