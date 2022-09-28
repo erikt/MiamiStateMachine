@@ -7,8 +7,8 @@ final class MiamiStateMachineTests: XCTestCase {
         let atEnd = await sm1.atEndingState
         let toEnd = await sm1.canTransition(to: .end)
         let toS2 = await sm1.canTransition(to: .s2)
-        let numToS2 = await sm1.transitions(to: .s2).count
-        let numToEnd = await sm1.transitions(to: .end).count
+        let numToS2 = await sm1.transitionsFromCurrent(to: .s2).count
+        let numToEnd = await sm1.transitionsFromCurrent(to: .end).count
         let numTransitions = sm1.numOfTransitions
         
         XCTAssertEqual(atEnd, false, "State machine should not have reached an end state.")

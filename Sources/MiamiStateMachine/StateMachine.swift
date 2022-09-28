@@ -74,13 +74,23 @@ public actor StateMachine<Event: Hashable & Sendable, State: Hashable & Sendable
     
     /// All possible events (leading to a state change) from
     /// the current state.
-    public var currentEvents: Set<Event> {
-        return events(for: state)
+    public var eventsFromCurrent: Set<Event> {
+        return events(from: state)
     }
     
-    /// All possible transitions from the current state.
-    public var currentTransitions: Set<Transition<Event, State>> {
+    /// All events leading (incoming) to the current state.
+    public var eventsToCurrent: Set<Event> {
+        return events(to: state)
+    }
+    
+    /// All possible outgoing transitions from the current state.
+    public var transitionsFromCurrent: Set<Transition<Event, State>> {
         return transitions(from: state)
+    }
+    
+    /// All possible incoming transition leading to the current state.
+    public var transitionsToCurrent: Set<Transition<Event, State>> {
+        return transitions(to: state)
     }
 
     // MARK: - Initialization
@@ -177,14 +187,21 @@ public actor StateMachine<Event: Hashable & Sendable, State: Hashable & Sendable
     /// - Parameter newState: State to check if it's possible to transition to.
     /// - Returns: If transition is possible.
     public func canTransition(to newState: State) -> Bool {
-        return canTransition(from: state, to: newState)
+        return canTransition(from: self.state, to: newState)
     }
     
     /// All possible transitions from the current state, to another state.
     /// - Parameter newState: State to go to from the current state.
-    /// - Returns: All possible transitions.
-    public func transitions(to newState: State) -> Set<Transition<Event, State>> {
-        return transitions(from: state, to: newState)
+    /// - Returns: All possible transitions from the current state to another state.
+    public func transitionsFromCurrent(to newState: State) -> Set<Transition<Event, State>> {
+        return transitions(from: self.state, to: newState)
+    }
+    
+    /// All possible transitions to the current state, from another state.
+    /// - Parameter oldState: From state
+    /// - Returns: All possible transitions from a state to the current state.
+    public func transitionsToCurrent(from oldState: State) -> Set<Transition<Event, State>> {
+        return transitions(from: oldState, to: self.state)
     }
 
     // MARK: - Private methods
@@ -204,9 +221,10 @@ public actor StateMachine<Event: Hashable & Sendable, State: Hashable & Sendable
 
 extension StateMachine {
     
-    // These are nonisolated methods and computed properties.
-    // All of them are only interacting with constant properties
-    // not in need of state isolation to be safe.
+    // These are nonisolated, mostly convenience methods and
+    // computed properties. All of them are only interacting
+    // with constant properties not in need of state isolation
+    // to be safe.
     
     /// Total number of transitions in the state machine.
     public nonisolated var numOfTransitions: Int {
@@ -231,6 +249,17 @@ extension StateMachine {
         return ts.first
     }
     
+    /// All transitions leading to a state for a specific event.
+    /// - Parameters:
+    ///   - state: To state.
+    ///   - event: Event.
+    /// - Returns: All transitions leading to state for an event.
+    public nonisolated func transitions(to state: State, for event: Event) -> Set<Transition<Event, State>> {
+        return transitions.filter {
+            $0.to == state && $0.event == event
+        }
+    }
+    
     /// All possible transitions from a state to another state.
     /// - Parameters:
     ///   - state: Starting state.
@@ -250,13 +279,32 @@ extension StateMachine {
             $0.from == state
         }
     }
+    
+    public nonisolated func transitions(to state: State) -> Set<Transition<Event, State>> {
+        return transitions.filter {
+            $0.to == state
+        }
+    }
 
     /// All defined and available events handled at a state.
     /// - Parameter state: State.
-    /// - Returns: All defined events.
-    public nonisolated func events(for state: State) -> Set<Event> {
+    /// - Returns: All events going out from this state.
+    public nonisolated func events(from state: State) -> Set<Event> {
         return Set<Event>(transitions.filter {
             $0.from == state
+        }.map {
+            $0.event
+        })
+    }
+    
+    /// All defined and available events leading to a state.
+    /// Please note, the same event could be handled at different
+    /// states, all leading to the same state.
+    /// - Parameter state: State.
+    /// - Returns: All events leading to this state.
+    public nonisolated func events(to state: State) -> Set<Event> {
+        return Set<Event>(transitions.filter {
+            $0.to == state
         }.map {
             $0.event
         })
