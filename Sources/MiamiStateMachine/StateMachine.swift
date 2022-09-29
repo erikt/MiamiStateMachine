@@ -4,10 +4,6 @@ import Foundation
 /// a set of transitions defining the machine. The `Transition`
 /// connects two states by an event.
 ///
-/// The state machine is used together with the `StateMachineDelegate`
-/// protocol. The delegate is called when the state has changed
-/// or when a processed event did not lead to a state change.
-///
 /// The state machine actor protects the current state from outside
 /// modification. The state only changes by processing events.
 ///
@@ -21,7 +17,7 @@ public actor StateMachine<Event: Hashable & Sendable, State: Hashable & Sendable
     private let transitions: Set<Transition<Event, State>>
 
     /// State machine delegate.
-    private unowned let delegate: StateMachineDelegate?
+//    private unowned let delegate: StateMachineDelegate?
 
     // MARK: - Public isolated properties
     
@@ -111,7 +107,7 @@ public actor StateMachine<Event: Hashable & Sendable, State: Hashable & Sendable
     ///   number of entries in the transition log.
     public init?(transitions: Set<Transition<Event, State>>,
                  initialState: State,
-                 delegate: StateMachineDelegate? = nil,
+//                 delegate: StateMachineDelegate? = nil,
                  logCapacity: UInt? = nil)
     {
         // Check if transitions define a consistent
@@ -137,7 +133,7 @@ public actor StateMachine<Event: Hashable & Sendable, State: Hashable & Sendable
         self.transitionLog = CapacityLog(capacity: logCapacity)
         self.initialState = initialState
         self.state = initialState
-        self.delegate = delegate
+//        self.delegate = delegate
     }
     
     // MARK: - API methods
@@ -159,8 +155,9 @@ public actor StateMachine<Event: Hashable & Sendable, State: Hashable & Sendable
     /// - Parameters:
     ///   - event: Event to process.
     ///   - queue: Queue to call the state machine delegate on.
-    public func process(_ event: Event, callbackOn queue: DispatchQueue? = .main) {
-        
+//    public func process(_ event: Event, callbackOn queue: DispatchQueue? = .main) {
+    public func process(_ event: Event) {
+
         // Increase the counter for the number of processed events
         // by the state machine. This includes events process that
         // did not lead to a state change.
@@ -168,19 +165,20 @@ public actor StateMachine<Event: Hashable & Sendable, State: Hashable & Sendable
         
         if let t = transition(from: state, for: event) {
             commit(t)
-            if let delegate, let queue {
-                queue.async {
-                    delegate.didChangeState(with: t)
-                }
-            }
-        } else {
-            if let delegate, let queue {
-                let currentState = state
-                queue.async {
-                    delegate.didNotChangeState(from: currentState, for: event)
-                }
-            }
+//            if let delegate, let queue {
+//                queue.async {
+//                    delegate.didChangeState(with: t)
+//                }
+//            }
         }
+//        } else {
+//            if let delegate, let queue {
+//                let currentState = state
+//                queue.async {
+//                    delegate.didNotChangeState(from: currentState, for: event)
+//                }
+//            }
+//        }
     }
     
     /// If the state machine can transition to a state from the current state.

@@ -115,27 +115,27 @@ final class MiamiStateMachineTests: XCTestCase {
         XCTAssertEqual(log.peek, expLast, "Last entry is not expected")
     }
     
-    func testDelegate() async {
-        let a = A()
-        let q = DispatchQueue(label: "DelegateTests")
-        await a.sm.process(.e4, callbackOn: q)
-        await a.sm.process(.e4, callbackOn: q)
-        await a.sm.process(.e4, callbackOn: q)
-        await a.sm.process(.e4, callbackOn: q)
-        await a.sm.process(.e1, callbackOn: q)
-        await a.sm.process(.e2, callbackOn: q)
-        
-        q.sync { }
-        
-        XCTAssertEqual(a.stateChangeCounter, 6, "State did change delegate method should've been called 6 times, not \(a.stateChangeCounter)")
-        XCTAssertEqual(a.stateDidNotChangeCounter, 0, "State did not change delegate method should've been called 0 times, not \(a.stateDidNotChangeCounter)")
-        
-        await a.sm.process(.e1, callbackOn: q)
-        q.sync { }
-
-        XCTAssertEqual(a.stateChangeCounter, 6, "State did change delegate method should've been called 6 times, not \(a.stateChangeCounter)")
-        XCTAssertEqual(a.stateDidNotChangeCounter, 1, "State did not change delegate method should've been called 1 time, not \(a.stateDidNotChangeCounter)")
-    }
+//    func testDelegate() async {
+//        let a = A()
+//        let q = DispatchQueue(label: "DelegateTests")
+//        await a.sm.process(.e4, callbackOn: q)
+//        await a.sm.process(.e4, callbackOn: q)
+//        await a.sm.process(.e4, callbackOn: q)
+//        await a.sm.process(.e4, callbackOn: q)
+//        await a.sm.process(.e1, callbackOn: q)
+//        await a.sm.process(.e2, callbackOn: q)
+//        
+//        q.sync { }
+//        
+//        XCTAssertEqual(a.stateChangeCounter, 6, "State did change delegate method should've been called 6 times, not \(a.stateChangeCounter)")
+//        XCTAssertEqual(a.stateDidNotChangeCounter, 0, "State did not change delegate method should've been called 0 times, not \(a.stateDidNotChangeCounter)")
+//        
+//        await a.sm.process(.e1, callbackOn: q)
+//        q.sync { }
+//
+//        XCTAssertEqual(a.stateChangeCounter, 6, "State did change delegate method should've been called 6 times, not \(a.stateChangeCounter)")
+//        XCTAssertEqual(a.stateDidNotChangeCounter, 1, "State did not change delegate method should've been called 1 time, not \(a.stateDidNotChangeCounter)")
+//    }
 }
 
 // Global test state machine definitions for testing.
@@ -193,21 +193,21 @@ let transitions: Set<MyTransition> = [
 
 // --
 
-class A: StateMachineDelegate {
-    var sm: StateMachine<MyEvent, MyState>!
-    
-    var stateChangeCounter: Int = 0
-    var stateDidNotChangeCounter: Int = 0
-    
-    init() {
-        self.sm = StateMachine(transitions: transitions, initialState: .s1, delegate: self)!
-    }
-    
-    func didChangeState<MyEvent, MyState>(with transition: Transition<MyEvent, MyState>) {
-        stateChangeCounter += 1
-    }
-    
-    func didNotChangeState<MyEvent, MyState>(from state: MyState, for event: MyEvent) {
-        stateDidNotChangeCounter += 1
-    }
-}
+//class A: StateMachineDelegate {
+//    var sm: StateMachine<MyEvent, MyState>!
+//    
+//    var stateChangeCounter: Int = 0
+//    var stateDidNotChangeCounter: Int = 0
+//    
+//    init() {
+//        self.sm = StateMachine(transitions: transitions, initialState: .s1, delegate: self)!
+//    }
+//    
+//    func didChangeState<MyEvent, MyState>(with transition: Transition<MyEvent, MyState>) {
+//        stateChangeCounter += 1
+//    }
+//    
+//    func didNotChangeState<MyEvent, MyState>(from state: MyState, for event: MyEvent) {
+//        stateDidNotChangeCounter += 1
+//    }
+//}
