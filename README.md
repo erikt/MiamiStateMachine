@@ -31,14 +31,6 @@ The `Event` is also a type conforming to `Hashable`, usually an enum.
 To make the state machine process an event, the `process(:)` is used. If a transition is 
 defined for the event from the current state, the state machine's current state will change.
 
-Side-effects when transitioning between states, can be handled by creating a `StateMachineDelegate`
-implementing the `didChangeState` or the `didNotChangeState` methods.
-
-```
-func didChangeState(with: Transition<Event, State>)
-func didNotChangeState(from: State, for: Event)
-```
-
 ## Usage
 
 Start by defining the possible states and events. Enumerations works well for this:
@@ -100,33 +92,6 @@ Task {
   await stateMachine?.atEndingState
     
   // True as s3 state has no transitions defined for any event.
-}
-```
-
-To handle possible side-effects related to state changes or when an event does not
-lead to a state change, a `StateMachineDelegate` needs to be defined when creating
-the `StateMachine` actor.
-
-```
-class A: StateMachineDelegate {
-  var sm: StateMachine<MyEvent, MyState>!
-    
-  init() {
-    self.sm = StateMachine(transitions: transitions, initialState: .s1, delegate: self)!
-  }
-    
-  func didChangeState<MyEvent, MyState>(with transition: Transition<MyEvent, MyState>) {
-    switch (from: transition.from, to: transition.to) {
-    case (from: .s1, to: .s2):
-      print("Did change state from s1 to s2 by event \(transition.event).")
-    default:
-      break
-    }
-  }
-    
-  func didNotChangeState<MyEvent, MyState>(from state: MyState, for event: MyEvent) {
-    print("Warning: \(event) did not change state from state \(state).")
-  }
 }
 ```
 
