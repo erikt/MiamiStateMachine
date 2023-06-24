@@ -3,10 +3,10 @@ import Foundation
 /// A state machine is an actor with a current state and
 /// a set of transitions defining the machine. The `Transition`
 /// connects two states by an event.
-///
+/// 
 /// The state machine actor protects the current state from outside
 /// modification. The state only changes by processing events.
-///
+/// 
 /// Information about the definition of the state machine can be
 /// accessed by non-isolated methods.
 public actor StateMachine<Event: Hashable & Sendable, State: Hashable & Sendable> {
@@ -16,8 +16,11 @@ public actor StateMachine<Event: Hashable & Sendable, State: Hashable & Sendable
     /// Transitions defining the state machine.
     private let transitions: Set<Transition<Event, State>>
 
-    /// State machine delegate.
-//    private unowned let delegate: StateMachineDelegate?
+    /// Continuation for when an event leads to state change.
+    private var doneContinuation: AsyncStream<Transition<Event, State>>.Continuation?
+    
+    /// Continuation for when an event does not lead to state change.
+    private var rejectContinuation: AsyncStream<(from: State, for: Event)>.Continuation?
 
     // MARK: - Public isolated properties
     
@@ -40,6 +43,20 @@ public actor StateMachine<Event: Hashable & Sendable, State: Hashable & Sendable
     
     /// Counter for the number of state changes for this state machine.
     public private(set) var stateChangeCount: Int = 0
+    
+    /// Stream of transitions made.
+    public lazy var doneTransitionStream: AsyncStream<Transition<Event, State>> = {
+        AsyncStream { continuation in
+            self.doneContinuation = continuation
+        }
+    }()
+    
+    /// Stream of events that did not lead to state change.
+    public lazy var rejectedEventStream: AsyncStream<(from: State, for: Event)> = {
+        AsyncStream { (continuation: AsyncStream<(from: State, for: Event)>.Continuation) -> Void in
+            self.rejectContinuation = continuation
+        }
+    }()
 
     // MARK: - Computed properties
     
@@ -107,7 +124,6 @@ public actor StateMachine<Event: Hashable & Sendable, State: Hashable & Sendable
     ///   number of entries in the transition log.
     public init?(transitions: Set<Transition<Event, State>>,
                  initialState: State,
-//                 delegate: StateMachineDelegate? = nil,
                  logCapacity: UInt? = nil)
     {
         // Check if transitions define a consistent
@@ -133,7 +149,6 @@ public actor StateMachine<Event: Hashable & Sendable, State: Hashable & Sendable
         self.transitionLog = CapacityLog(capacity: logCapacity)
         self.initialState = initialState
         self.state = initialState
-//        self.delegate = delegate
     }
     
     // MARK: - API methods
@@ -143,19 +158,8 @@ public actor StateMachine<Event: Hashable & Sendable, State: Hashable & Sendable
     /// If there is a transition from the current state for the event, the
     /// state machine will change state.
     ///
-    /// If there is a delegate, processing an event will either call
-    /// `didChangeState(with: Transition)` or `didNotChangeState(from: State, for: Event)`.
-    ///
-    /// By design there is not a delegate call before a possible state change.
-    /// This is to prevent the delegate side-effect changing the state itself and
-    /// possibly putting the state machine in an undefined state.
-    ///
-    /// If no callback queue is set, the delegate callback will be run on the
-    /// main queue.
     /// - Parameters:
     ///   - event: Event to process.
-    ///   - queue: Queue to call the state machine delegate on.
-//    public func process(_ event: Event, callbackOn queue: DispatchQueue? = .main) {
     public func process(_ event: Event) {
 
         // Increase the counter for the number of processed events
@@ -165,20 +169,13 @@ public actor StateMachine<Event: Hashable & Sendable, State: Hashable & Sendable
         
         if let t = transition(from: state, for: event) {
             commit(t)
-//            if let delegate, let queue {
-//                queue.async {
-//                    delegate.didChangeState(with: t)
-//                }
-//            }
+            doneContinuation?.yield(t)
+            if atEndingState {
+                doneContinuation?.finish()
+            }
+        } else {
+            rejectContinuation?.yield((state, event))
         }
-//        } else {
-//            if let delegate, let queue {
-//                let currentState = state
-//                queue.async {
-//                    delegate.didNotChangeState(from: currentState, for: event)
-//                }
-//            }
-//        }
     }
     
     /// If the state machine can transition to a state from the current state.
@@ -278,6 +275,9 @@ extension StateMachine {
         }
     }
     
+    /// All transitions leading to a state.
+    /// - Parameter state: State to go to.
+    /// - Returns: All possible transitions to a state.
     public nonisolated func transitions(to state: State) -> Set<Transition<Event, State>> {
         return transitions.filter {
             $0.to == state
