@@ -115,26 +115,20 @@ final class MiamiStateMachineTests: XCTestCase {
         XCTAssertEqual(log.peek, expLast, "Last entry is not expected")
     }
     
-//    func testDelegate() async {
-//        let a = A()
-//        let q = DispatchQueue(label: "DelegateTests")
-//        await a.sm.process(.e4, callbackOn: q)
-//        await a.sm.process(.e4, callbackOn: q)
-//        await a.sm.process(.e4, callbackOn: q)
-//        await a.sm.process(.e4, callbackOn: q)
-//        await a.sm.process(.e1, callbackOn: q)
-//        await a.sm.process(.e2, callbackOn: q)
-//        
-//        q.sync { }
-//        
-//        XCTAssertEqual(a.stateChangeCounter, 6, "State did change delegate method should've been called 6 times, not \(a.stateChangeCounter)")
-//        XCTAssertEqual(a.stateDidNotChangeCounter, 0, "State did not change delegate method should've been called 0 times, not \(a.stateDidNotChangeCounter)")
-//        
-//        await a.sm.process(.e1, callbackOn: q)
-//        q.sync { }
+//    func testTransitionStream() async throws {
+//        let demoSm = StateMachine(transitions: transitions, initialState: .s1)!
+//        async let p1: Void = demoSm.process(.e4)
+//        async let p2: Void = demoSm.process(.e1)
+//        async let p3: Void = demoSm.process(.e2)
 //
-//        XCTAssertEqual(a.stateChangeCounter, 6, "State did change delegate method should've been called 6 times, not \(a.stateChangeCounter)")
-//        XCTAssertEqual(a.stateDidNotChangeCounter, 1, "State did not change delegate method should've been called 1 time, not \(a.stateDidNotChangeCounter)")
+//        async let ts = TimeoutTask(seconds: 10) {
+//            await demoSm.doneTransitionStream.prefix(4)
+//        }.value
+//        
+//        let (tResult, _, _, _) = try await (ts, p1, p2, p3)
+//        print(String(repeating: "=", count: 40))
+//        print(tResult)
+//        print(String(repeating: "=", count: 40))
 //    }
 }
 
@@ -191,23 +185,43 @@ let transitions: Set<MyTransition> = [
     Transition(from: .s1, event: .e4, to: .s1)
 ]
 
-// --
+fileprivate class TimeoutTask<Success> {
+    let nanoseconds: UInt64
+    let operation: @Sendable () async throws -> Success
+    init(seconds: TimeInterval, operation: @escaping @Sendable () async throws -> Success) {
+        self.nanoseconds = UInt64(seconds * 1_000_000_000)
+        self.operation = operation
+    }
+    
+    private var continuation: CheckedContinuation<Success, Error>?
+    var value: Success {
+        get async throws {
+            try await withCheckedThrowingContinuation { continuation in
+                self.continuation = continuation
+                Task {
+                    try await Task.sleep(nanoseconds: nanoseconds)
+                    self.continuation?.resume(throwing: TimeoutError())
+                    self.continuation = nil
+                }
+                Task {
+                    let result = try await operation()
+                    self.continuation?.resume(returning: result)
+                    self.continuation = nil
+                }
+            }
+        }
+    }
+    
+    func cancel() {
+        continuation?.resume(throwing: CancellationError())
+        continuation = nil
+    }
+}
 
-//class A: StateMachineDelegate {
-//    var sm: StateMachine<MyEvent, MyState>!
-//    
-//    var stateChangeCounter: Int = 0
-//    var stateDidNotChangeCounter: Int = 0
-//    
-//    init() {
-//        self.sm = StateMachine(transitions: transitions, initialState: .s1, delegate: self)!
-//    }
-//    
-//    func didChangeState<MyEvent, MyState>(with transition: Transition<MyEvent, MyState>) {
-//        stateChangeCounter += 1
-//    }
-//    
-//    func didNotChangeState<MyEvent, MyState>(from state: MyState, for event: MyEvent) {
-//        stateDidNotChangeCounter += 1
-//    }
-//}
+extension TimeoutTask {
+    struct TimeoutError: LocalizedError {
+        var errorDescription: String? {
+            return "The operation timed out."
+        }
+    }
+}
