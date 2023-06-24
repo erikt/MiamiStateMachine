@@ -20,7 +20,7 @@ public actor StateMachine<Event: Hashable & Sendable, State: Hashable & Sendable
     private var doneContinuation: AsyncStream<Transition<Event, State>>.Continuation?
     
     /// Continuation for when an event does not lead to state change.
-    private var rejectedContinuation: AsyncStream<(from: State, for: Event)>.Continuation?
+    private var rejectContinuation: AsyncStream<(from: State, for: Event)>.Continuation?
 
     // MARK: - Public isolated properties
     
@@ -47,9 +47,6 @@ public actor StateMachine<Event: Hashable & Sendable, State: Hashable & Sendable
     /// Stream of transitions made.
     public lazy var doneTransitionStream: AsyncStream<Transition<Event, State>> = {
         AsyncStream { continuation in
-            continuation.onTermination = { @Sendable _ in
-                print("DONE!")
-            }
             self.doneContinuation = continuation
         }
     }()
@@ -57,7 +54,7 @@ public actor StateMachine<Event: Hashable & Sendable, State: Hashable & Sendable
     /// Stream of events that did not lead to state change.
     public lazy var rejectedEventStream: AsyncStream<(from: State, for: Event)> = {
         AsyncStream { (continuation: AsyncStream<(from: State, for: Event)>.Continuation) -> Void in
-            self.rejectedContinuation = continuation
+            self.rejectContinuation = continuation
         }
     }()
 
@@ -170,17 +167,14 @@ public actor StateMachine<Event: Hashable & Sendable, State: Hashable & Sendable
         // did not lead to a state change.
         processedEventsCount += 1
         
-        print("Processing: \(event)")
-        
         if let t = transition(from: state, for: event) {
             commit(t)
             doneContinuation?.yield(t)
             if atEndingState {
-                print("AT END!")
                 doneContinuation?.finish()
             }
         } else {
-            rejectedContinuation?.yield((state, event))
+            rejectContinuation?.yield((state, event))
         }
     }
     

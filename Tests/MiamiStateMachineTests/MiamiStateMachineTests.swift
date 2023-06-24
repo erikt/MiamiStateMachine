@@ -114,22 +114,6 @@ final class MiamiStateMachineTests: XCTestCase {
         XCTAssertEqual(log.peekOldest, expOld, "Oldest entry is not expected")
         XCTAssertEqual(log.peek, expLast, "Last entry is not expected")
     }
-    
-//    func testTransitionStream() async throws {
-//        let demoSm = StateMachine(transitions: transitions, initialState: .s1)!
-//        async let p1: Void = demoSm.process(.e4)
-//        async let p2: Void = demoSm.process(.e1)
-//        async let p3: Void = demoSm.process(.e2)
-//
-//        async let ts = TimeoutTask(seconds: 10) {
-//            await demoSm.doneTransitionStream.prefix(4)
-//        }.value
-//        
-//        let (tResult, _, _, _) = try await (ts, p1, p2, p3)
-//        print(String(repeating: "=", count: 40))
-//        print(tResult)
-//        print(String(repeating: "=", count: 40))
-//    }
 }
 
 // Global test state machine definitions for testing.
@@ -184,44 +168,3 @@ let transitions: Set<MyTransition> = [
     Transition(from: .s1, event: .e3, to: .s3),
     Transition(from: .s1, event: .e4, to: .s1)
 ]
-
-fileprivate class TimeoutTask<Success> {
-    let nanoseconds: UInt64
-    let operation: @Sendable () async throws -> Success
-    init(seconds: TimeInterval, operation: @escaping @Sendable () async throws -> Success) {
-        self.nanoseconds = UInt64(seconds * 1_000_000_000)
-        self.operation = operation
-    }
-    
-    private var continuation: CheckedContinuation<Success, Error>?
-    var value: Success {
-        get async throws {
-            try await withCheckedThrowingContinuation { continuation in
-                self.continuation = continuation
-                Task {
-                    try await Task.sleep(nanoseconds: nanoseconds)
-                    self.continuation?.resume(throwing: TimeoutError())
-                    self.continuation = nil
-                }
-                Task {
-                    let result = try await operation()
-                    self.continuation?.resume(returning: result)
-                    self.continuation = nil
-                }
-            }
-        }
-    }
-    
-    func cancel() {
-        continuation?.resume(throwing: CancellationError())
-        continuation = nil
-    }
-}
-
-extension TimeoutTask {
-    struct TimeoutError: LocalizedError {
-        var errorDescription: String? {
-            return "The operation timed out."
-        }
-    }
-}

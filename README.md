@@ -95,6 +95,14 @@ Task {
 }
 ```
 
+## Reacting to state changes
+
+By listening to the `doneTransitionStream: AsyncStream<Transition<Event, State>>` stream, it is possible to react to state changes.
+
+There is also `rejectedEventStream: AsyncStream<(from: State, for: Event)>` to be able to know when processed events did __not__ lead to a state change.
+
+The `AsyncStream` based solution is a sort of workaround while waiting for Swift to improve observation of values in an actor.
+
 ## What's with the name?
 
 Look, naming is hard, ok? If nothing else, we all know *the rhythm is gonna get you*. 
@@ -102,7 +110,7 @@ Just be happy I didn't name it `RageAgainstTheStateMachine`.
 
 ## Improvements
 
-Suggestions and or PRs are more than welcome, but remember: *kindness before code*. 
+Suggestions, issues and or PRs are more than welcome, but remember: *kindness before code*. 
 
 ## Author
 Copyright &copy; 2022 Erik Tjernlund <erik@tjernlund.net>
