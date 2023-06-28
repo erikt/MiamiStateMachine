@@ -21,12 +21,12 @@ the framework.
 ## Concepts
 
 A `StateMachine` has a `state: State` (the current state). The `State` is a type
-conforming to `Hashable`. An `enum` defining the possible states works well. 
+conforming to `Hashable` and `Sendable`. An `enum` defining the possible states works well. 
 
 The transitions between states are defined by `Transition`, a value with the `from: State`, the
 `event: Event` needed to do the transition and the `to: State` where the state machine ends up.
 
-The `Event` is also a type conforming to `Hashable`, usually an enum.
+The `Event` is also a type conforming to `Hashable & Sendable`, usually an enum.
 
 To make the state machine process an event, the `process(:)` is used. If a transition is 
 defined for the event from the current state, the state machine's current state will change.
@@ -65,7 +65,7 @@ let stateMachine = StateMachine(transitions: transitions, initialState: .s1)
 
 ![State Machine Example](images/state-machine-example.png)
 
-The state machine is now an `StateMachine<MyEvent, MyState>?` optional due to 
+The state machine is now an `StateMachine<MyEvent, MyState>?`—optional due to 
 the failable initializer. Creation of the state machine will fail if the transitions
 define an inconsistent state machine. A consistent state machine is one where an event
 at a state always leads to the same transition.
