@@ -33,4 +33,3 @@ extension Transition: CustomStringConvertible {
         return "\(from) --(\(event))--> \(to)"
     }
 }
-

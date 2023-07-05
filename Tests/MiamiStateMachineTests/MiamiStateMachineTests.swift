@@ -1,5 +1,6 @@
 import XCTest
 @testable import MiamiStateMachine
+@testable import Graph
 
 final class MiamiStateMachineTests: XCTestCase {
     func testStartState() async {
@@ -17,6 +18,20 @@ final class MiamiStateMachineTests: XCTestCase {
         XCTAssertEqual(toS2, true, "Should be possible to transition to s2 state from s1.")
         XCTAssertEqual(numToS2, 1, "Should be 1 transition from current state to s2.")
         XCTAssertEqual(numToEnd, 0, "Should not exist any transition to end state from s1.")
+        
+        let g = AdjacencyList<S1>.createFrom(transitions: t1)
+        print(g)
+        let d = Dijkstra<S1>(graph: g)
+        let start = g.vertices.first(where: { $0.data == .s1 })!
+        let end = g.vertices.first(where: { $0.data == .end })!
+        let ps = d.getAllShortestPath(from: start)
+        print(ps)
+        
+        print("Shortest path from \(start) to \(end):")
+        for e in ps[end]! {
+            let transition = sm1.transitions(from: e.source.data, to: e.destination.data).first!
+            print(transition)
+        }
     }
     
     func testProcessEvent() async {

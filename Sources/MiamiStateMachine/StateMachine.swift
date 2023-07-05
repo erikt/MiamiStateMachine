@@ -1,4 +1,5 @@
 import Foundation
+import Graph
 
 /// A state machine is an actor with a current state and
 /// a set of transitions defining the machine. The `Transition`
@@ -15,7 +16,10 @@ public actor StateMachine<Event: Hashable & Sendable, State: Hashable & Sendable
     
     /// Transitions defining the state machine.
     private let transitions: Set<Transition<Event, State>>
-
+    
+    /// Internal graph representation of state machine states/nodes.
+    private let smGraph: AdjacencyList<State>
+    
     /// Continuation for when an event leads to state change.
     private var doneContinuation: AsyncStream<Transition<Event, State>>.Continuation?
     
@@ -149,6 +153,7 @@ public actor StateMachine<Event: Hashable & Sendable, State: Hashable & Sendable
         self.transitionLog = CapacityLog(capacity: logCapacity)
         self.initialState = initialState
         self.state = initialState
+        self.smGraph = AdjacencyList<State>.createFrom(transitions: transitions)
     }
     
     // MARK: - API methods
@@ -198,6 +203,30 @@ public actor StateMachine<Event: Hashable & Sendable, State: Hashable & Sendable
     public func transitionsToCurrent(from oldState: State) -> Set<Transition<Event, State>> {
         return transitions(from: oldState, to: self.state)
     }
+    
+    public typealias TransitionPath = [Transition<Event, State>]
+    
+    /// TODO: Documentation
+    /// - Parameters:
+    ///   - start: TODO: Documentation
+    ///   - end: TODO: Documentation
+    /// - Returns: TODO: Documentation
+    public func shortestPath(from start: State, to end: State) -> [TransitionPath] {
+        guard let startVertex = smGraph.vertices.first(where: { $0.data == start }) else {
+            return []
+        }
+        guard let endVertex = smGraph.vertices.first(where: { $0.data == end }) else {
+            return []
+        }
+
+        let dijkstra = Dijkstra<State>(graph: smGraph)
+        let allPaths = dijkstra.getAllShortestPath(from: startVertex)
+        
+        
+        
+        
+        return []
+    }
 
     // MARK: - Private methods
     
@@ -224,6 +253,11 @@ extension StateMachine {
     /// Total number of transitions in the state machine.
     public nonisolated var numOfTransitions: Int {
         return transitions.count
+    }
+    
+    public nonisolated var allStates: Set<State> {
+        
+        return Set<State>()
     }
     
     /// The transition from a state for an event. If the state
@@ -335,5 +369,28 @@ extension StateMachine {
     /// - Returns: If state is an end state.
     public nonisolated func atEnd(for state: State) -> Bool {
         return transitions(from: state).isEmpty
+    }
+    
+}
+
+extension AdjacencyList {
+    /// TODO: Documentation
+    static func createFrom<Event: Hashable & Sendable, State: Hashable & Sendable>(transitions: Set<Transition<Event, State>>) -> AdjacencyList<State>
+    {
+        let graph = AdjacencyList<State>()
+        let allFromStates = Set(transitions.map { $0.from })
+        let allToStates = Set(transitions.map { $0.to })
+        let verticies = allFromStates.union(allToStates).map { graph.createVertex(data: $0) }
+
+        for t in transitions {
+            guard let fromVertex = verticies.filter({ $0.data == t.from }).first else {
+                return graph
+            }
+            guard let toVertex = verticies.filter({ $0.data == t.to }).first else {
+                return graph
+            }
+            graph.addDirectedEdge(from: fromVertex, to: toVertex, weight: 1.0)
+        }
+        return graph
     }
 }

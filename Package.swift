@@ -7,21 +7,32 @@ let package = Package(
     name: "MiamiStateMachine",
     platforms: [.macOS(.v12), .iOS(.v15)],
     products: [
-        // Products define the executables and libraries a package produces, and make them visible to other packages.
         .library(
             name: "MiamiStateMachine",
             targets: ["MiamiStateMachine"]),
+        .library(
+            name: "Graph",
+            targets: ["Graph"]),
+        .library(
+            name: "DataStructures",
+            targets: ["DataStructures"]),
     ],
     dependencies: [
         .package( url: "https://github.com/apple/swift-collections.git", .upToNextMajor(from: "1.0.2"))
     ],
     targets: [
-        // Targets are the basic building blocks of a package. A target can define a module or a test suite.
-        // Targets can depend on other targets in this package, and on products in packages this package depends on.
         .target(
             name: "MiamiStateMachine",
             dependencies: [
-                .product(name: "Collections", package: "swift-collections")
+                "Graph",
+                .product(name: "Collections", package: "swift-collections"),
+            ]),
+        .target(
+            name: "Graph",
+            dependencies: [ "DataStructures" ]),
+        .target(
+            name: "DataStructures",
+            dependencies: [
             ]),
         .testTarget(
             name: "MiamiStateMachineTests",
