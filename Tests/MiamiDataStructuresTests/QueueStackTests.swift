@@ -56,4 +56,58 @@ struct QueueStackTests {
         #expect(queue.peek == nil)
         #expect(queue.dequeue() == nil)
     }
+
+    @Test func isNotEmptyBeforeAnythingIsDequeued() {
+        var queue = QueueStack<Int>()
+        queue.enqueue(1)
+
+        #expect(queue.isEmpty == false)
+        #expect(queue.count == 1)
+    }
+
+    @Test func describesElementsFromFrontToBack() {
+        var queue = QueueStack<Int>()
+        for element in 1 ... 4 {
+            queue.enqueue(element)
+        }
+        queue.dequeue()
+        queue.enqueue(5)
+
+        // 2, 3 and 4 are ready to be dequeued, while 5 is waiting behind them.
+        #expect(queue.description == "[2, 3, 4, 5]")
+    }
+
+    @Test func copyIsIndependentOfOriginal() {
+        var original = QueueStack<Int>()
+        original.enqueue(1)
+        original.enqueue(2)
+
+        var copy = original
+        copy.dequeue()
+        copy.enqueue(3)
+
+        #expect(original.description == "[1, 2]")
+        #expect(copy.description == "[2, 3]")
+    }
+
+    @Test(arguments: [1, 2, 3] as [UInt64])
+    func matchesArrayWhenEnqueuingAndDequeuingInTurns(seed: UInt64) throws {
+        var generator = SeededGenerator(seed: seed)
+        var queue = QueueStack<Int>()
+        var array: [Int] = []
+
+        for step in 0 ..< 2_000 {
+            if Bool.random(using: &generator) || array.isEmpty {
+                queue.enqueue(step)
+                array.append(step)
+            } else {
+                try #require(queue.dequeue() == array.removeFirst(), "Step \(step)")
+            }
+
+            try #require(queue.peek == array.first, "Step \(step)")
+            try #require(queue.count == array.count, "Step \(step)")
+            try #require(queue.isEmpty == array.isEmpty, "Step \(step)")
+            try #require(queue.description == array.description, "Step \(step)")
+        }
+    }
 }

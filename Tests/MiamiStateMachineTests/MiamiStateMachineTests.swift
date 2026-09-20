@@ -80,7 +80,7 @@ final class MiamiStateMachineTests: XCTestCase {
         XCTAssertTrue(broken, "Should not be possible to create an inconsistent state machine definition.")
     }
 
-    func testTransitionLogCapacity() async {
+    func testTransitionLogWithoutCapacity() async {
         let demoSm = StateMachine(transitions: transitions, initialState: .s1)!
         await demoSm.process(.e4)
         var log = await demoSm.transitionLog

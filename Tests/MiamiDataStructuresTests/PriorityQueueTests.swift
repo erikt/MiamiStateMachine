@@ -46,7 +46,7 @@ struct PriorityQueueTests {
     /// The graph algorithms enqueue and dequeue in turns, so the order has
     /// to hold then as well, and not only when draining a finished queue.
     @Test(arguments: [1, 2, 3] as [UInt64])
-    func matchesSortedArrayWhenEnqueuingAndDequeuingInTurns(seed: UInt64) {
+    func matchesSortedArrayWhenEnqueuingAndDequeuingInTurns(seed: UInt64) throws {
         var generator = SeededGenerator(seed: seed)
         var queue = PriorityQueue<Int>()
         var sorted: [Int] = []
@@ -58,12 +58,12 @@ struct PriorityQueueTests {
                 queue.enqueue(element)
                 sorted.insert(element, at: sorted.firstIndex { $0 > element } ?? sorted.endIndex)
             } else {
-                #expect(queue.dequeue() == sorted.removeFirst(), "Step \(step)")
+                try #require(queue.dequeue() == sorted.removeFirst(), "Step \(step)")
             }
 
-            #expect(queue.peek == sorted.first, "Step \(step)")
-            #expect(queue.count == sorted.count, "Step \(step)")
-            #expect(queue.isEmpty == sorted.isEmpty, "Step \(step)")
+            try #require(queue.peek == sorted.first, "Step \(step)")
+            try #require(queue.count == sorted.count, "Step \(step)")
+            try #require(queue.isEmpty == sorted.isEmpty, "Step \(step)")
         }
     }
 

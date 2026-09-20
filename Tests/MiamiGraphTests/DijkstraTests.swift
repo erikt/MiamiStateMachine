@@ -89,6 +89,31 @@ struct DijkstraTests {
         #expect(paths.path(to: c)?.names() == ["A", "B", "C"])
     }
 
+    @Test func usesTheLightestOfParallelEdges() throws {
+        // Only the adjacency list keeps several edges between the same two vertices.
+        var graph = AdjacencyList<String>()
+        let a = graph.addVertex("A")
+        let b = graph.addVertex("B")
+        for weight in [5.0, 3.0, 4.0] {
+            graph.addDirectedEdge(from: a, to: b, weight: weight)
+        }
+
+        let paths = graph.shortestPaths(from: a)
+
+        #expect(paths.distance(to: b) == 3)
+        #expect(paths.path(to: b)?.map(\.weight) == [3])
+    }
+
+    @Test(arguments: GraphKind.allCases)
+    func vertexOutsideTheGraphHasNoPath(kind: GraphKind) throws {
+        let fixture = try Fixture.weighted(kind, .directed)
+        let paths = fixture.graph.shortestPaths(from: try fixture.vertex("A"))
+        let outside = Vertex(index: 100, data: "Z")
+
+        #expect(paths.distance(to: outside) == nil)
+        #expect(paths.path(to: outside) == nil)
+    }
+
     // Exit tests only exist on the platforms below. Without the condition,
     // the tests of the package would not build for iOS and the other platforms.
     #if os(macOS) || os(Linux) || os(Windows)

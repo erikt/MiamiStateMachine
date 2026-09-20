@@ -39,4 +39,35 @@ struct StackTests {
         #expect(stack.peek == nil)
         #expect(stack.pop() == nil)
     }
+
+    @Test func describesElementsFromBottomToTop() {
+        var stack: Stack = [1, 2, 3]
+        stack.pop()
+        stack.push(4)
+
+        #expect(stack.description == "[1, 2, 4]")
+    }
+
+    @Test func copyIsIndependentOfOriginal() {
+        let original: Stack = [1, 2]
+
+        var copy = original
+        copy.pop()
+        copy.push(3)
+
+        #expect(original.description == "[1, 2]")
+        #expect(copy.description == "[1, 3]")
+    }
+
+    @Test func countFollowsPushesAndPops() {
+        var stack = Stack<Int>()
+        for element in 1 ... 10 {
+            stack.push(element)
+        }
+        #expect(stack.count == 10)
+
+        stack.pop()
+        #expect(stack.count == 9)
+        #expect(stack.isEmpty == false)
+    }
 }

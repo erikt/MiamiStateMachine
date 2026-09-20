@@ -32,6 +32,27 @@ struct ShortestPathTests {
         }
     }
 
+    /// The fewest events needed from a state to every state that can be reached
+    /// from it. Found with a breadth-first search of the transitions, kept apart
+    /// from the search of the state machine, to have something to compare with.
+    private func fewestEvents(from state: OrderState, in stateMachine: OrderStateMachine) -> [OrderState: Int] {
+        var counts = [state: 0]
+        var reached = [state]
+
+        while !reached.isEmpty {
+            var reachedNext: [OrderState] = []
+            for current in reached {
+                for transition in stateMachine.transitions(from: current) where counts[transition.to] == nil {
+                    counts[transition.to] = counts[current, default: 0] + 1
+                    reachedNext.append(transition.to)
+                }
+            }
+            reached = reachedNext
+        }
+
+        return counts
+    }
+
     // MARK: - Path between states
 
     @Test(arguments: [
@@ -79,7 +100,11 @@ struct ShortestPathTests {
     func processingEventsOfPathLeadsToState(from state: OrderState, to newState: OrderState) async throws {
         let stateMachine = try #require(StateMachine(transitions: OrderFixture.transitions, initialState: state))
 
-        guard let path = stateMachine.shortestPath(from: state, to: newState) else {
+        let path = stateMachine.shortestPath(from: state, to: newState)
+        let fewestEvents = fewestEvents(from: state, in: stateMachine)[newState]
+        #expect(path?.count == fewestEvents, "Both should be nil if there is no way to the new state.")
+
+        guard let path else {
             // Nothing to process if there is no way to the new state.
             return
         }
@@ -120,8 +145,6 @@ struct ShortestPathTests {
 
         #expect(path.count == 2)
         verify(path, leadsFrom: .cart, to: .shipped, in: stateMachine)
-        #expect(stateMachine.shortestPath(from: .cart, to: .shipped) == path,
-                "The answer should always be the same for a state machine.")
     }
 
     // MARK: - State machine without transitions
