@@ -48,7 +48,7 @@ struct Fixture {
 extension Fixture {
 
     /// A directed, unweighted graph without cycles, but with
-    /// two paths from A to D. X can not be reached.
+    /// two paths from A to D. X cannot be reached.
     ///
     ///       A
     ///      ↙ ↘

@@ -10,7 +10,7 @@ package struct AdjacencyMatrix<Element>: Graph {
     package private(set) var vertices: [Vertex<Element>] = []
 
     /// Weight of the edge from a vertex (row) to another
-    /// vertex (column), by vertex index. No edge is `nil`.
+    /// vertex (column), by vertex index. `nil` means there is no edge.
     private var weights: [[Double?]] = []
 
     package init() {}

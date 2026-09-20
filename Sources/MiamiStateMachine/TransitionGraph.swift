@@ -51,14 +51,14 @@ struct TransitionGraph<Event: Hashable & Sendable, State: Hashable & Sendable>: 
     // MARK: - Methods
 
     /// The shortest path from a state to another state. This is the way
-    /// between the states needing the fewest number of transitions.
+    /// between the states needing the fewest transitions.
     ///
     /// If there is more than one shortest path, one of them is returned.
     /// - Parameters:
     ///   - state: State to start from.
     ///   - newState: State to go to.
-    /// - Returns: The transitions to do, in order, to get from the state to
-    /// the new state. If the new state can not be reached from the state,
+    /// - Returns: The transitions to make, in order, to get from the state to
+    /// the new state. If the new state cannot be reached from the state,
     /// it returns nil. The path is empty if the two states are the same.
     func shortestPath(from state: State, to newState: State) -> [Transition<Event, State>]? {
         guard state != newState else {

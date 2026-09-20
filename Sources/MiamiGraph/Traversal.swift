@@ -37,7 +37,7 @@ extension Graph {
     /// - Returns: The reachable vertices, starting with the source.
     package func depthFirstTraversal(from source: Vertex<Element>) -> [Vertex<Element>] {
         // The edges of a vertex on the stack, and how
-        // many of the edges that have been followed.
+        // many of the edges have been followed.
         typealias Frame = (edges: [Edge<Element>], followedCount: Int)
 
         var stack = Stack<Frame>()

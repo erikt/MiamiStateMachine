@@ -105,7 +105,7 @@ The `AsyncStream` based solution is a sort of workaround while waiting for Swift
 
 ## Finding the shortest path between states
 
-The state machine can tell how to get from a state to another state with the fewest number of events:
+The state machine can tell how to get from one state to another with the fewest events:
 
 ```
 let path = stateMachine?.shortestPath(from: .s1, to: .s3)
@@ -113,9 +113,9 @@ let path = stateMachine?.shortestPath(from: .s1, to: .s3)
 // [s1 --(e3)--> s3]
 ```
 
-The path is the transitions to do, in order. For the state machine above, the shortest path from `s1` to `s3` is the 
-single transition for the event `e3`, and not the two transitions for `e1` and `e2`. Processing the event of each
-transition in the path takes a state machine at the first state to the last state:
+The path is the list of transitions to make, in order. For the state machine above, the shortest path from `s1` to `s3`
+is the single transition for the event `e3`, and not the two transitions for `e1` and `e2`. Processing the event of each
+transition, in order, takes a state machine that is in the first state of the path to the last one:
 
 ```
 for transition in path ?? [] {
@@ -127,8 +127,8 @@ If there is no way to get to the state, the path is `nil`. The path from a state
 more than one shortest path, one of them is returned.
 
 The shortest path between two states is part of the definition of the state machine and does not depend on the current
-state, so there is no need for an asynchronous context. To get the shortest path from the current state there is 
-`shortestPath(to:)`, which needs to be awaited:
+state, so there is no need for an asynchronous context. To get the shortest path from the current state, use
+`shortestPath(to:)`, which must be awaited:
 
 ```
 let pathFromCurrent = await stateMachine?.shortestPath(to: .s3)

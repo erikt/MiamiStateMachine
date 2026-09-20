@@ -8,7 +8,7 @@ package struct ShortestPaths<Element> {
     package let source: Vertex<Element>
 
     /// Distance from the source to each vertex, by vertex
-    /// index. Infinity for vertices which can not be reached.
+    /// index. Infinity for vertices which cannot be reached.
     private let distances: [Double]
 
     /// The last edge of the shortest path to each vertex, by vertex index.
@@ -22,7 +22,7 @@ package struct ShortestPaths<Element> {
 
     /// The total weight of the shortest path from the source to a vertex.
     /// - Parameter destination: The vertex the path leads to.
-    /// - Returns: The distance, or `nil` if the vertex can not be reached
+    /// - Returns: The distance, or `nil` if the vertex cannot be reached
     /// from the source. The distance to the source itself is zero.
     package func distance(to destination: Vertex<Element>) -> Double? {
         guard distances.indices.contains(destination.index),
@@ -38,7 +38,7 @@ package struct ShortestPaths<Element> {
     /// If there is more than one shortest path, one of them is returned.
     /// - Parameter destination: The vertex the path leads to.
     /// - Returns: The edges to follow from the source, or `nil` if the vertex
-    /// can not be reached from the source. The path to the source itself is empty.
+    /// cannot be reached from the source. The path to the source itself is empty.
     package func path(to destination: Vertex<Element>) -> [Edge<Element>]? {
         guard distance(to: destination) != nil else {
             return nil
@@ -87,7 +87,7 @@ extension Graph {
             }
 
             for edge in edges(from: vertex) {
-                precondition(edge.weight >= 0, "Dijkstra's algorithm can not handle negative weights.")
+                precondition(edge.weight >= 0, "Dijkstra's algorithm cannot handle negative weights.")
 
                 let candidate = distance + edge.weight
                 if candidate < distances[edge.destination.index] {
@@ -109,7 +109,7 @@ extension Graph {
     ///   - source: The vertex the path starts from.
     ///   - destination: The vertex the path leads to.
     /// - Returns: The edges to follow from the source, or `nil` if the destination
-    /// can not be reached from the source. The path to the source itself is empty.
+    /// cannot be reached from the source. The path to the source itself is empty.
     /// - Precondition: No edge reachable from the source has a negative weight.
     package func shortestPath(from source: Vertex<Element>,
                               to destination: Vertex<Element>) -> [Edge<Element>]?
