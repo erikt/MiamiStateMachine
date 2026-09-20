@@ -7,7 +7,7 @@ struct CapacityLogTests {
     private func drain(_ log: CapacityLog<Int>) -> [Int] {
         var log = log
         var elements: [Int] = []
-        while let element = log.popOldest() {
+        while let element = log.popFirst() {
             elements.append(element)
         }
         return elements
@@ -25,8 +25,8 @@ struct CapacityLogTests {
         let expected = Array((1 ... 10).suffix(Int(capacity)))
         #expect(drain(log) == expected)
         #expect(log.count == expected.count)
-        #expect(log.peek == expected.last)
-        #expect(log.peekOldest == expected.first)
+        #expect(log.last == expected.last)
+        #expect(log.first == expected.first)
     }
 
     @Test func keepsEverythingWithoutCapacity() {
@@ -36,8 +36,8 @@ struct CapacityLogTests {
         }
 
         #expect(log.count == 1_000)
-        #expect(log.peekOldest == 1)
-        #expect(log.peek == 1_000)
+        #expect(log.first == 1)
+        #expect(log.last == 1_000)
     }
 
     @Test func popsNewestAndOldest() {
@@ -47,18 +47,18 @@ struct CapacityLogTests {
         }
 
         // Left in the log are 3, 4 and 5.
-        #expect(log.pop() == 5)
-        #expect(log.popOldest() == 3)
-        #expect(log.pop() == 4)
-        #expect(log.pop() == nil)
-        #expect(log.popOldest() == nil)
+        #expect(log.popLast() == 5)
+        #expect(log.popFirst() == 3)
+        #expect(log.popLast() == 4)
+        #expect(log.popLast() == nil)
+        #expect(log.popFirst() == nil)
     }
 
     @Test func hasRoomAgainAfterPopping() {
         var log = CapacityLog<Int>(capacity: 2)
         log.append(1)
         log.append(2)
-        _ = log.pop()
+        _ = log.popLast()
         log.append(3)
 
         #expect(drain(log) == [1, 3])
@@ -67,13 +67,13 @@ struct CapacityLogTests {
     @Test func isEmptyUntilAnElementIsAppended() {
         var log = CapacityLog<Int>(capacity: 2)
         #expect(log.isEmpty)
-        #expect(log.peek == nil)
-        #expect(log.peekOldest == nil)
+        #expect(log.last == nil)
+        #expect(log.first == nil)
 
         log.append(1)
         #expect(log.isEmpty == false)
 
-        _ = log.pop()
+        _ = log.popLast()
         #expect(log.isEmpty)
     }
 
@@ -128,8 +128,8 @@ struct CapacityLogTests {
         #expect(log[0] == 3)
         #expect(log[1] == 4)
         #expect(log[log.count - 1] == 5)
-        #expect(log.first == log.peekOldest)
-        #expect(log.last == log.peek)
+        #expect(log.first == 3)
+        #expect(log.last == 5)
         #expect(log.suffix(2) == [4, 5])
     }
 
@@ -138,8 +138,8 @@ struct CapacityLogTests {
         for element in 1 ... 4 {
             log.append(element)
         }
-        _ = log.popOldest()
-        _ = log.pop()
+        _ = log.popFirst()
+        _ = log.popLast()
 
         #expect(Array(log) == [2, 3])
         #expect(log[0] == 2)

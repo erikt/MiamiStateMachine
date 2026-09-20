@@ -22,13 +22,13 @@ public struct CapacityLog<Element> {
     private var log: Deque<Element> = []
     private let capacity: UInt?
     
-    /// Peek at the latest element in the log.
-    public var peek: Element? {
+    /// The newest element in the log. It is nil if the log is empty.
+    public var last: Element? {
         return log.last
     }
     
-    /// Peek at the oldest element in the log.
-    public var peekOldest: Element? {
+    /// The oldest element in the log. It is nil if the log is empty.
+    public var first: Element? {
         return log.first
     }
     
@@ -71,14 +71,14 @@ public struct CapacityLog<Element> {
     }
     
     /// Pop the newest/last element from the log.
-    /// - Returns: Newest element in the log.
-    public mutating func pop() -> Element? {
+    /// - Returns: Newest element in the log. It is nil if the log is empty.
+    public mutating func popLast() -> Element? {
         return log.popLast()
     }
     
     /// Pop the oldest/first element from the log.
-    /// - Returns: Oldest element in the log.
-    public mutating func popOldest() -> Element? {
+    /// - Returns: Oldest element in the log. It is nil if the log is empty.
+    public mutating func popFirst() -> Element? {
         return log.popFirst()
     }
 }

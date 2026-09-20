@@ -56,22 +56,22 @@ final class MiamiStateMachineTests: XCTestCase {
         await sm1.process(.s3ToEnd)
         
         var transitions = await sm1.transitionLog
-        let t1 = transitions.pop()!
+        let t1 = transitions.popLast()!
         XCTAssertEqual(t1.from, .s3, "Transition should be from S3")
         XCTAssertEqual(t1.to, .end, "Transition should be to end")
         XCTAssertEqual(t1.event, .s3ToEnd, "Transition event should be s3ToEnd")
         
-        let t2 = transitions.pop()!
+        let t2 = transitions.popLast()!
         XCTAssertEqual(t2.from, .s2, "Transition should be from S2")
         XCTAssertEqual(t2.to, .s3, "Transition should be to S3")
         XCTAssertEqual(t2.event, .s2ToS3, "Transition event should be s2ToS3")
 
-        let t3 = transitions.pop()!
+        let t3 = transitions.popLast()!
         XCTAssertEqual(t3.from, .s1, "Transition should be from S1")
         XCTAssertEqual(t3.to, .s2, "Transition should be to S2")
         XCTAssertEqual(t3.event, .s1ToS2, "Transition event should be s1ToS2")
 
-        XCTAssertEqual(transitions.pop(), nil, "There should be no more commited transitions")
+        XCTAssertEqual(transitions.popLast(), nil, "There should be no more commited transitions")
     }
     
     func testIllegalStateMachineDefinition() {
@@ -84,9 +84,9 @@ final class MiamiStateMachineTests: XCTestCase {
         await demoSm.process(.e4)
         var log = await demoSm.transitionLog
         let expectedT1: MyTransition = StateTransition(from: .s1, event: .e4, to: .s1)
-        XCTAssertEqual(log.peek, log.peekOldest, "Last log entry and oldest log entry should be the same")
+        XCTAssertEqual(log.last, log.first, "Last log entry and oldest log entry should be the same")
         XCTAssertEqual(log.count, 1, "Number of log entries should be 1")
-        XCTAssertEqual(log.peek, expectedT1, "Last log entry should be from s1")
+        XCTAssertEqual(log.last, expectedT1, "Last log entry should be from s1")
         
         await demoSm.process(.e4)
         log = await demoSm.transitionLog
@@ -110,8 +110,8 @@ final class MiamiStateMachineTests: XCTestCase {
 
         let expOld: MyTransition = StateTransition(from: .s1, event: .e4, to: .s1)
         let expLast: MyTransition = StateTransition(from: .s2, event: .e2, to: .s3)
-        XCTAssertEqual(log.peekOldest, expOld, "Oldest entry is not expected")
-        XCTAssertEqual(log.peek, expLast, "Last entry is not expected")
+        XCTAssertEqual(log.first, expOld, "Oldest entry is not expected")
+        XCTAssertEqual(log.last, expLast, "Last entry is not expected")
     }
 }
 

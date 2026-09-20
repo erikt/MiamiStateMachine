@@ -274,8 +274,8 @@ struct StateMachineTests {
 
         let log = await stateMachine.transitionLog
         #expect(log.count == 2)
-        #expect(log.peekOldest == StateTransition(from: .paid, event: .ship, to: .shipped))
-        #expect(log.peek == StateTransition(from: .shipped, event: .deliver, to: .delivered))
+        #expect(log.first == StateTransition(from: .paid, event: .ship, to: .shipped))
+        #expect(log.last == StateTransition(from: .shipped, event: .deliver, to: .delivered))
         #expect(await stateMachine.stateChangeCount == 4, "The counters should not depend on the log.")
     }
 
