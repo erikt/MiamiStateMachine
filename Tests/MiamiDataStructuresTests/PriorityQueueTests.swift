@@ -61,17 +61,17 @@ struct PriorityQueueTests {
                 try #require(queue.dequeue() == sorted.removeFirst(), "Step \(step)")
             }
 
-            try #require(queue.peek == sorted.first, "Step \(step)")
+            try #require(queue.first == sorted.first, "Step \(step)")
             try #require(queue.count == sorted.count, "Step \(step)")
             try #require(queue.isEmpty == sorted.isEmpty, "Step \(step)")
         }
     }
 
-    @Test func peekIsSmallestWithoutRemoving() {
+    @Test func firstIsSmallestWithoutRemoving() {
         let queue = PriorityQueue([5, 2, 9])
 
-        #expect(queue.peek == 2)
-        #expect(queue.count == 3, "Peeking should not remove the element.")
+        #expect(queue.first == 2)
+        #expect(queue.count == 3, "Looking at the first should not remove the element.")
     }
 
     @Test func emptyQueueHasNothingToDequeue() {
@@ -79,7 +79,7 @@ struct PriorityQueueTests {
 
         #expect(queue.isEmpty)
         #expect(queue.count == 0)
-        #expect(queue.peek == nil)
+        #expect(queue.first == nil)
         #expect(queue.dequeue() == nil)
     }
 

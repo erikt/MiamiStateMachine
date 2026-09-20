@@ -1,22 +1,54 @@
-/// A collection where elements are added with `enqueue(_:)` and
-/// removed with `dequeue()`, in an order decided by the conforming type.
-package protocol Queue<Element> {
-    associatedtype Element
+import DequeModule
+
+/// A first-in, first-out queue. Implemented with the `Deque`
+/// of Swift Collections.
+package struct Queue<Element> {
+
+    private var elements: Deque<Element>
+
+    /// Creates a queue from the elements. The first
+    /// element ends up at the front of the queue.
+    /// - Parameter elements: Initial elements of the queue.
+    package init(_ elements: [Element] = []) {
+        self.elements = Deque(elements)
+    }
 
     /// If the queue has no elements.
-    var isEmpty: Bool { get }
+    package var isEmpty: Bool {
+        elements.isEmpty
+    }
 
     /// Number of elements in the queue.
-    var count: Int { get }
+    package var count: Int {
+        elements.count
+    }
 
-    /// The element next in line to be dequeued, without removing it.
-    var peek: Element? { get }
+    /// The element at the front of the queue, without removing it.
+    /// It is the element waiting the longest, and the next to be dequeued.
+    package var first: Element? {
+        elements.first
+    }
 
-    /// Adds an element to the queue.
+    /// Adds an element to the back of the queue.
     /// - Parameter element: Element to add.
-    mutating func enqueue(_ element: Element)
+    /// - Complexity: Amortized O(1)
+    package mutating func enqueue(_ element: Element) {
+        elements.append(element)
+    }
 
-    /// Removes the element next in line.
+    /// Removes the element at the front of the queue.
     /// - Returns: The removed element, or `nil` if the queue is empty.
-    mutating func dequeue() -> Element?
+    /// - Complexity: O(1)
+    @discardableResult
+    package mutating func dequeue() -> Element? {
+        elements.popFirst()
+    }
+}
+
+extension Queue: Sendable where Element: Sendable {}
+
+extension Queue: CustomStringConvertible {
+    package var description: String {
+        elements.description
+    }
 }

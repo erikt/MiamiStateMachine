@@ -1,10 +1,10 @@
 import Testing
 import MiamiDataStructures
 
-struct QueueStackTests {
+struct QueueTests {
 
     @Test func dequeuesFirstInFirstOut() {
-        var queue = QueueStack<Int>()
+        var queue = Queue<Int>()
         for element in 1 ... 5 {
             queue.enqueue(element)
         }
@@ -18,13 +18,13 @@ struct QueueStackTests {
     }
 
     @Test func keepsOrderWhenEnqueuingBetweenDequeues() {
-        var queue = QueueStack<Int>()
+        var queue = Queue<Int>()
         queue.enqueue(1)
         queue.enqueue(2)
         #expect(queue.dequeue() == 1)
 
-        // 2 is now ready to be dequeued, while
-        // 3 and 4 are waiting behind it.
+        // 2 is still in the queue, and should come
+        // out before the elements enqueued after it.
         queue.enqueue(3)
         queue.enqueue(4)
 
@@ -36,29 +36,38 @@ struct QueueStackTests {
         #expect(queue.isEmpty)
     }
 
-    @Test func peekIsFrontOfQueueWithoutRemoving() {
-        var queue = QueueStack<Int>()
+    @Test func firstIsFrontOfQueueWithoutRemoving() {
+        var queue = Queue<Int>()
         queue.enqueue(1)
         queue.enqueue(2)
-        #expect(queue.peek == 1, "Should peek at the front before anything has been dequeued.")
+        #expect(queue.first == 1, "The first enqueued should be at the front.")
 
         queue.dequeue()
         queue.enqueue(3)
-        #expect(queue.peek == 2, "Should peek at the front after an element has been dequeued.")
-        #expect(queue.count == 2, "Peeking should not remove the element.")
+        #expect(queue.first == 2, "The next in line should be at the front after a dequeue.")
+        #expect(queue.count == 2, "Looking at the front should not remove the element.")
+    }
+
+    @Test func firstElementIsAtTheFrontWhenCreatedFromElements() {
+        var queue = Queue([1, 2, 3])
+
+        #expect(queue.first == 1)
+        #expect(queue.dequeue() == 1)
+        #expect(queue.dequeue() == 2)
+        #expect(queue.count == 1)
     }
 
     @Test func emptyQueueHasNothingToDequeue() {
-        var queue = QueueStack<Int>()
+        var queue = Queue<Int>()
 
         #expect(queue.isEmpty)
         #expect(queue.count == 0)
-        #expect(queue.peek == nil)
+        #expect(queue.first == nil)
         #expect(queue.dequeue() == nil)
     }
 
     @Test func isNotEmptyBeforeAnythingIsDequeued() {
-        var queue = QueueStack<Int>()
+        var queue = Queue<Int>()
         queue.enqueue(1)
 
         #expect(queue.isEmpty == false)
@@ -66,19 +75,19 @@ struct QueueStackTests {
     }
 
     @Test func describesElementsFromFrontToBack() {
-        var queue = QueueStack<Int>()
+        var queue = Queue<Int>()
         for element in 1 ... 4 {
             queue.enqueue(element)
         }
         queue.dequeue()
         queue.enqueue(5)
 
-        // 2, 3 and 4 are ready to be dequeued, while 5 is waiting behind them.
+        // From the front of the queue to the back.
         #expect(queue.description == "[2, 3, 4, 5]")
     }
 
     @Test func copyIsIndependentOfOriginal() {
-        var original = QueueStack<Int>()
+        var original = Queue<Int>()
         original.enqueue(1)
         original.enqueue(2)
 
@@ -93,7 +102,7 @@ struct QueueStackTests {
     @Test(arguments: [1, 2, 3] as [UInt64])
     func matchesArrayWhenEnqueuingAndDequeuingInTurns(seed: UInt64) throws {
         var generator = SeededGenerator(seed: seed)
-        var queue = QueueStack<Int>()
+        var queue = Queue<Int>()
         var array: [Int] = []
 
         for step in 0 ..< 2_000 {
@@ -104,7 +113,7 @@ struct QueueStackTests {
                 try #require(queue.dequeue() == array.removeFirst(), "Step \(step)")
             }
 
-            try #require(queue.peek == array.first, "Step \(step)")
+            try #require(queue.first == array.first, "Step \(step)")
             try #require(queue.count == array.count, "Step \(step)")
             try #require(queue.isEmpty == array.isEmpty, "Step \(step)")
             try #require(queue.description == array.description, "Step \(step)")

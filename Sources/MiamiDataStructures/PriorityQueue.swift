@@ -7,7 +7,7 @@ import HeapModule
 /// something other than their own ordering, wrap them in `Prioritized`.
 ///
 /// Elements that are equal are dequeued in an unspecified order.
-package struct PriorityQueue<Element: Comparable>: Queue {
+package struct PriorityQueue<Element: Comparable> {
 
     private var heap: Heap<Element>
 
@@ -18,16 +18,19 @@ package struct PriorityQueue<Element: Comparable>: Queue {
         heap = Heap(elements)
     }
 
+    /// If the queue has no elements.
     package var isEmpty: Bool {
         heap.isEmpty
     }
 
+    /// Number of elements in the queue.
     package var count: Int {
         heap.count
     }
 
     /// The smallest element, without removing it.
-    package var peek: Element? {
+    /// It is the next element to be dequeued.
+    package var first: Element? {
         heap.min
     }
 

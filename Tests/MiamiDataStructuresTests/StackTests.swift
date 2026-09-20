@@ -16,19 +16,19 @@ struct StackTests {
     }
 
     @Test func lastElementIsOnTopWhenCreatedFromElements() {
-        let fromArray = Stack([1, 2, 3])
-        let fromLiteral: Stack = [1, 2, 3]
+        var stack = Stack([1, 2, 3])
 
-        #expect(fromArray.peek == 3)
-        #expect(fromLiteral.peek == 3)
+        #expect(stack.top == 3)
+        #expect(stack.pop() == 3)
+        #expect(stack.pop() == 2)
     }
 
-    @Test func peekIsTopOfStackWithoutRemoving() {
-        var stack: Stack = ["a", "b"]
+    @Test func topIsLastPushedWithoutRemoving() {
+        var stack = Stack(["a", "b"])
         stack.push("c")
 
-        #expect(stack.peek == "c")
-        #expect(stack.count == 3, "Peeking should not remove the element.")
+        #expect(stack.top == "c")
+        #expect(stack.count == 3, "Looking at the top should not remove the element.")
     }
 
     @Test func emptyStackHasNothingToPop() {
@@ -36,12 +36,12 @@ struct StackTests {
 
         #expect(stack.isEmpty)
         #expect(stack.count == 0)
-        #expect(stack.peek == nil)
+        #expect(stack.top == nil)
         #expect(stack.pop() == nil)
     }
 
     @Test func describesElementsFromBottomToTop() {
-        var stack: Stack = [1, 2, 3]
+        var stack = Stack([1, 2, 3])
         stack.pop()
         stack.push(4)
 
@@ -49,7 +49,7 @@ struct StackTests {
     }
 
     @Test func copyIsIndependentOfOriginal() {
-        let original: Stack = [1, 2]
+        let original = Stack([1, 2])
 
         var copy = original
         copy.pop()

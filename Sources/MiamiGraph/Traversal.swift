@@ -11,7 +11,7 @@ extension Graph {
     /// - Parameter source: The vertex to start from.
     /// - Returns: The reachable vertices, starting with the source.
     package func breadthFirstTraversal(from source: Vertex<Element>) -> [Vertex<Element>] {
-        var queue = QueueStack<Vertex<Element>>()
+        var queue = Queue<Vertex<Element>>()
         var isEnqueued = [Bool](repeating: false, count: vertices.count)
         var visited: [Vertex<Element>] = []
 

@@ -34,7 +34,8 @@ let package = Package(
         .target(
             name: "MiamiDataStructures",
             dependencies: [
-                .product(name: "HeapModule", package: "swift-collections")
+                .product(name: "DequeModule", package: "swift-collections"),
+                .product(name: "HeapModule", package: "swift-collections"),
             ]),
         .testTarget(
             name: "MiamiStateMachineTests",
