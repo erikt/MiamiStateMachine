@@ -16,6 +16,10 @@ public actor StateMachine<Event: Hashable & Sendable, State: Hashable & Sendable
     /// Transitions defining the state machine.
     private let transitions: Set<Transition<Event, State>>
 
+    /// The transitions as a graph of states, to be able to answer questions
+    /// about the state machine definition as a whole.
+    private let transitionGraph: TransitionGraph<Event, State>
+
     /// Continuation for when an event leads to state change.
     private var doneContinuation: AsyncStream<Transition<Event, State>>.Continuation?
     
@@ -146,6 +150,7 @@ public actor StateMachine<Event: Hashable & Sendable, State: Hashable & Sendable
         }
         
         self.transitions = transitions
+        self.transitionGraph = TransitionGraph(transitions: transitions)
         self.transitionLog = CapacityLog(capacity: logCapacity)
         self.initialState = initialState
         self.state = initialState
@@ -197,6 +202,19 @@ public actor StateMachine<Event: Hashable & Sendable, State: Hashable & Sendable
     /// - Returns: All possible transitions from a state to the current state.
     public func transitionsToCurrent(from oldState: State) -> Set<Transition<Event, State>> {
         return transitions(from: oldState, to: self.state)
+    }
+
+    /// The shortest path from the current state to another state. This is
+    /// the way to the state needing the fewest number of events.
+    ///
+    /// If there is more than one shortest path, one of them is returned.
+    /// - Parameter newState: State to go to from the current state.
+    /// - Returns: The transitions to do, in order, to get from the current
+    /// state to the new state. If the new state can not be reached from the
+    /// current state, it returns nil. The path is empty if the new state is
+    /// the current state.
+    public func shortestPath(to newState: State) -> [Transition<Event, State>]? {
+        return shortestPath(from: self.state, to: newState)
     }
 
     // MARK: - Private methods
@@ -328,6 +346,25 @@ extension StateMachine {
     /// - Returns: If transition is possible.
     public nonisolated func canTransition(from state: State, to newState: State) -> Bool {
         return !transitions(from: state, to: newState).isEmpty
+    }
+
+    /// The shortest path from a state to another state. This is the way
+    /// between the states needing the fewest number of events.
+    ///
+    /// Processing the event of each transition in the path, in order, takes
+    /// a state machine at the state to the new state.
+    ///
+    /// If there is more than one shortest path, one of them is returned.
+    /// Which one is not specified, but it is always the same for a
+    /// state machine.
+    /// - Parameters:
+    ///   - state: State to start from.
+    ///   - newState: State to go to.
+    /// - Returns: The transitions to do, in order, to get from the state to
+    /// the new state. If the new state can not be reached from the state,
+    /// it returns nil. The path is empty if the two states are the same.
+    public nonisolated func shortestPath(from state: State, to newState: State) -> [Transition<Event, State>]? {
+        return transitionGraph.shortestPath(from: state, to: newState)
     }
     
     /// If a state is an end state.

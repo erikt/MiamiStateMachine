@@ -22,6 +22,7 @@ let package = Package(
         .target(
             name: "MiamiStateMachine",
             dependencies: [
+                "MiamiGraph",
                 .product(name: "Collections", package: "swift-collections")
             ]),
         // Internal targets are prefixed with Miami, as module names have

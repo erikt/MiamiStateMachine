@@ -103,6 +103,37 @@ There is also `rejectedEventStream: AsyncStream<(from: State, for: Event)>` to b
 
 The `AsyncStream` based solution is a sort of workaround while waiting for Swift to improve observation of values in an actor.
 
+## Finding the shortest path between states
+
+The state machine can tell how to get from a state to another state with the fewest number of events:
+
+```
+let path = stateMachine?.shortestPath(from: .s1, to: .s3)
+
+// [s1 --(e3)--> s3]
+```
+
+The path is the transitions to do, in order. For the state machine above, the shortest path from `s1` to `s3` is the 
+single transition for the event `e3`, and not the two transitions for `e1` and `e2`. Processing the event of each
+transition in the path takes a state machine at the first state to the last state:
+
+```
+for transition in path ?? [] {
+    await stateMachine?.process(transition.event)
+}
+```
+
+If there is no way to get to the state, the path is `nil`. The path from a state to the same state is empty. If there is
+more than one shortest path, one of them is returned.
+
+The shortest path between two states is part of the definition of the state machine and does not depend on the current
+state, so there is no need for an asynchronous context. To get the shortest path from the current state there is 
+`shortestPath(to:)`, which needs to be awaited:
+
+```
+let pathFromCurrent = await stateMachine?.shortestPath(to: .s3)
+```
+
 ## What's with the name?
 
 Look, naming is hard, ok? If nothing else, we all know *the rhythm is gonna get you*. 
