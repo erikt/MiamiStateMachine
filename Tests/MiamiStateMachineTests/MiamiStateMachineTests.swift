@@ -1,5 +1,5 @@
 import XCTest
-@testable import MiamiStateMachine
+import MiamiStateMachine
 
 final class MiamiStateMachineTests: XCTestCase {
     func testStartState() async {
