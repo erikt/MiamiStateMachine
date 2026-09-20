@@ -29,6 +29,73 @@ extension Graph {
         return visited
     }
 
+    /// The path with the fewest edges from a vertex to another vertex,
+    /// found with a breadth-first search. The weights of the edges are
+    /// not considered. Use `shortestPath(from:to:)` for the path with
+    /// the lowest total weight.
+    ///
+    /// The search stops when the destination is reached, so it only
+    /// visits the vertices at least as close to the source.
+    ///
+    /// If there is more than one path with the fewest edges, one of them
+    /// is returned.
+    /// - Parameters:
+    ///   - source: The vertex the path starts from.
+    ///   - destination: The vertex the path leads to.
+    /// - Returns: The edges to follow from the source, or `nil` if the destination
+    /// cannot be reached from the source. The path to the source itself is empty.
+    /// - Complexity: O(*V* + *E*) for an adjacency list, where *V* is the
+    /// number of vertices and *E* the number of edges.
+    package func pathWithFewestEdges(from source: Vertex<Element>,
+                                     to destination: Vertex<Element>) -> [Edge<Element>]?
+    {
+        precondition(contains(source), "Vertex is not part of the graph.")
+
+        guard contains(destination) else {
+            return nil
+        }
+
+        guard source.index != destination.index else {
+            // Already there.
+            return []
+        }
+
+        // The edge every vertex was reached by. A vertex is reached
+        // for the first time by a path with the fewest edges to it.
+        var incomingEdges = [Edge<Element>?](repeating: nil, count: vertices.count)
+        var isReached = [Bool](repeating: false, count: vertices.count)
+        var queue = Queue<Vertex<Element>>()
+
+        isReached[source.index] = true
+        queue.enqueue(source)
+
+        search: while let vertex = queue.dequeue() {
+            for edge in edges(from: vertex) where !isReached[edge.destination.index] {
+                isReached[edge.destination.index] = true
+                incomingEdges[edge.destination.index] = edge
+
+                if edge.destination.index == destination.index {
+                    break search
+                }
+                queue.enqueue(edge.destination)
+            }
+        }
+
+        guard isReached[destination.index] else {
+            return nil
+        }
+
+        // Follow the edges back from the destination. The
+        // source is the only vertex reached without an edge.
+        var path: [Edge<Element>] = []
+        var index = destination.index
+        while let edge = incomingEdges[index] {
+            path.append(edge)
+            index = edge.source.index
+        }
+        return path.reversed()
+    }
+
     /// All vertices reachable from a vertex, in depth-first (pre-order) order.
     ///
     /// Each path is followed as far as possible before backtracking.

@@ -53,6 +53,9 @@ struct TransitionGraph<Event: Hashable & Sendable, State: Hashable & Sendable>: 
     /// The shortest path from a state to another state. This is the way
     /// between the states needing the fewest transitions.
     ///
+    /// Every transition is one step, so the path is found with a breadth-first
+    /// search of the states, stopping when the new state is reached.
+    ///
     /// If there is more than one shortest path, one of them is returned.
     /// - Parameters:
     ///   - state: State to start from.
@@ -69,7 +72,7 @@ struct TransitionGraph<Event: Hashable & Sendable, State: Hashable & Sendable>: 
 
         guard let source = verticesByState[state],
               let destination = verticesByState[newState],
-              let path = states.shortestPath(from: source, to: destination)
+              let path = states.pathWithFewestEdges(from: source, to: destination)
         else {
             return nil
         }

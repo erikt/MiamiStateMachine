@@ -41,6 +41,114 @@ struct TraversalTests {
         #expect(fixture.graph.depthFirstTraversal(from: a).names() == ["A", "B", "C"])
     }
 
+    // MARK: - Path with fewest edges
+
+    @Test(arguments: GraphKind.allCases)
+    func pathWithFewestEdgesDoesNotConsiderWeights(kind: GraphKind) throws {
+        let fixture = try Fixture.weighted(kind, .oneWay)
+        let (a, f) = (try fixture.vertex("A"), try fixture.vertex("F"))
+
+        // The edge from A to F has the weight 14. By way of C the weight is 11.
+        #expect(fixture.graph.pathWithFewestEdges(from: a, to: f)?.names() == ["A", "F"])
+        #expect(fixture.graph.shortestPath(from: a, to: f)?.names() == ["A", "C", "F"])
+    }
+
+    @Test(arguments: GraphKind.allCases)
+    func pathWithFewestEdgesFollowsTheDirectionOfTheEdges(kind: GraphKind) throws {
+        let fixture = try Fixture.diamond(kind)
+        let (a, e) = (try fixture.vertex("A"), try fixture.vertex("E"))
+
+        let path = try #require(fixture.graph.pathWithFewestEdges(from: a, to: e))
+        #expect(path.count == 3)
+        #expect(path.names().first == "A")
+        #expect(path.names().last == "E")
+        #expect(["B", "C"].contains(path.names()[1]), "Both ways to D have the same number of edges.")
+
+        #expect(fixture.graph.pathWithFewestEdges(from: e, to: a) == nil)
+    }
+
+    @Test(arguments: GraphKind.allCases)
+    func pathWithFewestEdgesToTheSourceIsEmpty(kind: GraphKind) throws {
+        // Also when edges lead from the vertex back to itself.
+        let fixture = try Fixture(kind, vertices: ["A", "B"], edges: [("A", "A", 1), ("A", "B", 1), ("B", "A", 1)])
+        let a = try fixture.vertex("A")
+
+        #expect(fixture.graph.pathWithFewestEdges(from: a, to: a) == [])
+    }
+
+    @Test(arguments: GraphKind.allCases)
+    func vertexNotReachedHasNoPathWithFewestEdges(kind: GraphKind) throws {
+        let fixture = try Fixture.diamond(kind)
+        let a = try fixture.vertex("A")
+
+        #expect(fixture.graph.pathWithFewestEdges(from: a, to: try fixture.vertex("X")) == nil)
+        #expect(fixture.graph.pathWithFewestEdges(from: a, to: Vertex(index: 100, data: "Z")) == nil)
+    }
+
+    @Test func searchForPathStopsWhenTheDestinationIsReached() {
+        // A long chain, with the destination right after the source.
+        var graph = CountingGraph<Int>()
+        let vertices = (0 ..< 1_000).map { graph.addVertex($0) }
+        for (vertex, next) in zip(vertices, vertices.dropFirst()) {
+            graph.addEdge(from: vertex, to: next)
+        }
+
+        #expect(graph.pathWithFewestEdges(from: vertices[0], to: vertices[1])?.count == 1)
+        #expect(graph.edgesCallCount == 1, "Only the edges of the source should be needed.")
+    }
+
+    @Test func pathWithFewestEdgesIsNotLimitedByTheDepthOfTheGraph() {
+        var graph = AdjacencyList<Int>()
+        let vertices = (0 ..< 100_000).map { graph.addVertex($0) }
+        for (vertex, next) in zip(vertices, vertices.dropFirst()) {
+            graph.addEdge(from: vertex, to: next)
+        }
+
+        #expect(graph.pathWithFewestEdges(from: vertices[0], to: vertices[99_999])?.count == 99_999)
+    }
+
+    /// Without weights, the path with the fewest edges and the path with the lowest
+    /// weight have the same number of edges. The two are found in different ways,
+    /// so they are compared for every pair of vertices in graphs made at random.
+    @Test(arguments: [1, 2, 3, 4, 5] as [UInt64])
+    func pathWithFewestEdgesIsAsLongAsTheShortestPathWithoutWeights(seed: UInt64) throws {
+        var generator = SeededGenerator(seed: seed)
+
+        for _ in 0 ..< 20 {
+            var graph = AdjacencyList<Int>()
+            let vertices = (0 ..< Int.random(in: 1 ... 25, using: &generator)).map { graph.addVertex($0) }
+
+            // From few edges, leaving vertices out of reach, to many. Edges
+            // from a vertex to itself, and several edges the same way, are included.
+            for _ in 0 ..< Int.random(in: 0 ... 3 * vertices.count, using: &generator) {
+                let source = try #require(vertices.randomElement(using: &generator))
+                let destination = try #require(vertices.randomElement(using: &generator))
+                graph.addEdge(from: source, to: destination)
+            }
+
+            for source in vertices {
+                for destination in vertices {
+                    let path = graph.pathWithFewestEdges(from: source, to: destination)
+                    let shortestPath = graph.shortestPath(from: source, to: destination)
+                    try #require(path?.count == shortestPath?.count, "From \(source) to \(destination) in:\n\(graph)")
+
+                    guard let path, let first = path.first, let last = path.last else {
+                        continue
+                    }
+
+                    // The path leads all the way, by edges of the graph.
+                    try #require(first.source == source && last.destination == destination)
+                    for (edge, next) in zip(path, path.dropFirst()) {
+                        try #require(edge.destination == next.source)
+                    }
+                    for edge in path {
+                        try #require(graph.edges(from: edge.source).contains(edge))
+                    }
+                }
+            }
+        }
+    }
+
     // MARK: - Cycle detection
 
     @Test(arguments: GraphKind.allCases)
