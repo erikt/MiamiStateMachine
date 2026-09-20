@@ -1,0 +1,59 @@
+import Testing
+import DataStructures
+
+struct QueueStackTests {
+
+    @Test func dequeuesFirstInFirstOut() {
+        var queue = QueueStack<Int>()
+        for element in 1 ... 5 {
+            queue.enqueue(element)
+        }
+
+        var dequeued: [Int] = []
+        while let element = queue.dequeue() {
+            dequeued.append(element)
+        }
+
+        #expect(dequeued == [1, 2, 3, 4, 5])
+    }
+
+    @Test func keepsOrderWhenEnqueuingBetweenDequeues() {
+        var queue = QueueStack<Int>()
+        queue.enqueue(1)
+        queue.enqueue(2)
+        #expect(queue.dequeue() == 1)
+
+        // 2 is now ready to be dequeued, while
+        // 3 and 4 are waiting behind it.
+        queue.enqueue(3)
+        queue.enqueue(4)
+
+        #expect(queue.count == 3)
+        #expect(queue.description == "[2, 3, 4]")
+        #expect(queue.dequeue() == 2)
+        #expect(queue.dequeue() == 3)
+        #expect(queue.dequeue() == 4)
+        #expect(queue.isEmpty)
+    }
+
+    @Test func peekIsFrontOfQueueWithoutRemoving() {
+        var queue = QueueStack<Int>()
+        queue.enqueue(1)
+        queue.enqueue(2)
+        #expect(queue.peek == 1, "Should peek at the front before anything has been dequeued.")
+
+        queue.dequeue()
+        queue.enqueue(3)
+        #expect(queue.peek == 2, "Should peek at the front after an element has been dequeued.")
+        #expect(queue.count == 2, "Peeking should not remove the element.")
+    }
+
+    @Test func emptyQueueHasNothingToDequeue() {
+        var queue = QueueStack<Int>()
+
+        #expect(queue.isEmpty)
+        #expect(queue.count == 0)
+        #expect(queue.peek == nil)
+        #expect(queue.dequeue() == nil)
+    }
+}

@@ -1,4 +1,4 @@
-// swift-tools-version: 5.6
+// swift-tools-version: 6.0
 // The swift-tools-version declares the minimum version of Swift required to build this package.
 
 import PackageDescription
@@ -8,6 +8,7 @@ let package = Package(
     platforms: [.macOS(.v12), .iOS(.v15)],
     products: [
         // Products define the executables and libraries a package produces, and make them visible to other packages.
+        // The Graph and DataStructures targets are internal to the package and deliberately not vended as products.
         .library(
             name: "MiamiStateMachine",
             targets: ["MiamiStateMachine"]),
@@ -23,8 +24,19 @@ let package = Package(
             dependencies: [
                 .product(name: "Collections", package: "swift-collections")
             ]),
+        .target(
+            name: "Graph",
+            dependencies: ["DataStructures"]),
+        .target(
+            name: "DataStructures"),
         .testTarget(
             name: "MiamiStateMachineTests",
             dependencies: ["MiamiStateMachine"]),
+        .testTarget(
+            name: "GraphTests",
+            dependencies: ["Graph"]),
+        .testTarget(
+            name: "DataStructuresTests",
+            dependencies: ["DataStructures"]),
     ]
 )
