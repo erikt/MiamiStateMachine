@@ -94,6 +94,14 @@ struct GraphTests {
         #expect(copy.edges(from: a).count == 1)
     }
 
+    // MARK: - Programmer errors
+
+    // Exit tests only exist on the platforms below. Without the condition,
+    // the tests of the package would not build for iOS and the other platforms.
+    //
+    // The tests verify that the process stops. They cannot tell a failed
+    // precondition of the graph from any other reason to stop.
+    #if os(macOS) || os(Linux) || os(Windows)
     @Test(arguments: GraphKind.allCases)
     func addingEdgeToUnknownVertexIsProgrammerError(kind: GraphKind) async {
         await #expect(processExitsWith: .failure) { [kind] in
@@ -102,4 +110,23 @@ struct GraphTests {
             graph.addDirectedEdge(from: a, to: Vertex(index: 1, data: "B"))
         }
     }
+
+    @Test(arguments: GraphKind.allCases)
+    func addingEdgeFromUnknownVertexIsProgrammerError(kind: GraphKind) async {
+        await #expect(processExitsWith: .failure) { [kind] in
+            var graph = kind.makeGraph()
+            let a = graph.addVertex("A")
+            graph.addDirectedEdge(from: Vertex(index: 1, data: "B"), to: a)
+        }
+    }
+
+    @Test(arguments: GraphKind.allCases)
+    func edgesFromUnknownVertexIsProgrammerError(kind: GraphKind) async {
+        await #expect(processExitsWith: .failure) { [kind] in
+            var graph = kind.makeGraph()
+            graph.addVertex("A")
+            _ = graph.edges(from: Vertex(index: 1, data: "B"))
+        }
+    }
+    #endif
 }

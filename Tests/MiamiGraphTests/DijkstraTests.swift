@@ -89,6 +89,9 @@ struct DijkstraTests {
         #expect(paths.path(to: c)?.names() == ["A", "B", "C"])
     }
 
+    // Exit tests only exist on the platforms below. Without the condition,
+    // the tests of the package would not build for iOS and the other platforms.
+    #if os(macOS) || os(Linux) || os(Windows)
     @Test func negativeWeightIsProgrammerError() async {
         await #expect(processExitsWith: .failure) {
             var graph = AdjacencyList<String>()
@@ -98,4 +101,5 @@ struct DijkstraTests {
             _ = graph.shortestPaths(from: a)
         }
     }
+    #endif
 }
