@@ -5,6 +5,17 @@ import DequeModule
 /// capacity has been reached, the oldest element is dropped
 /// from the log.
 ///
+/// The log is a collection of its elements, from the oldest to the
+/// newest. It can be iterated, and the elements can be accessed by
+/// their position, where the oldest element is at position zero.
+///
+///     for transition in log {
+///         print(transition)
+///     }
+///
+///     let oldest = log.first
+///     let secondNewest = log[log.count - 2]
+///
 /// The log is implemented with the Apple Swift Collection
 /// deque and should be performant.
 public struct CapacityLog<Element: Hashable> {
@@ -73,6 +84,28 @@ public struct CapacityLog<Element: Hashable> {
 }
 
 extension CapacityLog: Sendable where Element: Sendable { }
+
+extension CapacityLog: RandomAccessCollection {
+
+    /// The position of the oldest element. Always zero.
+    public var startIndex: Int {
+        return log.startIndex
+    }
+
+    /// The position after the newest element. Equal to `count`.
+    public var endIndex: Int {
+        return log.endIndex
+    }
+
+    /// Accesses the element at a position, where the oldest element
+    /// is at position zero and the newest at `count - 1`.
+    /// - Parameter position: The position of the element. It has
+    /// to be a valid position of the log.
+    /// - Complexity: O(1)
+    public subscript(position: Int) -> Element {
+        return log[position]
+    }
+}
 
 extension CapacityLog: CustomStringConvertible {
     public var description: String {

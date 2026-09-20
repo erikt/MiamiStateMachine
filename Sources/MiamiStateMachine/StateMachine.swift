@@ -76,6 +76,9 @@ public actor StateMachine<Event: Hashable & Sendable, State: Hashable & Sendable
     /// transitions it keeps track of. When the max capacity
     /// has been reached, it throws away the oldest log
     /// entry.
+    ///
+    /// The log is a collection of the transitions, from the
+    /// oldest to the newest.
     public private(set) var transitionLog: CapacityLog<StateTransition<Event, State>>
 
     /// Number of events processed. Includes events that

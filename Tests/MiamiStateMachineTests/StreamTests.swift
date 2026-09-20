@@ -242,11 +242,7 @@ struct StreamTests {
             }
         }
 
-        var log = await stateMachine.transitionLog
-        var transitions: [OrderTransition] = []
-        while let transition = log.popOldest() {
-            transitions.append(transition)
-        }
+        let transitions = Array(await stateMachine.transitionLog)
 
         return (stream,
                 await stateMachine.processedEventsCount,

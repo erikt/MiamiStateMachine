@@ -85,6 +85,61 @@ struct CapacityLogTests {
         #expect(log.count == 0)
     }
 
+    // MARK: - Collection
+
+    @Test func iteratesFromOldestToNewest() {
+        var log = CapacityLog<Int>(capacity: 3)
+        for element in 1 ... 5 {
+            log.append(element)
+        }
+
+        var iterated: [Int] = []
+        for element in log {
+            iterated.append(element)
+        }
+
+        #expect(iterated == [3, 4, 5])
+        #expect(Array(log) == [3, 4, 5])
+        #expect(log.reversed() == [5, 4, 3])
+        #expect(log.count == 3, "Iterating should not remove any elements.")
+    }
+
+    @Test func elementsAreAccessedByPositionWithTheOldestFirst() {
+        var log = CapacityLog<Int>(capacity: 3)
+        for element in 1 ... 5 {
+            log.append(element)
+        }
+
+        #expect(log.indices == 0 ..< 3)
+        #expect(log[0] == 3)
+        #expect(log[1] == 4)
+        #expect(log[log.count - 1] == 5)
+        #expect(log.first == log.peekOldest)
+        #expect(log.last == log.peek)
+        #expect(log.suffix(2) == [4, 5])
+    }
+
+    @Test func positionsFollowTheElementsLeftInTheLog() {
+        var log = CapacityLog<Int>()
+        for element in 1 ... 4 {
+            log.append(element)
+        }
+        _ = log.popOldest()
+        _ = log.pop()
+
+        #expect(Array(log) == [2, 3])
+        #expect(log[0] == 2)
+    }
+
+    @Test func emptyLogHasNothingToIterate() {
+        let log = CapacityLog<Int>(capacity: 3)
+
+        #expect(Array(log) == [])
+        #expect(log.indices.isEmpty)
+        #expect(log.first == nil)
+        #expect(log.last == nil)
+    }
+
     @Test func describesElementsFromOldestToNewest() {
         var log = CapacityLog<Int>(capacity: 3)
         for element in 1 ... 4 {

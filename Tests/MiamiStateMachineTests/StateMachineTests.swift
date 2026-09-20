@@ -279,6 +279,18 @@ struct StateMachineTests {
         #expect(await stateMachine.stateChangeCount == 4, "The counters should not depend on the log.")
     }
 
+    @Test func logIsIteratedFromOldestToNewestTransition() async throws {
+        let stateMachine = try makeStateMachine()
+        for event in [.checkOut, .pay, .ship] as [OrderEvent] {
+            await stateMachine.process(event)
+        }
+
+        let log = await stateMachine.transitionLog
+        #expect(log.map(\.event) == [.checkOut, .pay, .ship])
+        #expect(log.map(\.to) == [.checkout, .paid, .shipped])
+        #expect(await stateMachine.enteredWith == log.last)
+    }
+
     @Test func logDoesNotKeepRejectedEvents() async throws {
         let stateMachine = try makeStateMachine()
         await stateMachine.process(.ship)

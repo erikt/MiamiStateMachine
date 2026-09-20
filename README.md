@@ -148,6 +148,23 @@ Some things to know about the streams:
 
 The `AsyncStream` based solution is a sort of workaround while waiting for Swift to improve observation of values in an actor.
 
+## The transition log
+
+The state machine keeps a log of the transitions made. The log is a collection, from the oldest transition to the newest:
+
+```
+let log = await stateMachine.transitionLog
+
+for transition in log {
+    print(transition)
+}
+
+let latest = log.last
+```
+
+The log keeps every transition by default. To only keep the latest, give the log a capacity when creating the state
+machine: `StateMachine(transitions: transitions, initialState: .s1, logCapacity: 10)`.
+
 ## Finding the shortest path between states
 
 The state machine can tell how to get from one state to another with the fewest events:
