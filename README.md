@@ -97,9 +97,35 @@ Task {
 
 ## Reacting to state changes
 
-By listening to the `doneTransitionStream: AsyncStream<StateTransition<Event, State>>` stream, it is possible to react to state changes.
+To react to the transitions made by the state machine, ask it for a stream of transitions:
 
-There is also `rejectedEventStream: AsyncStream<(from: State, for: Event)>` to be able to know when processed events did __not__ lead to a state change.
+```
+if let transitions = await stateMachine?.transitionStream() {
+    Task {
+        for await transition in transitions {
+            print("Entered \(transition.to) by \(transition.event)")
+        }
+
+        // The state machine has reached an ending state, or is deallocated.
+    }
+}
+```
+
+There is also `rejectedEventStream()`, to be able to know when processed events did __not__ lead to a transition. Its
+elements are the rejected event, together with the state the state machine was at: `(from: State, for: Event)`.
+
+Some things to know about the streams:
+
+- Every call creates a new stream. Several consumers can listen at the same time, and all of them get every element.
+- A stream delivers what happens after it was created. Create the stream before processing the events of interest, as
+  above. A stream created inside a new task may miss events, as the task can start running after they were processed.
+- A stream of transitions finishes when the state machine reaches an ending state. A stream of rejected events does not,
+  as events are rejected at an ending state too. Both finish when the state machine is deallocated.
+- Cancelling the task of a consumer, or letting go of a stream, ends only that stream. Ask for a new stream to start
+  listening again.
+- A stream keeps its elements until they are consumed, without any limit. If only the latest are of interest, pass a
+  buffering policy: `transitionStream(bufferingPolicy: .bufferingNewest(1))`.
+- Use the transition received to know the state entered, and not `state`. The state machine may have moved on.
 
 The `AsyncStream` based solution is a sort of workaround while waiting for Swift to improve observation of values in an actor.
 

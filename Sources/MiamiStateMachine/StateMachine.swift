@@ -11,8 +11,17 @@ import Foundation
 /// accessed by non-isolated methods.
 public actor StateMachine<Event: Hashable & Sendable, State: Hashable & Sendable> {
 
+    // MARK: - Types
+
+    /// A stream of the transitions made by a state machine.
+    public typealias TransitionStream = AsyncStream<StateTransition<Event, State>>
+
+    /// A stream of the events rejected by a state machine, each together
+    /// with the state the state machine was at when rejecting the event.
+    public typealias RejectedEventStream = AsyncStream<(from: State, for: Event)>
+
     // MARK: - Private properties
-    
+
     /// Transitions defining the state machine.
     private let transitions: Set<StateTransition<Event, State>>
 
@@ -20,11 +29,14 @@ public actor StateMachine<Event: Hashable & Sendable, State: Hashable & Sendable
     /// about the state machine definition as a whole.
     private let transitionGraph: TransitionGraph<Event, State>
 
-    /// Continuation for when an event leads to state change.
-    private var doneContinuation: AsyncStream<StateTransition<Event, State>>.Continuation?
-    
-    /// Continuation for when an event does not lead to state change.
-    private var rejectContinuation: AsyncStream<(from: State, for: Event)>.Continuation?
+    /// The continuations of the transition streams in use, by stream identity.
+    private var transitionContinuations: [UInt64: TransitionStream.Continuation] = [:]
+
+    /// The continuations of the rejected event streams in use, by stream identity.
+    private var rejectedEventContinuations: [UInt64: RejectedEventStream.Continuation] = [:]
+
+    /// The identity of the next stream to be created.
+    private var nextStreamID: UInt64 = 0
 
     // MARK: - Public isolated properties
     
@@ -48,20 +60,6 @@ public actor StateMachine<Event: Hashable & Sendable, State: Hashable & Sendable
     /// Counter for the number of state changes for this state machine.
     public private(set) var stateChangeCount: Int = 0
     
-    /// Stream of transitions made.
-    public lazy var doneTransitionStream: AsyncStream<StateTransition<Event, State>> = {
-        AsyncStream { continuation in
-            self.doneContinuation = continuation
-        }
-    }()
-    
-    /// Stream of events that did not lead to state change.
-    public lazy var rejectedEventStream: AsyncStream<(from: State, for: Event)> = {
-        AsyncStream { (continuation: AsyncStream<(from: State, for: Event)>.Continuation) -> Void in
-            self.rejectContinuation = continuation
-        }
-    }()
-
     /// The transition that led to the current state. It is nil until the
     /// first transition is made.
     ///
@@ -70,6 +68,12 @@ public actor StateMachine<Event: Hashable & Sendable, State: Hashable & Sendable
     public private(set) var enteredWith: StateTransition<Event, State>?
 
     // MARK: - Computed properties
+
+    /// Number of streams created and still in use. Only for the tests of
+    /// the package, to verify that streams no longer in use are forgotten.
+    package var streamCount: (transitions: Int, rejectedEvents: Int) {
+        return (transitionContinuations.count, rejectedEventContinuations.count)
+    }
 
     /// Counter for the number of events processed that did
     /// not lead to a state change.
@@ -120,14 +124,9 @@ public actor StateMachine<Event: Hashable & Sendable, State: Hashable & Sendable
     /// The state machine definition cannot be created if the machine
     /// is not consistent (no state where the same event leads to more
     /// than one transition to another state).
-    ///
-    /// If this state machine needs to have a delegate (to be informed
-    /// when the state changes or not), this needs to be set when
-    /// creating the state machine.
     /// - Parameters:
     ///   - transitions: Transitions defining the state machine.
     ///   - initialState: Initial state for the state machine.
-    ///   - delegate: State machine delegate.
     ///   - logCapacity: Max capacity of transition log. Set to nil for unlimited
     ///   number of entries in the transition log.
     public init?(transitions: Set<StateTransition<Event, State>>,
@@ -159,9 +158,20 @@ public actor StateMachine<Event: Hashable & Sendable, State: Hashable & Sendable
         self.initialState = initialState
         self.state = initialState
     }
-    
+
+    deinit {
+        // Finish the streams still in use. Their consumers
+        // would otherwise be left waiting forever.
+        for continuation in transitionContinuations.values {
+            continuation.finish()
+        }
+        for continuation in rejectedEventContinuations.values {
+            continuation.finish()
+        }
+    }
+
     // MARK: - API methods
-    
+
     /// Process an event.
     ///
     /// If there is a transition from the current state for the event, the
@@ -175,18 +185,109 @@ public actor StateMachine<Event: Hashable & Sendable, State: Hashable & Sendable
         // by the state machine. This includes events process that
         // did not lead to a state change.
         processedEventsCount += 1
-        
+
         if let t = transition(from: state, for: event) {
             commit(t)
-            doneContinuation?.yield(t)
+            for continuation in transitionContinuations.values {
+                continuation.yield(t)
+            }
             if isAtEndingState {
-                doneContinuation?.finish()
+                // No further transitions will be made.
+                for continuation in transitionContinuations.values {
+                    continuation.finish()
+                }
+                transitionContinuations.removeAll()
             }
         } else {
-            rejectContinuation?.yield((state, event))
+            for continuation in rejectedEventContinuations.values {
+                continuation.yield((state, event))
+            }
         }
     }
-    
+
+    /// Creates a stream of the transitions made from now on, in the
+    /// order they are made.
+    ///
+    /// Every call creates a new stream, independent of all other streams.
+    /// Several consumers can each have a stream of their own, and all of
+    /// them get every transition. Cancelling the task of a consumer, or
+    /// letting go of a stream, ends only that stream.
+    ///
+    /// The stream finishes when the state machine reaches an ending state,
+    /// after the transition leading there, as no further transitions will
+    /// be made. A stream created at an ending state is finished from the
+    /// start. The stream also finishes if the state machine is deallocated.
+    ///
+    /// Create the stream before processing the events of interest, and
+    /// hand it over to the task consuming it. A stream created by a new
+    /// task misses the transitions made before the task starts running.
+    ///
+    ///     let transitions = await stateMachine.transitionStream()
+    ///
+    ///     Task {
+    ///         for await transition in transitions {
+    ///             print(transition)
+    ///         }
+    ///     }
+    ///
+    /// Use the transition received, and not `state`, to know the state
+    /// entered. The state machine may have moved on since the transition.
+    /// - Parameter bufferingPolicy: How transitions are buffered until they
+    /// are consumed. By default all of them, without any limit.
+    /// - Returns: A new stream of transitions.
+    public func transitionStream(
+        bufferingPolicy: TransitionStream.Continuation.BufferingPolicy = .unbounded
+    ) -> TransitionStream {
+        let (stream, continuation) = TransitionStream.makeStream(bufferingPolicy: bufferingPolicy)
+
+        guard !isAtEndingState else {
+            continuation.finish()
+            return stream
+        }
+
+        let id = makeStreamID()
+        transitionContinuations[id] = continuation
+        continuation.onTermination = { [weak self] termination in
+            // A stream finished by the state machine is already removed.
+            guard case .cancelled = termination else { return }
+            Task { await self?.removeTransitionContinuation(id) }
+        }
+        return stream
+    }
+
+    /// Creates a stream of the events rejected from now on, in the order
+    /// they are rejected. An event is rejected when there is no transition
+    /// for the event from the current state. Every event is delivered
+    /// together with the state the state machine was at.
+    ///
+    /// Every call creates a new stream, independent of all other streams.
+    /// Several consumers can each have a stream of their own, and all of
+    /// them get every rejected event. Cancelling the task of a consumer, or
+    /// letting go of a stream, ends only that stream.
+    ///
+    /// Events are rejected at an ending state as well, so the stream only
+    /// finishes if the state machine is deallocated.
+    ///
+    /// Create the stream before processing the events of interest, and
+    /// hand it over to the task consuming it, as for `transitionStream`.
+    /// - Parameter bufferingPolicy: How rejected events are buffered until
+    /// they are consumed. By default all of them, without any limit.
+    /// - Returns: A new stream of rejected events.
+    public func rejectedEventStream(
+        bufferingPolicy: RejectedEventStream.Continuation.BufferingPolicy = .unbounded
+    ) -> RejectedEventStream {
+        let (stream, continuation) = RejectedEventStream.makeStream(bufferingPolicy: bufferingPolicy)
+
+        let id = makeStreamID()
+        rejectedEventContinuations[id] = continuation
+        continuation.onTermination = { [weak self] termination in
+            // A stream is only finished by a state machine being deallocated.
+            guard case .cancelled = termination else { return }
+            Task { await self?.removeRejectedEventContinuation(id) }
+        }
+        return stream
+    }
+
     /// If the state machine can transition to a state from the current state.
     /// - Parameter newState: State to check if it's possible to transition to.
     /// - Returns: If transition is possible.
@@ -232,6 +333,26 @@ public actor StateMachine<Event: Hashable & Sendable, State: Hashable & Sendable
         enteredWith = transition
         transitionLog.append(transition)
         stateChangeCount += 1
+    }
+
+    /// The identity of a new stream.
+    private func makeStreamID() -> UInt64 {
+        defer { nextStreamID += 1 }
+        return nextStreamID
+    }
+
+    /// Forget a transition stream no longer in use, because the task
+    /// of its consumer was cancelled or the stream was let go of.
+    /// - Parameter id: The identity of the stream.
+    private func removeTransitionContinuation(_ id: UInt64) {
+        transitionContinuations[id] = nil
+    }
+
+    /// Forget a rejected event stream no longer in use, because the task
+    /// of its consumer was cancelled or the stream was let go of.
+    /// - Parameter id: The identity of the stream.
+    private func removeRejectedEventContinuation(_ id: UInt64) {
+        rejectedEventContinuations[id] = nil
     }
 }
 
