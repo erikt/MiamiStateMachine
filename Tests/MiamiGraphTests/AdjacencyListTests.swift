@@ -26,20 +26,4 @@ struct AdjacencyListTests {
 
         #expect(graph.edges(from: a).map(\.destination) == [c, b])
     }
-
-    @Test func describesDestinationsForEachVertex() {
-        var graph = AdjacencyList<String>()
-        let a = graph.addVertex("A")
-        let b = graph.addVertex("B")
-        let c = graph.addVertex("C")
-        graph.addEdge(from: a, to: b)
-        graph.addEdge(from: a, to: c)
-        graph.addEdge(from: c, to: a)
-
-        #expect(graph.description == """
-            0: A ---> [1: B, 2: C]
-            1: B ---> []
-            2: C ---> [0: A]
-            """)
-    }
 }

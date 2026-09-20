@@ -41,11 +41,5 @@ package struct AdjacencyList<Element>: Graph {
 
 extension AdjacencyList: Sendable where Element: Sendable {}
 
-extension AdjacencyList: CustomStringConvertible {
-    package var description: String {
-        return vertices.map { vertex in
-            let destinations = adjacencies[vertex.index].map { "\($0.destination)" }.joined(separator: ", ")
-            return "\(vertex) ---> [\(destinations)]"
-        }.joined(separator: "\n")
-    }
-}
+// The description is the one shared by all graphs.
+extension AdjacencyList: CustomStringConvertible {}

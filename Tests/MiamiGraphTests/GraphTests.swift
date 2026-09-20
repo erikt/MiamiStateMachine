@@ -102,6 +102,21 @@ struct GraphTests {
         #expect(copy.edges(from: a).count == 1)
     }
 
+    @Test(arguments: GraphKind.allCases)
+    func describesItsEdgesAndVerticesWithoutEdges(kind: GraphKind) throws {
+        let fixture = try Fixture(kind, vertices: ["A", "B", "C"], edges: [
+            ("A", "B", 1), ("A", "C", 2.5), ("C", "A", 1),
+        ])
+
+        #expect("\(fixture.graph)" == """
+            0: A --(1.0)--> 1: B
+            0: A --(2.5)--> 2: C
+            1: B
+            2: C --(1.0)--> 0: A
+            """)
+        #expect("\(kind.makeGraph())" == "")
+    }
+
     // MARK: - Programmer errors
 
     // Exit tests only exist on the platforms below. Without the condition,

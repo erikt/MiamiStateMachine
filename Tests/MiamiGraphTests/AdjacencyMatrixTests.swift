@@ -39,13 +39,4 @@ struct AdjacencyMatrixTests {
         #expect(graph.lightestEdge(from: c, to: a)?.weight == 4)
         #expect(graph.lightestEdge(from: a, to: c)?.weight == nil)
     }
-
-    @Test func describesVerticesAndWeights() {
-        var graph = AdjacencyMatrix<String>()
-        let a = graph.addVertex("A")
-        let b = graph.addVertex("B")
-        graph.addEdge(from: a, to: b, weight: 2)
-
-        #expect(graph.description == "0: A\n1: B\n\nø\t2.0\nø\tø")
-    }
 }

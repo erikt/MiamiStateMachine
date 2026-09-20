@@ -90,6 +90,22 @@ extension Graph {
     package func contains(_ vertex: Vertex<Element>) -> Bool {
         vertices.indices.contains(vertex.index)
     }
+
+    /// The edges of the graph, one on every line, in the order of the
+    /// vertices they lead from. A vertex without any edges leading from
+    /// it has a line of its own.
+    ///
+    ///     0: A --(1.0)--> 1: B
+    ///     0: A --(2.5)--> 2: C
+    ///     1: B
+    ///     2: C --(1.0)--> 0: A
+    package var description: String {
+        let lines = vertices.flatMap { vertex in
+            let edges = edges(from: vertex)
+            return edges.isEmpty ? ["\(vertex)"] : edges.map { "\($0)" }
+        }
+        return lines.joined(separator: "\n")
+    }
 }
 
 extension Graph where Element: Equatable {

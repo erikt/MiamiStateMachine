@@ -2,16 +2,18 @@
 /// row for each source and a column for each destination.
 ///
 /// Suitable for dense graphs (many edges compared to the number
-/// of vertices), where looking up the weight between two vertices
+/// of vertices), where looking up the edge between two vertices
 /// needs to be fast. There can only be one edge from a vertex
 /// to another vertex. Adding another replaces the first.
 package struct AdjacencyMatrix<Element>: Graph {
 
     package private(set) var vertices: [Vertex<Element>] = []
 
-    /// Weight of the edge from a vertex (row) to another
-    /// vertex (column), by vertex index. `nil` means there is no edge.
-    private var weights: [[Double?]] = []
+    /// The weight of the edge from a vertex (row) to another vertex
+    /// (column), by vertex index. Where there is no edge, the weight is
+    /// infinite. That is the one weight an edge cannot have, and a plain
+    /// number takes half the memory of a number that can be missing.
+    private var weights: [[Double]] = []
 
     package init() {}
 
@@ -23,10 +25,13 @@ package struct AdjacencyMatrix<Element>: Graph {
     package mutating func addVertex(_ data: Element) -> Vertex<Element> {
         let vertex = Vertex(index: vertices.count, data: data)
         vertices.append(vertex)
+
+        // A column for the vertex in every row, and then a row of its own.
         for row in weights.indices {
-            weights[row].append(nil)
+            weights[row].append(.infinity)
         }
-        weights.append([Double?](repeating: nil, count: vertices.count))
+        weights.append([Double](repeating: .infinity, count: vertices.count))
+
         return vertex
     }
 
@@ -45,8 +50,8 @@ package struct AdjacencyMatrix<Element>: Graph {
     /// - Complexity: O(*V*), where *V* is the number of vertices.
     package func edges(from source: Vertex<Element>) -> [Edge<Element>] {
         precondition(contains(source), "Vertex is not part of the graph.")
-        return zip(vertices, weights[source.index]).compactMap { destination, weight in
-            weight.map { Edge(source: source, destination: destination, weight: $0) }
+        return vertices.compactMap { destination in
+            edge(from: source, to: destination)
         }
     }
 
@@ -60,22 +65,17 @@ package struct AdjacencyMatrix<Element>: Graph {
     /// - Complexity: O(1)
     package func lightestEdge(from source: Vertex<Element>, to destination: Vertex<Element>) -> Edge<Element>? {
         precondition(contains(source) && contains(destination), "Vertex is not part of the graph.")
-        return weights[source.index][destination.index].map {
-            Edge(source: source, destination: destination, weight: $0)
-        }
+        return edge(from: source, to: destination)
+    }
+
+    /// The edge of a cell in the matrix, if the cell has an edge.
+    private func edge(from source: Vertex<Element>, to destination: Vertex<Element>) -> Edge<Element>? {
+        let weight = weights[source.index][destination.index]
+        return weight.isFinite ? Edge(source: source, destination: destination, weight: weight) : nil
     }
 }
 
 extension AdjacencyMatrix: Sendable where Element: Sendable {}
 
-extension AdjacencyMatrix: CustomStringConvertible {
-    package var description: String {
-        let verticesDescription = vertices.map { "\($0)" }.joined(separator: "\n")
-        let weightsDescription = weights.map { row in
-            row.map { weight in
-                weight.map { "\($0)" } ?? "ø"
-            }.joined(separator: "\t")
-        }.joined(separator: "\n")
-        return "\(verticesDescription)\n\n\(weightsDescription)"
-    }
-}
+// The description is the one shared by all graphs.
+extension AdjacencyMatrix: CustomStringConvertible {}
