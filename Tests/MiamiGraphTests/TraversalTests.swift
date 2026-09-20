@@ -78,6 +78,19 @@ struct TraversalTests {
 
     @Test(arguments: GraphKind.allCases)
     func cycleNotReachableFromVertexIsOnlyFoundInWholeGraph(kind: GraphKind) throws {
+        // The first vertex leads to B, but not to the cycle between C and D. A
+        // search of the whole graph has to continue from more than the first vertex.
+        let fixture = try Fixture(kind, vertices: ["A", "B", "C", "D"], edges: [
+            ("A", "B", 1), ("C", "D", 1), ("D", "C", 1),
+        ])
+
+        #expect(fixture.graph.hasCycle(reachableFrom: try fixture.vertex("A")) == false)
+        #expect(fixture.graph.hasCycle(reachableFrom: try fixture.vertex("C")))
+        #expect(fixture.graph.hasCycle)
+    }
+
+    @Test(arguments: GraphKind.allCases)
+    func cycleLeadingToVertexIsNotReachableFromIt(kind: GraphKind) throws {
         // The cycle between A and B leads to C, but not the other way around.
         let fixture = try Fixture(kind, vertices: ["A", "B", "C", "D"], edges: [
             ("A", "B", 1), ("B", "A", 1), ("B", "C", 1), ("C", "D", 1),
@@ -92,13 +105,14 @@ struct TraversalTests {
         #expect(kind.makeGraph().hasCycle == false)
     }
 
-    @Test func cycleSearchIsFastWithManyPathsToSameVertices() throws {
-        // A chain of 40 diamonds has 2^40 different paths from the
-        // first to the last vertex. Every vertex should only be searched once.
-        var graph = AdjacencyList<Int>()
+    @Test func cycleSearchAsksForTheEdgesOfEveryVertexOnce() {
+        // A chain of 12 diamonds has 4 096 different paths from the first to the
+        // last vertex. A search following every path, and not remembering the
+        // vertices already searched, asks for the edges thousands of times.
+        var graph = CountingGraph<Int>()
         var top = graph.addVertex(0)
         let first = top
-        for _ in 0 ..< 40 {
+        for _ in 0 ..< 12 {
             let left = graph.addVertex(0)
             let right = graph.addVertex(0)
             let bottom = graph.addVertex(0)
@@ -110,5 +124,27 @@ struct TraversalTests {
         }
 
         #expect(graph.hasCycle(reachableFrom: first) == false)
+        #expect(graph.edgesCallCount == graph.vertices.count)
+    }
+
+    @Test func cycleSearchIsNotLimitedByTheDepthOfTheGraph() {
+        // Tests do not run on the main thread, and other threads have small
+        // stacks. A recursive search of a chain this long ends in a crash.
+        //
+        // Only the search from a vertex is used here. A chain has a single
+        // path, so the test is fast even for a search doing too much work.
+        var graph = AdjacencyList<Int>()
+        var last = graph.addVertex(0)
+        let first = last
+        for number in 1 ..< 100_000 {
+            let next = graph.addVertex(number)
+            graph.addDirectedEdge(from: last, to: next)
+            last = next
+        }
+
+        #expect(graph.hasCycle(reachableFrom: first) == false)
+
+        graph.addDirectedEdge(from: last, to: first)
+        #expect(graph.hasCycle(reachableFrom: first))
     }
 }

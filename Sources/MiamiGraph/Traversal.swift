@@ -115,23 +115,45 @@ extension Graph {
     private func hasCycle(reachableFrom source: Vertex<Element>,
                           states: inout [CycleSearchState]) -> Bool
     {
-        states[source.index] = .onPath
+        // A vertex on the path being followed, its edges, and how many of
+        // the edges have been followed. The path is kept on a stack and not
+        // in recursive calls, so the depth of the graph is not limited by
+        // the size of the call stack.
+        typealias Step = (vertex: Vertex<Element>, edges: [Edge<Element>], followedCount: Int)
 
-        for edge in edges(from: source) {
-            switch states[edge.destination.index] {
+        var path = Stack<Step>()
+
+        func follow(_ vertex: Vertex<Element>) {
+            states[vertex.index] = .onPath
+            path.push((vertex: vertex, edges: edges(from: vertex), followedCount: 0))
+        }
+
+        follow(source)
+
+        while var step = path.pop() {
+            guard step.followedCount < step.edges.count else {
+                // Every edge is followed, without finding any cycle.
+                states[step.vertex.index] = .done
+                continue
+            }
+
+            let destination = step.edges[step.followedCount].destination
+            step.followedCount += 1
+
+            // Come back to the rest of the edges later.
+            path.push(step)
+
+            switch states[destination.index] {
             case .onPath:
                 // Back at a vertex on the current path.
                 return true
             case .unvisited:
-                if hasCycle(reachableFrom: edge.destination, states: &states) {
-                    return true
-                }
+                follow(destination)
             case .done:
-                continue
+                break
             }
         }
 
-        states[source.index] = .done
         return false
     }
 }
