@@ -97,7 +97,7 @@ struct ShortestPathTests {
 
     @Test func usesOneOfTheEventsConnectingTheSameStates() throws {
         let transitions = OrderFixture.transitions.union([
-            Transition(from: .paid, event: .shipExpress, to: .shipped),
+            StateTransition(from: .paid, event: .shipExpress, to: .shipped),
         ])
         let stateMachine = try #require(StateMachine(transitions: transitions, initialState: .cart))
 
@@ -112,7 +112,7 @@ struct ShortestPathTests {
         // Buying now and shipping are two events from the cart to shipped. So
         // are checking out and shipping on invoice, but by way of other states.
         let transitions = OrderFixture.transitions.union([
-            Transition(from: .checkout, event: .shipOnInvoice, to: .shipped),
+            StateTransition(from: .checkout, event: .shipOnInvoice, to: .shipped),
         ])
         let stateMachine = try #require(StateMachine(transitions: transitions, initialState: .cart))
 

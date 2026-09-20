@@ -23,7 +23,7 @@ the framework.
 A `StateMachine` has a `state: State` (the current state). The `State` is a type
 conforming to `Hashable` and `Sendable`. An `enum` defining the possible states works well. 
 
-The transitions between states are defined by `Transition`, a value with the `from: State`, the
+The transitions between states are defined by `StateTransition`, a value with the `from: State`, the
 `event: Event` needed to do the transition and the `to: State` where the state machine ends up.
 
 The `Event` is also a type conforming to `Hashable & Sendable`, usually an enum.
@@ -48,12 +48,12 @@ enum MyEvent {
 The state machine is defined by the transitions it can do:
 
 ```
-typealias MyTransition = Transition<MyEvent, MyState>
+typealias MyTransition = StateTransition<MyEvent, MyState>
 
 let transitions: Set<MyTransition> = [
-    Transition(from: .s1, event: .e1, to: .s2),
-    Transition(from: .s2, event: .e2, to: .s3),
-    Transition(from: .s1, event: .e3, to: .s3),
+    StateTransition(from: .s1, event: .e1, to: .s2),
+    StateTransition(from: .s2, event: .e2, to: .s3),
+    StateTransition(from: .s1, event: .e3, to: .s3),
 ]
 ```
 
@@ -97,7 +97,7 @@ Task {
 
 ## Reacting to state changes
 
-By listening to the `doneTransitionStream: AsyncStream<Transition<Event, State>>` stream, it is possible to react to state changes.
+By listening to the `doneTransitionStream: AsyncStream<StateTransition<Event, State>>` stream, it is possible to react to state changes.
 
 There is also `rejectedEventStream: AsyncStream<(from: State, for: Event)>` to be able to know when processed events did __not__ lead to a state change.
 

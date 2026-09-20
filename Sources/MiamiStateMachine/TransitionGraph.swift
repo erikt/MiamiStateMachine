@@ -26,13 +26,13 @@ struct TransitionGraph<Event: Hashable & Sendable, State: Hashable & Sendable>: 
     /// another state. If several events connect the same two states, one of
     /// the transitions is used for them all, as they are equally good when
     /// looking for a path.
-    private var transitionsByHop: [Hop: Transition<Event, State>] = [:]
+    private var transitionsByHop: [Hop: StateTransition<Event, State>] = [:]
 
     // MARK: - Initialization
 
     /// Creates a graph of the states in the transitions.
     /// - Parameter transitions: Transitions defining a state machine.
-    init(transitions: Set<Transition<Event, State>>) {
+    init(transitions: Set<StateTransition<Event, State>>) {
         for transition in transitions {
             let hop = Hop(from: transition.from, to: transition.to)
 
@@ -60,7 +60,7 @@ struct TransitionGraph<Event: Hashable & Sendable, State: Hashable & Sendable>: 
     /// - Returns: The transitions to make, in order, to get from the state to
     /// the new state. If the new state cannot be reached from the state,
     /// it returns nil. The path is empty if the two states are the same.
-    func shortestPath(from state: State, to newState: State) -> [Transition<Event, State>]? {
+    func shortestPath(from state: State, to newState: State) -> [StateTransition<Event, State>]? {
         guard state != newState else {
             // Already there. This is also true for
             // states without any transitions at all.

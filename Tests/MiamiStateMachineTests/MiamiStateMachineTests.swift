@@ -84,7 +84,7 @@ final class MiamiStateMachineTests: XCTestCase {
         let demoSm = StateMachine(transitions: transitions, initialState: .s1)!
         await demoSm.process(.e4)
         var log = await demoSm.transitionLog
-        let expectedT1: MyTransition = Transition(from: .s1, event: .e4, to: .s1)
+        let expectedT1: MyTransition = StateTransition(from: .s1, event: .e4, to: .s1)
         XCTAssertEqual(log.peek, log.peekOldest, "Last log entry and oldest log entry should be the same")
         XCTAssertEqual(log.count, 1, "Number of log entries should be 1")
         XCTAssertEqual(log.peek, expectedT1, "Last log entry should be from s1")
@@ -109,8 +109,8 @@ final class MiamiStateMachineTests: XCTestCase {
         log = await demoSm.transitionLog
         XCTAssertEqual(log.count, 6, "There should be 6 log entries, not \(log.count)")
 
-        let expOld: MyTransition = Transition(from: .s1, event: .e4, to: .s1)
-        let expLast: MyTransition = Transition(from: .s2, event: .e2, to: .s3)
+        let expOld: MyTransition = StateTransition(from: .s1, event: .e4, to: .s1)
+        let expLast: MyTransition = StateTransition(from: .s2, event: .e2, to: .s3)
         XCTAssertEqual(log.peekOldest, expOld, "Oldest entry is not expected")
         XCTAssertEqual(log.peek, expLast, "Last entry is not expected")
     }
@@ -126,11 +126,11 @@ enum E1 {
     case s1ToS2, s2ToS3, s1ToS3, s3ToEnd
 }
 
-let t1: Set<Transition<E1, S1>> = [
-    Transition(from: .s1, event: .s1ToS2, to: .s2),
-    Transition(from: .s1, event: .s1ToS3, to: .s3),
-    Transition(from: .s2, event: .s2ToS3, to: .s3),
-    Transition(from: .s3, event: .s3ToEnd, to: .end)
+let t1: Set<StateTransition<E1, S1>> = [
+    StateTransition(from: .s1, event: .s1ToS2, to: .s2),
+    StateTransition(from: .s1, event: .s1ToS3, to: .s3),
+    StateTransition(from: .s2, event: .s2ToS3, to: .s3),
+    StateTransition(from: .s3, event: .s3ToEnd, to: .end)
 ]
 
 // --
@@ -143,11 +143,11 @@ enum E2 {
     case e1, e2, e3
 }
 
-let illegalT: Set<Transition<E2, S2>> = [
-    Transition(from: .s1, event: .e1, to: .s2),
-    Transition(from: .s2, event: .e2, to: .s3),
-    Transition(from: .s1, event: .e3, to: .s3),
-    Transition(from: .s1, event: .e3, to: .s2)
+let illegalT: Set<StateTransition<E2, S2>> = [
+    StateTransition(from: .s1, event: .e1, to: .s2),
+    StateTransition(from: .s2, event: .e2, to: .s3),
+    StateTransition(from: .s1, event: .e3, to: .s3),
+    StateTransition(from: .s1, event: .e3, to: .s2)
 ]
 
 // --
@@ -160,11 +160,11 @@ enum MyEvent {
     case e1, e2, e3, e4
 }
 
-typealias MyTransition = Transition<MyEvent, MyState>
+typealias MyTransition = StateTransition<MyEvent, MyState>
 
 let transitions: Set<MyTransition> = [
-    Transition(from: .s1, event: .e1, to: .s2),
-    Transition(from: .s2, event: .e2, to: .s3),
-    Transition(from: .s1, event: .e3, to: .s3),
-    Transition(from: .s1, event: .e4, to: .s1)
+    StateTransition(from: .s1, event: .e1, to: .s2),
+    StateTransition(from: .s2, event: .e2, to: .s3),
+    StateTransition(from: .s1, event: .e3, to: .s3),
+    StateTransition(from: .s1, event: .e4, to: .s1)
 ]

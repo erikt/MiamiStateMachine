@@ -1,6 +1,6 @@
 /// A transition connects two states via an event. The transition
 /// is only defined in one direction (from a state to another state).
-public struct Transition<Event: Hashable & Sendable, State: Hashable & Sendable> {
+public struct StateTransition<Event: Hashable & Sendable, State: Hashable & Sendable> {
     
     /// The transition from state.
     public let from: State
@@ -24,11 +24,11 @@ public struct Transition<Event: Hashable & Sendable, State: Hashable & Sendable>
     }
 }
 
-extension Transition: Sendable { }
-extension Transition: Equatable { }
-extension Transition: Hashable { }
+extension StateTransition: Sendable { }
+extension StateTransition: Equatable { }
+extension StateTransition: Hashable { }
 
-extension Transition: CustomStringConvertible {
+extension StateTransition: CustomStringConvertible {
     public var description: String {
         return "\(from) --(\(event))--> \(to)"
     }

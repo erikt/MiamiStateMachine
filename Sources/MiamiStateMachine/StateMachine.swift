@@ -1,7 +1,7 @@
 import Foundation
 
 /// A state machine is an actor with a current state and
-/// a set of transitions defining the machine. The `Transition`
+/// a set of transitions defining the machine. The `StateTransition`
 /// connects two states by an event.
 /// 
 /// The state machine actor protects the current state from outside
@@ -14,14 +14,14 @@ public actor StateMachine<Event: Hashable & Sendable, State: Hashable & Sendable
     // MARK: - Private properties
     
     /// Transitions defining the state machine.
-    private let transitions: Set<Transition<Event, State>>
+    private let transitions: Set<StateTransition<Event, State>>
 
     /// The transitions as a graph of states, to be able to answer questions
     /// about the state machine definition as a whole.
     private let transitionGraph: TransitionGraph<Event, State>
 
     /// Continuation for when an event leads to state change.
-    private var doneContinuation: AsyncStream<Transition<Event, State>>.Continuation?
+    private var doneContinuation: AsyncStream<StateTransition<Event, State>>.Continuation?
     
     /// Continuation for when an event does not lead to state change.
     private var rejectContinuation: AsyncStream<(from: State, for: Event)>.Continuation?
@@ -39,7 +39,7 @@ public actor StateMachine<Event: Hashable & Sendable, State: Hashable & Sendable
     /// transitions it keeps track of. When the max capacity
     /// has been reached, it throws away the oldest log
     /// entry.
-    public private(set) var transitionLog: CapacityLog<Transition<Event, State>>
+    public private(set) var transitionLog: CapacityLog<StateTransition<Event, State>>
 
     /// Number of events processed. Includes events that
     /// did not lead to a state change for the state machine.
@@ -49,7 +49,7 @@ public actor StateMachine<Event: Hashable & Sendable, State: Hashable & Sendable
     public private(set) var stateChangeCount: Int = 0
     
     /// Stream of transitions made.
-    public lazy var doneTransitionStream: AsyncStream<Transition<Event, State>> = {
+    public lazy var doneTransitionStream: AsyncStream<StateTransition<Event, State>> = {
         AsyncStream { continuation in
             self.doneContinuation = continuation
         }
@@ -65,7 +65,7 @@ public actor StateMachine<Event: Hashable & Sendable, State: Hashable & Sendable
     // MARK: - Computed properties
     
     /// The transition that led to the current state.
-    public var enteredWith: Transition<Event, State>? {
+    public var enteredWith: StateTransition<Event, State>? {
         // Transition on top of the stack is the last commited.
         return transitionLog.peek
     }
@@ -101,12 +101,12 @@ public actor StateMachine<Event: Hashable & Sendable, State: Hashable & Sendable
     }
     
     /// All possible outgoing transitions from the current state.
-    public var transitionsFromCurrent: Set<Transition<Event, State>> {
+    public var transitionsFromCurrent: Set<StateTransition<Event, State>> {
         return transitions(from: state)
     }
     
     /// All possible incoming transition leading to the current state.
-    public var transitionsToCurrent: Set<Transition<Event, State>> {
+    public var transitionsToCurrent: Set<StateTransition<Event, State>> {
         return transitions(to: state)
     }
 
@@ -126,7 +126,7 @@ public actor StateMachine<Event: Hashable & Sendable, State: Hashable & Sendable
     ///   - delegate: State machine delegate.
     ///   - logCapacity: Max capacity of transition log. Set to nil for unlimited
     ///   number of entries in the transition log.
-    public init?(transitions: Set<Transition<Event, State>>,
+    public init?(transitions: Set<StateTransition<Event, State>>,
                  initialState: State,
                  logCapacity: UInt? = nil)
     {
@@ -193,14 +193,14 @@ public actor StateMachine<Event: Hashable & Sendable, State: Hashable & Sendable
     /// All possible transitions from the current state, to another state.
     /// - Parameter newState: State to go to from the current state.
     /// - Returns: All possible transitions from the current state to another state.
-    public func transitionsFromCurrent(to newState: State) -> Set<Transition<Event, State>> {
+    public func transitionsFromCurrent(to newState: State) -> Set<StateTransition<Event, State>> {
         return transitions(from: self.state, to: newState)
     }
     
     /// All possible transitions to the current state, from another state.
     /// - Parameter oldState: From state
     /// - Returns: All possible transitions from a state to the current state.
-    public func transitionsToCurrent(from oldState: State) -> Set<Transition<Event, State>> {
+    public func transitionsToCurrent(from oldState: State) -> Set<StateTransition<Event, State>> {
         return transitions(from: oldState, to: self.state)
     }
 
@@ -213,7 +213,7 @@ public actor StateMachine<Event: Hashable & Sendable, State: Hashable & Sendable
     /// state to the new state. If the new state cannot be reached from the
     /// current state, it returns nil. The path is empty if the new state is
     /// the current state.
-    public func shortestPath(to newState: State) -> [Transition<Event, State>]? {
+    public func shortestPath(to newState: State) -> [StateTransition<Event, State>]? {
         return shortestPath(from: self.state, to: newState)
     }
 
@@ -223,7 +223,7 @@ public actor StateMachine<Event: Hashable & Sendable, State: Hashable & Sendable
     /// in the transition and keep track of processed and accepted
     /// transitions in a stack.
     /// - Parameter transition: State machine accepted transition.
-    private func commit(_ transition: Transition<Event, State>) {
+    private func commit(_ transition: StateTransition<Event, State>) {
         state = transition.to
         transitionLog.append(transition)
         stateChangeCount += 1
@@ -250,7 +250,7 @@ extension StateMachine {
     ///   - state: From state.
     ///   - event: Event.
     /// - Returns: Transition if there is one for the event at state.
-    public nonisolated func transition(from state: State, for event: Event) -> Transition<Event, State>? {
+    public nonisolated func transition(from state: State, for event: Event) -> StateTransition<Event, State>? {
         let ts = transitions.filter { t in
             return t.from == state && t.event == event
         }
@@ -267,7 +267,7 @@ extension StateMachine {
     ///   - state: To state.
     ///   - event: Event.
     /// - Returns: All transitions leading to state for an event.
-    public nonisolated func transitions(to state: State, for event: Event) -> Set<Transition<Event, State>> {
+    public nonisolated func transitions(to state: State, for event: Event) -> Set<StateTransition<Event, State>> {
         return transitions.filter {
             $0.to == state && $0.event == event
         }
@@ -278,7 +278,7 @@ extension StateMachine {
     ///   - state: Starting state.
     ///   - newState: New state to transition to.
     /// - Returns: All possible transitions to the new state.
-    public nonisolated func transitions(from state: State, to newState: State) -> Set<Transition<Event, State>> {
+    public nonisolated func transitions(from state: State, to newState: State) -> Set<StateTransition<Event, State>> {
         return transitions.filter {
             $0.from == state && $0.to == newState
         }
@@ -287,7 +287,7 @@ extension StateMachine {
     /// All possible transitions from a state.
     /// - Parameter state: State to start from.
     /// - Returns: All possible transitions from state.
-    public nonisolated func transitions(from state: State) -> Set<Transition<Event, State>> {
+    public nonisolated func transitions(from state: State) -> Set<StateTransition<Event, State>> {
         return transitions.filter {
             $0.from == state
         }
@@ -296,7 +296,7 @@ extension StateMachine {
     /// All transitions leading to a state.
     /// - Parameter state: State to go to.
     /// - Returns: All possible transitions to a state.
-    public nonisolated func transitions(to state: State) -> Set<Transition<Event, State>> {
+    public nonisolated func transitions(to state: State) -> Set<StateTransition<Event, State>> {
         return transitions.filter {
             $0.to == state
         }
@@ -363,7 +363,7 @@ extension StateMachine {
     /// - Returns: The transitions to make, in order, to get from the state to
     /// the new state. If the new state cannot be reached from the state,
     /// it returns nil. The path is empty if the two states are the same.
-    public nonisolated func shortestPath(from state: State, to newState: State) -> [Transition<Event, State>]? {
+    public nonisolated func shortestPath(from state: State, to newState: State) -> [StateTransition<Event, State>]? {
         return transitionGraph.shortestPath(from: state, to: newState)
     }
     

@@ -17,7 +17,7 @@ enum OrderEvent {
     case shipExpress, shipOnInvoice
 }
 
-typealias OrderTransition = Transition<OrderEvent, OrderState>
+typealias OrderTransition = StateTransition<OrderEvent, OrderState>
 typealias OrderStateMachine = StateMachine<OrderEvent, OrderState>
 
 enum OrderFixture {
@@ -46,15 +46,15 @@ enum OrderFixture {
     /// The order can be cancelled from the cart, the checkout
     /// and when paid. There is no way back from cancelled.
     static let transitions: Set<OrderTransition> = [
-        Transition(from: .cart, event: .addItem, to: .cart),
-        Transition(from: .cart, event: .checkOut, to: .checkout),
-        Transition(from: .cart, event: .buyNow, to: .paid),
-        Transition(from: .cart, event: .cancel, to: .cancelled),
-        Transition(from: .checkout, event: .editCart, to: .cart),
-        Transition(from: .checkout, event: .pay, to: .paid),
-        Transition(from: .checkout, event: .cancel, to: .cancelled),
-        Transition(from: .paid, event: .ship, to: .shipped),
-        Transition(from: .paid, event: .cancel, to: .cancelled),
-        Transition(from: .shipped, event: .deliver, to: .delivered),
+        StateTransition(from: .cart, event: .addItem, to: .cart),
+        StateTransition(from: .cart, event: .checkOut, to: .checkout),
+        StateTransition(from: .cart, event: .buyNow, to: .paid),
+        StateTransition(from: .cart, event: .cancel, to: .cancelled),
+        StateTransition(from: .checkout, event: .editCart, to: .cart),
+        StateTransition(from: .checkout, event: .pay, to: .paid),
+        StateTransition(from: .checkout, event: .cancel, to: .cancelled),
+        StateTransition(from: .paid, event: .ship, to: .shipped),
+        StateTransition(from: .paid, event: .cancel, to: .cancelled),
+        StateTransition(from: .shipped, event: .deliver, to: .delivered),
     ]
 }
