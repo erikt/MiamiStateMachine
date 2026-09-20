@@ -14,7 +14,8 @@ let package = Package(
             targets: ["MiamiStateMachine"]),
     ],
     dependencies: [
-        .package( url: "https://github.com/apple/swift-collections.git", .upToNextMajor(from: "1.0.2"))
+        // 1.1.0 is the first version with the Heap. Deque is Sendable from 1.0.6.
+        .package( url: "https://github.com/apple/swift-collections.git", .upToNextMajor(from: "1.1.0"))
     ],
     targets: [
         // Targets are the basic building blocks of a package. A target can define a module or a test suite.
@@ -31,7 +32,10 @@ let package = Package(
             name: "MiamiGraph",
             dependencies: ["MiamiDataStructures"]),
         .target(
-            name: "MiamiDataStructures"),
+            name: "MiamiDataStructures",
+            dependencies: [
+                .product(name: "HeapModule", package: "swift-collections")
+            ]),
         .testTarget(
             name: "MiamiStateMachineTests",
             dependencies: ["MiamiStateMachine"]),

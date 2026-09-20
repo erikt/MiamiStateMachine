@@ -13,12 +13,7 @@ extension Graph {
     /// - Complexity: O(*E* log *E*) for an adjacency list, where *E* is
     /// the number of edges.
     package func minimumSpanningTree() -> (cost: Double, tree: AdjacencyList<Element>) {
-        var cost = 0.0
         var tree = AdjacencyList<Element>()
-        var isVisited = [Bool](repeating: false, count: vertices.count)
-        var queue = PriorityQueue<Edge<Element>> {
-            $0.weight < $1.weight
-        }
 
         // Vertices are added in order, so they get the
         // same indices in the tree as in the graph.
@@ -26,31 +21,37 @@ extension Graph {
             tree.addVertex(vertex.data)
         }
 
-        func visit(_ vertex: Vertex<Element>) {
-            isVisited[vertex.index] = true
-            for edge in edges(from: vertex) where !isVisited[edge.destination.index] {
-                queue.enqueue(edge)
+        guard let start = vertices.first else {
+            return (cost: 0, tree: tree)
+        }
+
+        var totalWeight = 0.0
+        var isInTree = [Bool](repeating: false, count: vertices.count)
+
+        // Edges leading out of the tree, the lightest first.
+        var candidates = PriorityQueue<Prioritized<Edge<Element>, Double>>()
+
+        func addToTree(_ vertex: Vertex<Element>) {
+            isInTree[vertex.index] = true
+            for edge in edges(from: vertex) where !isInTree[edge.destination.index] {
+                candidates.enqueue(Prioritized(edge, priority: edge.weight))
             }
         }
 
-        guard let start = vertices.first else {
-            return (cost: cost, tree: tree)
-        }
+        addToTree(start)
 
-        visit(start)
-
-        while let smallestEdge = queue.dequeue() {
-            let vertex = smallestEdge.destination
-
-            guard !isVisited[vertex.index] else {
+        while let lightest = candidates.dequeue()?.value {
+            if isInTree[lightest.destination.index] {
+                // A lighter edge has connected the destination
+                // to the tree since this edge was queued.
                 continue
             }
 
-            cost += smallestEdge.weight
-            tree.addUndirectedEdge(between: smallestEdge.source, and: vertex, weight: smallestEdge.weight)
-            visit(vertex)
+            tree.addUndirectedEdge(between: lightest.source, and: lightest.destination, weight: lightest.weight)
+            totalWeight += lightest.weight
+            addToTree(lightest.destination)
         }
 
-        return (cost: cost, tree: tree)
+        return (cost: totalWeight, tree: tree)
     }
 }

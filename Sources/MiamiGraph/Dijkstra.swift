@@ -71,14 +71,15 @@ extension Graph {
     package func shortestPaths(from source: Vertex<Element>) -> ShortestPaths<Element> {
         var distances = [Double](repeating: .infinity, count: vertices.count)
         var incomingEdges = [Edge<Element>?](repeating: nil, count: vertices.count)
-        var queue = PriorityQueue<(vertex: Vertex<Element>, distance: Double)> {
-            $0.distance < $1.distance
-        }
+        // Vertices to continue from, the one closest to the source first.
+        var queue = PriorityQueue<Prioritized<Vertex<Element>, Double>>()
 
         distances[source.index] = 0
-        queue.enqueue((vertex: source, distance: 0))
+        queue.enqueue(Prioritized(source, priority: 0))
 
-        while let (vertex, distance) = queue.dequeue() {
+        while let closest = queue.dequeue() {
+            let (vertex, distance) = (closest.value, closest.priority)
+
             guard distance <= distances[vertex.index] else {
                 // A shorter path to the vertex was found
                 // after this entry was enqueued.
@@ -92,7 +93,7 @@ extension Graph {
                 if candidate < distances[edge.destination.index] {
                     distances[edge.destination.index] = candidate
                     incomingEdges[edge.destination.index] = edge
-                    queue.enqueue((vertex: edge.destination, distance: candidate))
+                    queue.enqueue(Prioritized(edge.destination, priority: candidate))
                 }
             }
         }
