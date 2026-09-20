@@ -18,7 +18,7 @@ public actor StateMachine<Event: Hashable & Sendable, State: Hashable & Sendable
 
     /// A stream of the events rejected by a state machine, each together
     /// with the state the state machine was at when rejecting the event.
-    public typealias RejectedEventStream = AsyncStream<(from: State, for: Event)>
+    public typealias RejectedEventStream = AsyncStream<RejectedEvent<Event, State>>
 
     /// The reason a state machine cannot be created from a set of transitions.
     ///
@@ -235,7 +235,7 @@ public actor StateMachine<Event: Hashable & Sendable, State: Hashable & Sendable
 
         guard let t = transition(from: state, for: event) else {
             for continuation in rejectedEventContinuations.values {
-                continuation.yield((state, event))
+                continuation.yield(RejectedEvent(event: event, state: state))
             }
             return nil
         }
@@ -306,8 +306,8 @@ public actor StateMachine<Event: Hashable & Sendable, State: Hashable & Sendable
 
     /// Creates a stream of the events rejected from now on, in the order
     /// they are rejected. An event is rejected when there is no transition
-    /// for the event from the current state. Every event is delivered
-    /// together with the state the state machine was at.
+    /// for the event from the current state. Every event is delivered as a
+    /// `RejectedEvent`, together with the state the state machine was at.
     ///
     /// Every call creates a new stream, independent of all other streams.
     /// Several consumers can each have a stream of their own, and all of

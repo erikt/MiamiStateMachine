@@ -136,8 +136,11 @@ struct StreamTests {
         stateMachine = nil
         let rejected = await elements(of: stream)
 
-        #expect(rejected.map { $0.from } == [.cart, .checkout, .delivered])
-        #expect(rejected.map { $0.for } == [.ship, .checkOut, .cancel])
+        #expect(rejected == [
+            RejectedEvent(event: .ship, state: .cart),
+            RejectedEvent(event: .checkOut, state: .checkout),
+            RejectedEvent(event: .cancel, state: .delivered),
+        ])
     }
 
     @Test func everyStreamGetsEveryRejectedEvent() async throws {
@@ -149,8 +152,19 @@ struct StreamTests {
         await stateMachine?.process(.deliver)
         stateMachine = nil
 
-        #expect(await elements(of: first).map { $0.for } == [.ship, .deliver])
-        #expect(await elements(of: second).map { $0.for } == [.ship, .deliver])
+        #expect(await elements(of: first).map(\.event) == [.ship, .deliver])
+        #expect(await elements(of: second).map(\.event) == [.ship, .deliver])
+    }
+
+    @Test func rejectedEventTellsTheEventAndTheState() {
+        let rejected = RejectedEvent(event: OrderEvent.ship, state: OrderState.cart)
+
+        #expect(rejected.event == .ship)
+        #expect(rejected.state == .cart)
+        #expect(rejected.description == "ship rejected at cart")
+        #expect(rejected == RejectedEvent(event: .ship, state: .cart))
+        #expect(rejected != RejectedEvent(event: .ship, state: .checkout))
+        #expect(rejected != RejectedEvent(event: .deliver, state: .cart))
     }
 
     // MARK: - Life cycle
@@ -166,7 +180,7 @@ struct StreamTests {
 
         // What was delivered before is still there to consume.
         #expect(await elements(of: transitions).map(\.event) == [.checkOut])
-        #expect(await elements(of: rejectedEvents).map { $0.for } == [.ship])
+        #expect(await elements(of: rejectedEvents) == [RejectedEvent(event: .ship, state: .checkout)])
     }
 
     @Test func streamsNoLongerInUseAreForgotten() async throws {

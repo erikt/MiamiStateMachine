@@ -131,7 +131,7 @@ Task {
 ```
 
 There is also `rejectedEventStream()`, to be able to know when processed events did __not__ lead to a transition. Its
-elements are the rejected event, together with the state the state machine was at: `(from: State, for: Event)`.
+elements are `RejectedEvent` values, with the rejected `event` and the `state` the state machine was at.
 
 Some things to know about the streams:
 
