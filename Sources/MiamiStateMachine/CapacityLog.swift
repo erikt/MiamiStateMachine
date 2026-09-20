@@ -18,9 +18,9 @@ import DequeModule
 ///
 /// The log is implemented with the Apple Swift Collection
 /// deque and should be performant.
-public struct CapacityLog<Element: Hashable> {
+public struct CapacityLog<Element> {
     private var log: Deque<Element> = []
-    private var capacity: UInt?
+    private let capacity: UInt?
     
     /// Peek at the latest element in the log.
     public var peek: Element? {

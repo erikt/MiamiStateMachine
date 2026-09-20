@@ -85,6 +85,20 @@ struct CapacityLogTests {
         #expect(log.count == 0)
     }
 
+    @Test func elementsDoNotHaveToBeHashable() {
+        /// An element that cannot be hashed, or even compared.
+        struct Note {
+            let text: String
+        }
+
+        var log = CapacityLog<Note>(capacity: 2)
+        for text in ["first", "second", "third"] {
+            log.append(Note(text: text))
+        }
+
+        #expect(log.map(\.text) == ["second", "third"])
+    }
+
     // MARK: - Collection
 
     @Test func iteratesFromOldestToNewest() {
