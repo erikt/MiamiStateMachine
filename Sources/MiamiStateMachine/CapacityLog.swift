@@ -72,6 +72,8 @@ public struct CapacityLog<Element: Hashable> {
     }
 }
 
+extension CapacityLog: Sendable where Element: Sendable { }
+
 extension CapacityLog: CustomStringConvertible {
     public var description: String {
         return log.description
