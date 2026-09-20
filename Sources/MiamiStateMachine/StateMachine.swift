@@ -62,14 +62,15 @@ public actor StateMachine<Event: Hashable & Sendable, State: Hashable & Sendable
         }
     }()
 
+    /// The transition that led to the current state. It is nil until the
+    /// first transition is made.
+    ///
+    /// The transition is kept apart from the transition log, so it is
+    /// also known by a state machine with a log capacity of zero.
+    public private(set) var enteredWith: StateTransition<Event, State>?
+
     // MARK: - Computed properties
-    
-    /// The transition that led to the current state.
-    public var enteredWith: StateTransition<Event, State>? {
-        // Transition on top of the stack is the last commited.
-        return transitionLog.peek
-    }
-    
+
     /// Counter for the number of events processed that did
     /// not lead to a state change.
     public var rejectedEventsCount: Int {
@@ -228,6 +229,7 @@ public actor StateMachine<Event: Hashable & Sendable, State: Hashable & Sendable
     /// - Parameter transition: State machine accepted transition.
     private func commit(_ transition: StateTransition<Event, State>) {
         state = transition.to
+        enteredWith = transition
         transitionLog.append(transition)
         stateChangeCount += 1
     }
