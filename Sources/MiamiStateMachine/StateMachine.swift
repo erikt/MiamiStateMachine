@@ -211,34 +211,44 @@ public actor StateMachine<Event: Hashable & Sendable, State: Hashable & Sendable
     /// Process an event.
     ///
     /// If there is a transition from the current state for the event, the
-    /// state machine will change state.
+    /// event is accepted and the state machine makes the transition.
+    /// Otherwise the event is rejected, and nothing changes.
+    ///
+    /// The transition returned is what this event led to, also when other
+    /// tasks are processing events at the same time. Reading `state` after
+    /// processing an event tells where the state machine is by then, which
+    /// can be somewhere else.
     ///
     /// - Parameters:
     ///   - event: Event to process.
-    public func process(_ event: Event) {
+    /// - Returns: The transition made, or nil if the event was rejected.
+    @discardableResult
+    public func process(_ event: Event) -> StateTransition<Event, State>? {
 
         // Increase the counter for the number of processed events
         // by the state machine. This includes events process that
         // did not lead to a state change.
         processedEventsCount += 1
 
-        if let t = transition(from: state, for: event) {
-            commit(t)
-            for continuation in transitionContinuations.values {
-                continuation.yield(t)
-            }
-            if isAtEndingState {
-                // No further transitions will be made.
-                for continuation in transitionContinuations.values {
-                    continuation.finish()
-                }
-                transitionContinuations.removeAll()
-            }
-        } else {
+        guard let t = transition(from: state, for: event) else {
             for continuation in rejectedEventContinuations.values {
                 continuation.yield((state, event))
             }
+            return nil
         }
+
+        commit(t)
+        for continuation in transitionContinuations.values {
+            continuation.yield(t)
+        }
+        if isAtEndingState {
+            // No further transitions will be made.
+            for continuation in transitionContinuations.values {
+                continuation.finish()
+            }
+            transitionContinuations.removeAll()
+        }
+        return t
     }
 
     /// Creates a stream of the transitions made from now on, in the

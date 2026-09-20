@@ -103,6 +103,17 @@ Task {
 }
 ```
 
+Processing an event returns the transition made, or `nil` if the event was rejected. This tells what the
+event led to, also when other tasks are processing events at the same time:
+
+```
+if let transition = await stateMachine.process(.e1) {
+    print("Entered \(transition.to)")
+} else {
+    print("The event was rejected")
+}
+```
+
 ## Reacting to state changes
 
 To react to the transitions made by the state machine, ask it for a stream of transitions:

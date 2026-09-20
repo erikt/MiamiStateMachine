@@ -90,6 +90,56 @@ struct StateMachineTests {
         #expect(await stateMachine.rejectedEventsCount == 1, "Every event should be rejected.")
     }
 
+    // MARK: - Processing events
+
+    @Test func processReturnsTheTransitionMade() async throws {
+        let stateMachine = try makeStateMachine()
+
+        #expect(await stateMachine.process(.checkOut) == StateTransition(from: .cart, event: .checkOut, to: .checkout))
+        #expect(await stateMachine.process(.editCart) == StateTransition(from: .checkout, event: .editCart, to: .cart))
+
+        // Leading back to the same state is a transition as well.
+        #expect(await stateMachine.process(.addItem) == StateTransition(from: .cart, event: .addItem, to: .cart))
+    }
+
+    @Test func processReturnsNilForRejectedEvent() async throws {
+        let stateMachine = try makeStateMachine()
+
+        #expect(await stateMachine.process(.ship) == nil, "There is nothing to ship in the cart.")
+        #expect(await stateMachine.state == .cart)
+
+        await stateMachine.process(.cancel)
+        #expect(await stateMachine.process(.checkOut) == nil, "Every event is rejected at an ending state.")
+    }
+
+    @Test func everyTaskLearnsWhatItsOwnEventsLedTo() async throws {
+        let stateMachine = try makeStateMachine()
+
+        // The state machine only moves between the cart and the checkout.
+        // Delivering is always rejected, the others depend on the current state.
+        let events: [OrderEvent] = [.checkOut, .editCart, .addItem, .deliver]
+
+        let acceptedCount = await withTaskGroup(of: Int.self) { group in
+            for task in 0 ..< 20 {
+                group.addTask {
+                    var acceptedCount = 0
+                    for step in 0 ..< 100 {
+                        let event = events[(task + step) % events.count]
+                        if let transition = await stateMachine.process(event) {
+                            #expect(transition.event == event)
+                            acceptedCount += 1
+                        }
+                    }
+                    return acceptedCount
+                }
+            }
+            return await group.reduce(0, +)
+        }
+
+        #expect(await stateMachine.stateChangeCount == acceptedCount)
+        #expect(await stateMachine.rejectedEventsCount == 2_000 - acceptedCount)
+    }
+
     // MARK: - Definition
 
     @Test func knowsItsTransitions() throws {
