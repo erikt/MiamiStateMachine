@@ -1,4 +1,4 @@
-import DataStructures
+import MiamiDataStructures
 
 /// The shortest paths from a source vertex to all
 /// other vertices in a graph.

@@ -1,5 +1,5 @@
 import Testing
-import Graph
+import MiamiGraph
 
 /// The graph implementations. Used as argument for tests of behavior
 /// all graphs should share, no matter how they are implemented.

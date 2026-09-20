@@ -1,5 +1,5 @@
 import Testing
-import Graph
+import MiamiGraph
 
 struct PrimTests {
 

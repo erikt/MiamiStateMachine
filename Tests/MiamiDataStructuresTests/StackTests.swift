@@ -1,5 +1,5 @@
 import Testing
-import DataStructures
+import MiamiDataStructures
 
 struct StackTests {
 

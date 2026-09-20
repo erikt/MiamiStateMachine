@@ -1,4 +1,4 @@
-import DataStructures
+import MiamiDataStructures
 
 // MARK: - Traversal
 

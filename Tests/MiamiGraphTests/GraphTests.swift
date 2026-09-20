@@ -1,5 +1,5 @@
 import Testing
-import Graph
+import MiamiGraph
 
 /// Behavior shared by all graph implementations.
 struct GraphTests {

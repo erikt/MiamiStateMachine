@@ -8,7 +8,7 @@ let package = Package(
     platforms: [.macOS(.v12), .iOS(.v15)],
     products: [
         // Products define the executables and libraries a package produces, and make them visible to other packages.
-        // The Graph and DataStructures targets are internal to the package and deliberately not vended as products.
+        // The MiamiGraph and MiamiDataStructures targets are internal to the package and deliberately not vended as products.
         .library(
             name: "MiamiStateMachine",
             targets: ["MiamiStateMachine"]),
@@ -24,19 +24,21 @@ let package = Package(
             dependencies: [
                 .product(name: "Collections", package: "swift-collections")
             ]),
+        // Internal targets are prefixed with Miami, as module names have
+        // to be unique among all packages a client depends on.
         .target(
-            name: "Graph",
-            dependencies: ["DataStructures"]),
+            name: "MiamiGraph",
+            dependencies: ["MiamiDataStructures"]),
         .target(
-            name: "DataStructures"),
+            name: "MiamiDataStructures"),
         .testTarget(
             name: "MiamiStateMachineTests",
             dependencies: ["MiamiStateMachine"]),
         .testTarget(
-            name: "GraphTests",
-            dependencies: ["Graph"]),
+            name: "MiamiGraphTests",
+            dependencies: ["MiamiGraph"]),
         .testTarget(
-            name: "DataStructuresTests",
-            dependencies: ["DataStructures"]),
+            name: "MiamiDataStructuresTests",
+            dependencies: ["MiamiDataStructures"]),
     ]
 )
