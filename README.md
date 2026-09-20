@@ -89,7 +89,7 @@ Task {
     
   // State is still s3. Event e3 had no effect.
 
-  await stateMachine?.atEndingState
+  await stateMachine?.isAtEndingState
     
   // True as s3 state has no transitions defined for any event.
 }

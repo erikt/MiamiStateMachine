@@ -76,17 +76,20 @@ public actor StateMachine<Event: Hashable & Sendable, State: Hashable & Sendable
         return processedEventsCount - stateChangeCount
     }
     
-    /// If the state machine is at its initial state and
-    /// never has done any state changes since its creation.
-    public var atInitialState: Bool {
+    /// If the state machine is at its initial state and has not
+    /// made any transition since its creation. A transition leading
+    /// back to the initial state counts as a transition made.
+    public var isAtInitialState: Bool {
         return state == initialState && stateChangeCount == 0
     }
-    
-    /// If the state machine is in a state where there are no
-    /// further possible state changes. There's no event leading
-    /// to a change of state from this state.
-    public var atEndingState: Bool {
-        return atEnd(for: state)
+
+    /// If the state machine is at an ending state. No transitions
+    /// lead from an ending state, so no further events will be accepted.
+    ///
+    /// A state with a transition leading back to the same state
+    /// is not an ending state.
+    public var isAtEndingState: Bool {
+        return isEndingState(state)
     }
     
     /// All possible events (leading to a state change) from
@@ -175,7 +178,7 @@ public actor StateMachine<Event: Hashable & Sendable, State: Hashable & Sendable
         if let t = transition(from: state, for: event) {
             commit(t)
             doneContinuation?.yield(t)
-            if atEndingState {
+            if isAtEndingState {
                 doneContinuation?.finish()
             }
         } else {
@@ -367,10 +370,14 @@ extension StateMachine {
         return transitionGraph.shortestPath(from: state, to: newState)
     }
     
-    /// If a state is an end state.
-    /// - Parameter state: State to check if it's an end state.
-    /// - Returns: If state is an end state.
-    public nonisolated func atEnd(for state: State) -> Bool {
+    /// If a state is an ending state. No transitions lead from an ending
+    /// state, so a state machine at the state will not accept any events.
+    ///
+    /// A state with a transition leading back to the same state
+    /// is not an ending state.
+    /// - Parameter state: State to check if it's an ending state.
+    /// - Returns: If the state is an ending state.
+    public nonisolated func isEndingState(_ state: State) -> Bool {
         return transitions(from: state).isEmpty
     }
 }

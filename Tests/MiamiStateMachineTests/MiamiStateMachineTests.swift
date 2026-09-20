@@ -4,7 +4,7 @@ import XCTest
 final class MiamiStateMachineTests: XCTestCase {
     func testStartState() async {
         let sm1 = StateMachine(transitions: t1, initialState: .s1)!
-        let atEnd = await sm1.atEndingState
+        let atEnd = await sm1.isAtEndingState
         let toEnd = await sm1.canTransition(to: .end)
         let toS2 = await sm1.canTransition(to: .s2)
         let numToS2 = await sm1.transitionsFromCurrent(to: .s2).count
@@ -37,7 +37,7 @@ final class MiamiStateMachineTests: XCTestCase {
         await sm1.process(.s2ToS3)
         await sm1.process(.s3ToEnd)
         let st4 = await sm1.state
-        let atEnd = await sm1.atEndingState
+        let atEnd = await sm1.isAtEndingState
         XCTAssertEqual(st4, .end, "State machine should be at end state.")
         XCTAssertTrue(atEnd, "State machine should have reached an end state.")
 
