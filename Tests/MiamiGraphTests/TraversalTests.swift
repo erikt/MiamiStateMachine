@@ -70,8 +70,8 @@ struct TraversalTests {
     }
 
     @Test(arguments: GraphKind.allCases)
-    func undirectedEdgeIsCycle(kind: GraphKind) throws {
-        let fixture = try Fixture(kind, vertices: ["A", "B"], .undirected, edges: [("A", "B", 1)])
+    func verticesConnectedInBothDirectionsAreCycle(kind: GraphKind) throws {
+        let fixture = try Fixture(kind, vertices: ["A", "B"], .bothWays, edges: [("A", "B", 1)])
 
         #expect(fixture.graph.hasCycle)
     }
@@ -116,10 +116,10 @@ struct TraversalTests {
             let left = graph.addVertex(0)
             let right = graph.addVertex(0)
             let bottom = graph.addVertex(0)
-            graph.addDirectedEdge(from: top, to: left)
-            graph.addDirectedEdge(from: top, to: right)
-            graph.addDirectedEdge(from: left, to: bottom)
-            graph.addDirectedEdge(from: right, to: bottom)
+            graph.addEdge(from: top, to: left)
+            graph.addEdge(from: top, to: right)
+            graph.addEdge(from: left, to: bottom)
+            graph.addEdge(from: right, to: bottom)
             top = bottom
         }
 
@@ -138,13 +138,13 @@ struct TraversalTests {
         let first = last
         for number in 1 ..< 100_000 {
             let next = graph.addVertex(number)
-            graph.addDirectedEdge(from: last, to: next)
+            graph.addEdge(from: last, to: next)
             last = next
         }
 
         #expect(graph.hasCycle(reachableFrom: first) == false)
 
-        graph.addDirectedEdge(from: last, to: first)
+        graph.addEdge(from: last, to: first)
         #expect(graph.hasCycle(reachableFrom: first))
     }
 }

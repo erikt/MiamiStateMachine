@@ -20,13 +20,13 @@ package struct AdjacencyList<Element>: Graph {
         return vertex
     }
 
-    package mutating func addDirectedEdge(from source: Vertex<Element>,
-                                          to destination: Vertex<Element>,
-                                          weight: Double)
+    package mutating func addEdge(from source: Vertex<Element>,
+                                  to destination: Vertex<Element>,
+                                  weight: Double)
     {
         precondition(contains(source) && contains(destination), "Vertex is not part of the graph.")
-        let edge = Edge(source: source, destination: destination, weight: weight)
-        adjacencies[source.index].append(edge)
+        precondition(weight.isFinite, "The weight of an edge has to be a finite number.")
+        adjacencies[source.index].append(Edge(source: source, destination: destination, weight: weight))
     }
 
     /// All edges starting from a vertex, in the order they were added.
@@ -36,12 +36,6 @@ package struct AdjacencyList<Element>: Graph {
     package func edges(from source: Vertex<Element>) -> [Edge<Element>] {
         precondition(contains(source), "Vertex is not part of the graph.")
         return adjacencies[source.index]
-    }
-
-    package func weight(from source: Vertex<Element>, to destination: Vertex<Element>) -> Double? {
-        return edges(from: source).lazy.filter {
-            $0.destination.index == destination.index
-        }.map(\.weight).min()
     }
 }
 

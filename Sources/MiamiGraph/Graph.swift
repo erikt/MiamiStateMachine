@@ -1,7 +1,8 @@
 /// A graph of vertices holding values, connected by weighted edges.
 ///
-/// Edges are stored as directed edges. An undirected edge is
-/// two directed edges, one in each direction.
+/// Every edge is directed, and leads from a source to a destination. Two
+/// vertices connected in both directions are connected by two edges, one
+/// in each direction.
 ///
 /// Conforming types are expected to be value types. A vertex belongs to
 /// the graph creating it (and copies of that graph). Using a vertex
@@ -29,23 +30,24 @@ package protocol Graph<Element> {
     ///   - source: The vertex the edge starts from.
     ///   - destination: The vertex the edge leads to.
     ///   - weight: The cost of following the edge.
-    mutating func addDirectedEdge(from source: Vertex<Element>,
-                                  to destination: Vertex<Element>,
-                                  weight: Double)
+    /// - Precondition: The weight is a finite number.
+    mutating func addEdge(from source: Vertex<Element>,
+                          to destination: Vertex<Element>,
+                          weight: Double)
 
     /// All edges starting from a vertex.
     /// - Parameter source: The vertex the edges start from.
     /// - Returns: Edges starting from the vertex.
     func edges(from source: Vertex<Element>) -> [Edge<Element>]
 
-    /// The weight of the edge leading from a vertex to another vertex.
+    /// The edge with the lowest weight leading from a vertex
+    /// directly to another vertex.
     /// - Parameters:
     ///   - source: The vertex the edge starts from.
     ///   - destination: The vertex the edge leads to.
-    /// - Returns: The weight of the edge, or `nil` if there is no edge
-    /// from the source to the destination. If there are several such
-    /// edges, the lowest weight is returned.
-    func weight(from source: Vertex<Element>, to destination: Vertex<Element>) -> Double?
+    /// - Returns: The edge, or `nil` if there is no edge from the
+    /// source to the destination.
+    func lightestEdge(from source: Vertex<Element>, to destination: Vertex<Element>) -> Edge<Element>?
 }
 
 extension Graph {
@@ -55,42 +57,33 @@ extension Graph {
     /// - Parameters:
     ///   - source: The vertex the edge starts from.
     ///   - destination: The vertex the edge leads to.
-    package mutating func addDirectedEdge(from source: Vertex<Element>,
-                                          to destination: Vertex<Element>)
-    {
-        addDirectedEdge(from: source, to: destination, weight: 1)
+    package mutating func addEdge(from source: Vertex<Element>, to destination: Vertex<Element>) {
+        addEdge(from: source, to: destination, weight: 1)
     }
 
-    /// Adds edges in both directions between two vertices.
+    /// Connects two vertices in both directions, by adding
+    /// an edge from each one of them to the other.
     /// - Parameters:
-    ///   - source: The first vertex.
-    ///   - destination: The second vertex.
-    ///   - weight: The cost of following the edge, in any direction.
-    package mutating func addUndirectedEdge(between source: Vertex<Element>,
-                                            and destination: Vertex<Element>,
-                                            weight: Double = 1)
+    ///   - first: One of the vertices.
+    ///   - second: The other vertex.
+    ///   - weight: The cost of following any of the two edges.
+    /// - Precondition: The weight is a finite number.
+    package mutating func addEdges(between first: Vertex<Element>,
+                                   and second: Vertex<Element>,
+                                   weight: Double = 1)
     {
-        addDirectedEdge(from: source, to: destination, weight: weight)
-        addDirectedEdge(from: destination, to: source, weight: weight)
+        addEdge(from: first, to: second, weight: weight)
+        addEdge(from: second, to: first, weight: weight)
     }
 
-    /// Adds an edge of a specific type between two vertices.
-    /// - Parameters:
-    ///   - edgeType: If the edge is directed or undirected.
-    ///   - source: The vertex the edge starts from.
-    ///   - destination: The vertex the edge leads to.
-    ///   - weight: The cost of following the edge.
-    package mutating func add(_ edgeType: EdgeType,
-                              from source: Vertex<Element>,
-                              to destination: Vertex<Element>,
-                              weight: Double = 1)
-    {
-        switch edgeType {
-        case .directed:
-            addDirectedEdge(from: source, to: destination, weight: weight)
-        case .undirected:
-            addUndirectedEdge(between: source, and: destination, weight: weight)
-        }
+    /// The edge with the lowest weight leading from a vertex
+    /// directly to another vertex, found among the edges of the source.
+    /// - Complexity: O(*k*), where *k* is the number of edges from the source.
+    package func lightestEdge(from source: Vertex<Element>, to destination: Vertex<Element>) -> Edge<Element>? {
+        precondition(contains(destination), "Vertex is not part of the graph.")
+        return edges(from: source)
+            .filter { $0.destination.index == destination.index }
+            .min { $0.weight < $1.weight }
     }
 
     /// If the vertex is within the bounds of this graph.

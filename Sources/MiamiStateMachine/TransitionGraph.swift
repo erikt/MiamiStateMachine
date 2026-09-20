@@ -43,7 +43,7 @@ struct TransitionGraph<Event: Hashable & Sendable, State: Hashable & Sendable>: 
 
             let source = vertex(for: transition.from)
             let destination = vertex(for: transition.to)
-            states.addDirectedEdge(from: source, to: destination)
+            states.addEdge(from: source, to: destination)
             transitionsByHop[hop] = transition
         }
     }

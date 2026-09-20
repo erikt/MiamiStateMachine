@@ -16,19 +16,28 @@ struct GraphTests {
     }
 
     @Test(arguments: GraphKind.allCases)
-    func directedEdgeLeadsInOneDirection(kind: GraphKind) throws {
+    func edgeLeadsInOneDirection(kind: GraphKind) throws {
         let fixture = try Fixture(kind, vertices: ["A", "B"], edges: [("A", "B", 2.5)])
         let (a, b) = (try fixture.vertex("A"), try fixture.vertex("B"))
 
         #expect(fixture.graph.edges(from: a) == [Edge(source: a, destination: b, weight: 2.5)])
         #expect(fixture.graph.edges(from: b).isEmpty)
-        #expect(fixture.graph.weight(from: a, to: b) == 2.5)
-        #expect(fixture.graph.weight(from: b, to: a) == nil)
     }
 
     @Test(arguments: GraphKind.allCases)
-    func undirectedEdgeLeadsInBothDirections(kind: GraphKind) throws {
-        let fixture = try Fixture(kind, vertices: ["A", "B"], .undirected, edges: [("A", "B", 2.5)])
+    func lightestEdgeLeadsDirectlyFromVertexToAnother(kind: GraphKind) throws {
+        let fixture = try Fixture(kind, vertices: ["A", "B", "C"], edges: [("A", "B", 2), ("B", "C", 3), ("C", "C", 4)])
+        let (a, b, c) = (try fixture.vertex("A"), try fixture.vertex("B"), try fixture.vertex("C"))
+
+        #expect(fixture.graph.lightestEdge(from: a, to: b) == Edge(source: a, destination: b, weight: 2))
+        #expect(fixture.graph.lightestEdge(from: c, to: c) == Edge(source: c, destination: c, weight: 4))
+        #expect(fixture.graph.lightestEdge(from: b, to: a) == nil, "The edge leads the other way.")
+        #expect(fixture.graph.lightestEdge(from: a, to: c) == nil, "C is two edges from A.")
+    }
+
+    @Test(arguments: GraphKind.allCases)
+    func edgesBetweenVerticesLeadInBothDirections(kind: GraphKind) throws {
+        let fixture = try Fixture(kind, vertices: ["A", "B"], .bothWays, edges: [("A", "B", 2.5)])
         let (a, b) = (try fixture.vertex("A"), try fixture.vertex("B"))
 
         #expect(fixture.graph.edges(from: a) == [Edge(source: a, destination: b, weight: 2.5)])
@@ -42,13 +51,12 @@ struct GraphTests {
         let b = graph.addVertex("B")
         let c = graph.addVertex("C")
 
-        graph.addDirectedEdge(from: a, to: b)
-        graph.addUndirectedEdge(between: b, and: c)
-        graph.add(.directed, from: c, to: a)
+        graph.addEdge(from: a, to: b)
+        graph.addEdges(between: b, and: c)
 
-        #expect(graph.weight(from: a, to: b) == 1)
-        #expect(graph.weight(from: c, to: b) == 1)
-        #expect(graph.weight(from: c, to: a) == 1)
+        #expect(graph.lightestEdge(from: a, to: b)?.weight == 1)
+        #expect(graph.lightestEdge(from: b, to: c)?.weight == 1)
+        #expect(graph.lightestEdge(from: c, to: b)?.weight == 1)
     }
 
     @Test(arguments: GraphKind.allCases)
@@ -86,7 +94,7 @@ struct GraphTests {
 
         var copy = original.graph
         copy.addVertex("C")
-        copy.addDirectedEdge(from: a, to: b)
+        copy.addEdge(from: a, to: b)
 
         #expect(original.graph.vertices.count == 2)
         #expect(original.graph.edges(from: a).isEmpty)
@@ -107,7 +115,7 @@ struct GraphTests {
         await #expect(processExitsWith: .failure) { [kind] in
             var graph = kind.makeGraph()
             let a = graph.addVertex("A")
-            graph.addDirectedEdge(from: a, to: Vertex(index: 1, data: "B"))
+            graph.addEdge(from: a, to: Vertex(index: 1, data: "B"))
         }
     }
 
@@ -116,7 +124,24 @@ struct GraphTests {
         await #expect(processExitsWith: .failure) { [kind] in
             var graph = kind.makeGraph()
             let a = graph.addVertex("A")
-            graph.addDirectedEdge(from: Vertex(index: 1, data: "B"), to: a)
+            graph.addEdge(from: Vertex(index: 1, data: "B"), to: a)
+        }
+    }
+
+    @Test(arguments: GraphKind.allCases)
+    func weightThatIsNotFiniteIsProgrammerError(kind: GraphKind) async {
+        await #expect(processExitsWith: .failure) { [kind] in
+            var graph = kind.makeGraph()
+            let a = graph.addVertex("A")
+            let b = graph.addVertex("B")
+            graph.addEdge(from: a, to: b, weight: .infinity)
+        }
+
+        await #expect(processExitsWith: .failure) { [kind] in
+            var graph = kind.makeGraph()
+            let a = graph.addVertex("A")
+            let b = graph.addVertex("B")
+            graph.addEdge(from: a, to: b, weight: .nan)
         }
     }
 

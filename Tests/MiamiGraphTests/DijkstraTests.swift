@@ -5,7 +5,7 @@ struct DijkstraTests {
 
     @Test(arguments: GraphKind.allCases)
     func findsShortestDistances(kind: GraphKind) throws {
-        let fixture = try Fixture.weighted(kind, .directed)
+        let fixture = try Fixture.weighted(kind, .oneWay)
         let paths = fixture.graph.shortestPaths(from: try fixture.vertex("A"))
 
         let expected: [String: Double] = ["A": 0, "B": 7, "C": 9, "D": 20, "E": 20, "F": 11]
@@ -16,7 +16,7 @@ struct DijkstraTests {
 
     @Test(arguments: GraphKind.allCases)
     func prefersLowestTotalWeightOverFewestEdges(kind: GraphKind) throws {
-        let fixture = try Fixture.weighted(kind, .directed)
+        let fixture = try Fixture.weighted(kind, .oneWay)
         let paths = fixture.graph.shortestPaths(from: try fixture.vertex("A"))
 
         // The direct edge from A to F has the weight 14.
@@ -30,7 +30,7 @@ struct DijkstraTests {
 
     @Test(arguments: GraphKind.allCases)
     func pathToSourceIsEmpty(kind: GraphKind) throws {
-        let fixture = try Fixture.weighted(kind, .directed)
+        let fixture = try Fixture.weighted(kind, .oneWay)
         let a = try fixture.vertex("A")
         let paths = fixture.graph.shortestPaths(from: a)
 
@@ -41,7 +41,7 @@ struct DijkstraTests {
 
     @Test(arguments: GraphKind.allCases)
     func unreachableVertexHasNoPath(kind: GraphKind) throws {
-        let fixture = try Fixture.weighted(kind, .directed)
+        let fixture = try Fixture.weighted(kind, .oneWay)
         let paths = fixture.graph.shortestPaths(from: try fixture.vertex("A"))
         let h = try fixture.vertex("H")
 
@@ -51,15 +51,15 @@ struct DijkstraTests {
 
     @Test(arguments: GraphKind.allCases)
     func onlyFollowsEdgeDirection(kind: GraphKind) throws {
-        let fixture = try Fixture.weighted(kind, .directed)
+        let fixture = try Fixture.weighted(kind, .oneWay)
         let (a, e) = (try fixture.vertex("A"), try fixture.vertex("E"))
 
         #expect(fixture.graph.shortestPath(from: e, to: a) == nil)
     }
 
     @Test(arguments: GraphKind.allCases)
-    func followsUndirectedEdgesInBothDirections(kind: GraphKind) throws {
-        let fixture = try Fixture.weighted(kind, .undirected)
+    func followsEdgesBetweenVerticesInBothDirections(kind: GraphKind) throws {
+        let fixture = try Fixture.weighted(kind, .bothWays)
         let (a, e) = (try fixture.vertex("A"), try fixture.vertex("E"))
 
         let path = try #require(fixture.graph.shortestPath(from: e, to: a))
@@ -95,7 +95,7 @@ struct DijkstraTests {
         let a = graph.addVertex("A")
         let b = graph.addVertex("B")
         for weight in [5.0, 3.0, 4.0] {
-            graph.addDirectedEdge(from: a, to: b, weight: weight)
+            graph.addEdge(from: a, to: b, weight: weight)
         }
 
         let paths = graph.shortestPaths(from: a)
@@ -106,7 +106,7 @@ struct DijkstraTests {
 
     @Test(arguments: GraphKind.allCases)
     func vertexOutsideTheGraphHasNoPath(kind: GraphKind) throws {
-        let fixture = try Fixture.weighted(kind, .directed)
+        let fixture = try Fixture.weighted(kind, .oneWay)
         let paths = fixture.graph.shortestPaths(from: try fixture.vertex("A"))
         let outside = Vertex(index: 100, data: "Z")
 
@@ -122,7 +122,7 @@ struct DijkstraTests {
             var graph = AdjacencyList<String>()
             let a = graph.addVertex("A")
             let b = graph.addVertex("B")
-            graph.addDirectedEdge(from: a, to: b, weight: -1)
+            graph.addEdge(from: a, to: b, weight: -1)
             _ = graph.shortestPaths(from: a)
         }
     }

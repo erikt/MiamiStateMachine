@@ -30,11 +30,12 @@ package struct AdjacencyMatrix<Element>: Graph {
         return vertex
     }
 
-    package mutating func addDirectedEdge(from source: Vertex<Element>,
-                                          to destination: Vertex<Element>,
-                                          weight: Double)
+    package mutating func addEdge(from source: Vertex<Element>,
+                                  to destination: Vertex<Element>,
+                                  weight: Double)
     {
         precondition(contains(source) && contains(destination), "Vertex is not part of the graph.")
+        precondition(weight.isFinite, "The weight of an edge has to be a finite number.")
         weights[source.index][destination.index] = weight
     }
 
@@ -49,16 +50,19 @@ package struct AdjacencyMatrix<Element>: Graph {
         }
     }
 
-    /// The weight of the edge leading from a vertex to another vertex.
+    /// The edge leading from a vertex directly to another vertex. There is
+    /// only one such edge in a matrix, so it is also the lightest one.
     /// - Parameters:
     ///   - source: The vertex the edge starts from.
     ///   - destination: The vertex the edge leads to.
-    /// - Returns: The weight of the edge, or `nil` if there is no edge
-    /// from the source to the destination.
+    /// - Returns: The edge, or `nil` if there is no edge from the
+    /// source to the destination.
     /// - Complexity: O(1)
-    package func weight(from source: Vertex<Element>, to destination: Vertex<Element>) -> Double? {
+    package func lightestEdge(from source: Vertex<Element>, to destination: Vertex<Element>) -> Edge<Element>? {
         precondition(contains(source) && contains(destination), "Vertex is not part of the graph.")
-        return weights[source.index][destination.index]
+        return weights[source.index][destination.index].map {
+            Edge(source: source, destination: destination, weight: $0)
+        }
     }
 }
 

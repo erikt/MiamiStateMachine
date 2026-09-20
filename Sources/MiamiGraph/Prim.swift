@@ -5,11 +5,11 @@ extension Graph {
     /// Finds a minimum spanning tree, using Prim's algorithm. The tree
     /// connects the vertices with the lowest possible total weight.
     ///
-    /// The graph is expected to be undirected. If the graph is not
-    /// connected, the tree only spans the vertices connected to
-    /// the first vertex.
+    /// Every edge of the graph is expected to have an edge leading the
+    /// other way, with the same weight. If the graph is not connected,
+    /// the tree only spans the vertices connected to the first vertex.
     /// - Returns: The total weight of the tree, and the tree itself. The
-    /// tree has the same vertices as the graph, with undirected edges.
+    /// tree has the same vertices as the graph, connected in both directions.
     /// - Complexity: O(*E* log *E*) for an adjacency list, where *E* is
     /// the number of edges.
     package func minimumSpanningTree() -> (cost: Double, tree: AdjacencyList<Element>) {
@@ -47,7 +47,7 @@ extension Graph {
                 continue
             }
 
-            tree.addUndirectedEdge(between: lightest.source, and: lightest.destination, weight: lightest.weight)
+            tree.addEdges(between: lightest.source, and: lightest.destination, weight: lightest.weight)
             totalWeight += lightest.weight
             addToTree(lightest.destination)
         }

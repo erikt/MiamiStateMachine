@@ -87,8 +87,8 @@ extension Graph {
     /// If a cycle can be reached from a vertex, following the
     /// direction of the edges.
     ///
-    /// An edge from a vertex to itself is a cycle. An undirected edge
-    /// is two directed edges, so it is a cycle as well.
+    /// An edge from a vertex to itself is a cycle. So are two vertices
+    /// connected in both directions, as that is an edge each way.
     /// - Parameter source: The vertex to start from.
     /// - Returns: If there is a cycle reachable from the vertex.
     /// - Complexity: O(*V* + *E*), where *V* is the number of vertices
@@ -101,8 +101,8 @@ extension Graph {
     /// If there is a cycle anywhere in the graph, following the
     /// direction of the edges.
     ///
-    /// An edge from a vertex to itself is a cycle. An undirected edge
-    /// is two directed edges, so it is a cycle as well.
+    /// An edge from a vertex to itself is a cycle. So are two vertices
+    /// connected in both directions, as that is an edge each way.
     /// - Complexity: O(*V* + *E*), where *V* is the number of vertices
     /// and *E* the number of edges.
     package var hasCycle: Bool {

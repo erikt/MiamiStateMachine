@@ -14,6 +14,15 @@ enum GraphKind: CaseIterable, Codable {
     }
 }
 
+/// How the edges of a fixture connect its vertices.
+enum EdgeDirection {
+    /// From the first vertex to the second.
+    case oneWay
+
+    /// Between the two vertices, with an edge in each direction.
+    case bothWays
+}
+
 /// A graph with named vertices, together with a way
 /// to get hold of the vertices by their names.
 struct Fixture {
@@ -24,7 +33,7 @@ struct Fixture {
 
     init(_ kind: GraphKind,
          vertices: [String],
-         _ edgeType: EdgeType = .directed,
+         _ direction: EdgeDirection = .oneWay,
          edges: [EdgeDefinition] = [],
          sourceLocation: SourceLocation = #_sourceLocation) throws
     {
@@ -33,10 +42,15 @@ struct Fixture {
             verticesByName[name] = graph.addVertex(name)
         }
         for edge in edges {
-            graph.add(edgeType,
-                      from: try vertex(edge.from, sourceLocation: sourceLocation),
-                      to: try vertex(edge.to, sourceLocation: sourceLocation),
-                      weight: edge.weight)
+            let from = try vertex(edge.from, sourceLocation: sourceLocation)
+            let to = try vertex(edge.to, sourceLocation: sourceLocation)
+
+            switch direction {
+            case .oneWay:
+                graph.addEdge(from: from, to: to, weight: edge.weight)
+            case .bothWays:
+                graph.addEdges(between: from, and: to, weight: edge.weight)
+            }
         }
     }
 
@@ -63,8 +77,8 @@ extension Fixture {
 
     /// A weighted graph where the edge with the lowest weight, or the
     /// path with the fewest edges, is often not the best choice. H has no edges.
-    static func weighted(_ kind: GraphKind, _ edgeType: EdgeType) throws -> Fixture {
-        try Fixture(kind, vertices: ["A", "B", "C", "D", "E", "F", "H"], edgeType, edges: [
+    static func weighted(_ kind: GraphKind, _ direction: EdgeDirection) throws -> Fixture {
+        try Fixture(kind, vertices: ["A", "B", "C", "D", "E", "F", "H"], direction, edges: [
             ("A", "B", 7), ("A", "C", 9), ("A", "F", 14),
             ("B", "C", 10), ("B", "D", 15),
             ("C", "D", 11), ("C", "F", 2),

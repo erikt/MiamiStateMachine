@@ -30,19 +30,15 @@ struct CountingGraph<Element>: Graph {
         graph.addVertex(data)
     }
 
-    mutating func addDirectedEdge(from source: Vertex<Element>,
-                                  to destination: Vertex<Element>,
-                                  weight: Double)
+    mutating func addEdge(from source: Vertex<Element>,
+                          to destination: Vertex<Element>,
+                          weight: Double)
     {
-        graph.addDirectedEdge(from: source, to: destination, weight: weight)
+        graph.addEdge(from: source, to: destination, weight: weight)
     }
 
     func edges(from source: Vertex<Element>) -> [Edge<Element>] {
         counter.count += 1
         return graph.edges(from: source)
-    }
-
-    func weight(from source: Vertex<Element>, to destination: Vertex<Element>) -> Double? {
-        graph.weight(from: source, to: destination)
     }
 }
