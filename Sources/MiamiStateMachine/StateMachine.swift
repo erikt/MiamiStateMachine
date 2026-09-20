@@ -419,8 +419,9 @@ extension StateMachine {
     // with constant properties not in need of state isolation
     // to be safe.
     
-    /// Total number of transitions in the state machine.
-    public nonisolated var numOfTransitions: Int {
+    /// Total number of transitions defining the state machine. The number of
+    /// transitions made by the state machine is `stateChangeCount`.
+    public nonisolated var transitionCount: Int {
         return transitions.count
     }
     

@@ -145,7 +145,7 @@ struct StateMachineTests {
     @Test func knowsItsTransitions() throws {
         let stateMachine = try makeStateMachine()
 
-        #expect(stateMachine.numOfTransitions == 10)
+        #expect(stateMachine.transitionCount == 10)
         #expect(stateMachine.transition(from: .cart, for: .buyNow) == StateTransition(from: .cart, event: .buyNow, to: .paid))
         #expect(stateMachine.transition(from: .cart, for: .ship) == nil, "There is nothing to ship in the cart.")
 

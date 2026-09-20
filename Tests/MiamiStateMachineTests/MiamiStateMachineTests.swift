@@ -9,7 +9,7 @@ final class MiamiStateMachineTests: XCTestCase {
         let toS2 = await sm1.canTransition(to: .s2)
         let numToS2 = await sm1.transitionsFromCurrent(to: .s2).count
         let numToEnd = await sm1.transitionsFromCurrent(to: .end).count
-        let numTransitions = sm1.numOfTransitions
+        let numTransitions = sm1.transitionCount
         
         XCTAssertEqual(atEnd, false, "State machine should not have reached an end state.")
         XCTAssertEqual(numTransitions, 4, "State machine definition should have 4 defined transitions.")
