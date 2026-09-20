@@ -1,0 +1,99 @@
+import Foundation
+import Testing
+import MiamiStateMachine
+
+/// How many times states have been compared. The count is protected by
+/// a lock, as nothing says which threads a state machine compares states on.
+private final class ComparisonCount: @unchecked Sendable {
+    private let lock = NSLock()
+    private var count = 0
+
+    var value: Int {
+        lock.lock()
+        defer { lock.unlock() }
+        return count
+    }
+
+    func increment() {
+        lock.lock()
+        defer { lock.unlock() }
+        count += 1
+    }
+}
+
+/// A state counting how many times states are compared. The count tells how
+/// much work the state machine does, without measuring time. Searching all
+/// transitions compares the state of every one of them.
+private struct CountedState: Hashable, Sendable {
+    let number: Int
+    let comparisons: ComparisonCount
+
+    static func == (lhs: Self, rhs: Self) -> Bool {
+        lhs.comparisons.increment()
+        return lhs.number == rhs.number
+    }
+
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(number)
+    }
+}
+
+/// The work done by a state machine should not depend on the number
+/// of transitions, for generated definitions to be usable.
+struct LargeDefinitionTests {
+    private let stateCount = 2_000
+    private let comparisons = ComparisonCount()
+
+    private func state(_ number: Int) -> CountedState {
+        CountedState(number: number % stateCount, comparisons: comparisons)
+    }
+
+    /// A ring of states, where the event 0 leads from every state to the next one.
+    private func makeRing() -> Set<StateTransition<Int, CountedState>> {
+        Set((0 ..< stateCount).map { number in
+            StateTransition(from: state(number), event: 0, to: state(number + 1))
+        })
+    }
+
+    @Test func creatingStateMachineDoesNotCompareAllTransitionsWithEachOther() throws {
+        let transitions = makeRing()
+        let comparisonsBefore = comparisons.value
+
+        _ = try StateMachine(transitions: transitions, initialState: state(0))
+
+        // Comparing every transition with every other is 4 000 000 comparisons.
+        // Looking the states up in hash tables is about 15 for every transition.
+        let comparisonsMade = comparisons.value - comparisonsBefore
+        #expect(comparisonsMade < 100 * stateCount)
+    }
+
+    @Test func processingEventDoesNotSearchAllTransitions() async throws {
+        let stateMachine = try StateMachine(transitions: makeRing(), initialState: state(0))
+        let comparisonsBefore = comparisons.value
+
+        let eventCount = 500
+        for _ in 0 ..< eventCount {
+            await stateMachine.process(0)
+        }
+
+        // Searching all transitions once for every event is 1 000 000 comparisons.
+        let comparisonsMade = comparisons.value - comparisonsBefore
+        #expect(comparisonsMade < 20 * eventCount)
+        #expect(await stateMachine.state == state(eventCount))
+        #expect(await stateMachine.stateChangeCount == eventCount)
+    }
+
+    @Test func conflictIsFoundInLargeDefinition() throws {
+        let conflict = StateTransition(from: state(1_000), event: 0, to: state(7))
+        let transitions = makeRing().union([conflict])
+
+        let error = try #require(throws: StateMachine<Int, CountedState>.DefinitionError.self) {
+            try StateMachine(transitions: transitions, initialState: state(0))
+        }
+
+        #expect(error.conflictingTransitions == [
+            conflict,
+            StateTransition(from: state(1_000), event: 0, to: state(1_001)),
+        ])
+    }
+}

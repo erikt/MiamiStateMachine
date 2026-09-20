@@ -60,15 +60,23 @@ let transitions: Set<MyTransition> = [
 The state machine can now be created with the transitions:
 
 ```
-let stateMachine = StateMachine(transitions: transitions, initialState: .s1)
+let stateMachine = try StateMachine(transitions: transitions, initialState: .s1)
 ```
 
 ![State Machine Example](images/state-machine-example.png)
 
-The state machine is now an `StateMachine<MyEvent, MyState>?`—optional due to 
-the failable initializer. Creation of the state machine will fail if the transitions
-define an inconsistent state machine. A consistent state machine is one where an event
-at a state always leads to the same transition.
+Creating the state machine throws an error if the transitions define an inconsistent state
+machine. A consistent state machine is one where an event at a state always leads to the same
+transition. The error is a `DefinitionError`, and its `conflictingTransitions` tells which
+transitions lead from the same state, for the same event, to different states:
+
+```
+do {
+    let stateMachine = try StateMachine(transitions: transitions, initialState: .s1)
+} catch {
+    print(error.conflictingTransitions)
+}
+```
 
 Now the state machine can process events. Processing events needs to be done in
 an asynchronous context:
@@ -77,19 +85,19 @@ an asynchronous context:
 Task {
   // Initial state is s1
     
-  await stateMachine?.process(.e1)
+  await stateMachine.process(.e1)
 
   // State is s2
     
-  await stateMachine?.process(.e2)
+  await stateMachine.process(.e2)
 
   // State is s3
 
-  await stateMachine?.process(.e3)
+  await stateMachine.process(.e3)
     
   // State is still s3. Event e3 had no effect.
 
-  await stateMachine?.isAtEndingState
+  await stateMachine.isAtEndingState
     
   // True as s3 state has no transitions defined for any event.
 }
@@ -100,14 +108,14 @@ Task {
 To react to the transitions made by the state machine, ask it for a stream of transitions:
 
 ```
-if let transitions = await stateMachine?.transitionStream() {
-    Task {
-        for await transition in transitions {
-            print("Entered \(transition.to) by \(transition.event)")
-        }
+let transitions = await stateMachine.transitionStream()
 
-        // The state machine has reached an ending state, or is deallocated.
+Task {
+    for await transition in transitions {
+        print("Entered \(transition.to) by \(transition.event)")
     }
+
+    // The state machine has reached an ending state, or is deallocated.
 }
 ```
 
@@ -134,7 +142,7 @@ The `AsyncStream` based solution is a sort of workaround while waiting for Swift
 The state machine can tell how to get from one state to another with the fewest events:
 
 ```
-let path = stateMachine?.shortestPath(from: .s1, to: .s3)
+let path = stateMachine.shortestPath(from: .s1, to: .s3)
 
 // [s1 --(e3)--> s3]
 ```
@@ -145,7 +153,7 @@ transition, in order, takes a state machine that is in the first state of the pa
 
 ```
 for transition in path ?? [] {
-    await stateMachine?.process(transition.event)
+    await stateMachine.process(transition.event)
 }
 ```
 
@@ -157,7 +165,7 @@ state, so there is no need for an asynchronous context. To get the shortest path
 `shortestPath(to:)`, which must be awaited:
 
 ```
-let pathFromCurrent = await stateMachine?.shortestPath(to: .s3)
+let pathFromCurrent = await stateMachine.shortestPath(to: .s3)
 ```
 
 ## What's with the name?

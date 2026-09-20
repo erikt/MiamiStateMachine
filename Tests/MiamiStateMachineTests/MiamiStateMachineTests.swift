@@ -2,8 +2,8 @@ import XCTest
 import MiamiStateMachine
 
 final class MiamiStateMachineTests: XCTestCase {
-    func testStartState() async {
-        let sm1 = StateMachine(transitions: t1, initialState: .s1)!
+    func testStartState() async throws {
+        let sm1 = try StateMachine(transitions: t1, initialState: .s1)
         let atEnd = await sm1.isAtEndingState
         let toEnd = await sm1.canTransition(to: .end)
         let toS2 = await sm1.canTransition(to: .s2)
@@ -19,8 +19,8 @@ final class MiamiStateMachineTests: XCTestCase {
         XCTAssertEqual(numToEnd, 0, "Should not exist any transition to end state from s1.")
     }
     
-    func testProcessEvent() async {
-        let sm1 = StateMachine(transitions: t1, initialState: .s1)!
+    func testProcessEvent() async throws {
+        let sm1 = try StateMachine(transitions: t1, initialState: .s1)
         let st1 = await sm1.state
         XCTAssertEqual(st1, .s1, "State machine should start at s1.")
         await sm1.process(.s3ToEnd)
@@ -49,8 +49,8 @@ final class MiamiStateMachineTests: XCTestCase {
         XCTAssertEqual(rejected, 1, "Rejected events should be 1")
     }
     
-    func testTransitionLog() async {
-        let sm1 = StateMachine(transitions: t1, initialState: .s1)!
+    func testTransitionLog() async throws {
+        let sm1 = try StateMachine(transitions: t1, initialState: .s1)
         await sm1.process(.s1ToS2)
         await sm1.process(.s2ToS3)
         await sm1.process(.s3ToEnd)
@@ -75,13 +75,12 @@ final class MiamiStateMachineTests: XCTestCase {
     }
     
     func testIllegalStateMachineDefinition() {
-        let illegalSm = StateMachine(transitions: illegalT, initialState: .s1)
-        let broken = (illegalSm == nil)
-        XCTAssertTrue(broken, "Should not be possible to create an inconsistent state machine definition.")
+        XCTAssertThrowsError(try StateMachine(transitions: illegalT, initialState: .s1),
+                             "Should not be possible to create an inconsistent state machine definition.")
     }
 
-    func testTransitionLogWithoutCapacity() async {
-        let demoSm = StateMachine(transitions: transitions, initialState: .s1)!
+    func testTransitionLogWithoutCapacity() async throws {
+        let demoSm = try StateMachine(transitions: transitions, initialState: .s1)
         await demoSm.process(.e4)
         var log = await demoSm.transitionLog
         let expectedT1: MyTransition = StateTransition(from: .s1, event: .e4, to: .s1)

@@ -20,10 +20,35 @@ public actor StateMachine<Event: Hashable & Sendable, State: Hashable & Sendable
     /// with the state the state machine was at when rejecting the event.
     public typealias RejectedEventStream = AsyncStream<(from: State, for: Event)>
 
+    /// The reason a state machine cannot be created from a set of transitions.
+    ///
+    /// The transitions have to define a consistent state machine, where an
+    /// event processed at a state leads to one single state. They do not
+    /// when two or more of them lead from the same state, for the same
+    /// event, to different states.
+    public struct DefinitionError: Error, CustomStringConvertible {
+
+        /// The transitions in conflict. For each one of them there is at
+        /// least one other transition from the same state, for the same
+        /// event, leading to another state.
+        public let conflictingTransitions: Set<StateTransition<Event, State>>
+
+        public var description: String {
+            // Sorted, as the same error should have the same description every time.
+            let conflicts = conflictingTransitions.map { "\($0)" }.sorted().joined(separator: ", ")
+            return "The transitions do not define a consistent state machine. "
+                + "The same event leads from the same state to different states: \(conflicts)"
+        }
+    }
+
     // MARK: - Private properties
 
     /// Transitions defining the state machine.
     private let transitions: Set<StateTransition<Event, State>>
+
+    /// The transitions by the state they lead from and their event, to find
+    /// the transition for an event without searching all transitions.
+    private let transitionsByStateAndEvent: [State: [Event: StateTransition<Event, State>]]
 
     /// The transitions as a graph of states, to be able to answer questions
     /// about the state machine definition as a whole.
@@ -121,38 +146,49 @@ public actor StateMachine<Event: Hashable & Sendable, State: Hashable & Sendable
     // MARK: - Initialization
     
     /// Creates a new state machine.
-    /// The state machine definition cannot be created if the machine
-    /// is not consistent (no state where the same event leads to more
-    /// than one transition to another state).
+    ///
+    /// The transitions have to define a consistent state machine, where an
+    /// event processed at a state leads to one single state. Several events
+    /// can lead from a state to the same state, and the same event can be
+    /// used from several states.
+    ///
+    /// Any initial state is accepted, also a state without transitions
+    /// leading from it. Such a state machine is at an ending state from
+    /// the start, and rejects every event.
     /// - Parameters:
     ///   - transitions: Transitions defining the state machine.
     ///   - initialState: Initial state for the state machine.
     ///   - logCapacity: Max capacity of transition log. Set to nil for unlimited
     ///   number of entries in the transition log.
-    public init?(transitions: Set<StateTransition<Event, State>>,
-                 initialState: State,
-                 logCapacity: UInt? = nil)
+    /// - Throws: A `DefinitionError` with the transitions in conflict, if two
+    /// or more transitions lead from the same state, for the same event,
+    /// to different states.
+    public init(transitions: Set<StateTransition<Event, State>>,
+                initialState: State,
+                logCapacity: UInt? = nil) throws(DefinitionError)
     {
-        // Check if transitions define a consistent
-        // state machine. All pairs of from-state and
-        // events, must be unique. Otherwise there is
-        // a state where an event leads to multiple
-        // different to-states.
-        let fromStateAndEventPairs = transitions.map {
-            (from: $0.from, event: $0.event)
-        }
-        
-        for pair in fromStateAndEventPairs {
-            // Check if each pair in the sequence is unique.
-            // If it isn't there is a state with the same
-            // event more than once.
-            let t = fromStateAndEventPairs.filter { $0 == pair }
-            if t.count > 1 {
-                return nil
+        // Find the transition for every state and event. A transition already
+        // found for the same state and event, is a transition to another state,
+        // as the transitions are a set. The state machine is then not consistent.
+        var transitionsByStateAndEvent: [State: [Event: StateTransition<Event, State>]] = [:]
+        var conflictingTransitions: Set<StateTransition<Event, State>> = []
+
+        for transition in transitions {
+            let found = transitionsByStateAndEvent[transition.from, default: [:]]
+                .updateValue(transition, forKey: transition.event)
+
+            if let found {
+                conflictingTransitions.insert(found)
+                conflictingTransitions.insert(transition)
             }
         }
-        
+
+        guard conflictingTransitions.isEmpty else {
+            throw DefinitionError(conflictingTransitions: conflictingTransitions)
+        }
+
         self.transitions = transitions
+        self.transitionsByStateAndEvent = transitionsByStateAndEvent
         self.transitionGraph = TransitionGraph(transitions: transitions)
         self.transitionLog = CapacityLog(capacity: logCapacity)
         self.initialState = initialState
@@ -356,6 +392,14 @@ public actor StateMachine<Event: Hashable & Sendable, State: Hashable & Sendable
     }
 }
 
+// MARK: - Definition error
+
+extension StateMachine.DefinitionError: LocalizedError {
+    public var errorDescription: String? {
+        return description
+    }
+}
+
 // MARK: - Non-isolated
 
 extension StateMachine {
@@ -377,15 +421,7 @@ extension StateMachine {
     ///   - event: Event.
     /// - Returns: Transition if there is one for the event at state.
     public nonisolated func transition(from state: State, for event: Event) -> StateTransition<Event, State>? {
-        let ts = transitions.filter { t in
-            return t.from == state && t.event == event
-        }
-        
-        if ts.count > 1 {
-            fatalError("Error! More than one transition defined from \(state), processing event \(event): \(ts)")
-        }
-
-        return ts.first
+        return transitionsByStateAndEvent[state]?[event]
     }
     
     /// All transitions leading to a state for a specific event.
@@ -405,8 +441,8 @@ extension StateMachine {
     ///   - newState: New state to transition to.
     /// - Returns: All possible transitions to the new state.
     public nonisolated func transitions(from state: State, to newState: State) -> Set<StateTransition<Event, State>> {
-        return transitions.filter {
-            $0.from == state && $0.to == newState
+        return transitions(from: state).filter {
+            $0.to == newState
         }
     }
     
@@ -414,9 +450,10 @@ extension StateMachine {
     /// - Parameter state: State to start from.
     /// - Returns: All possible transitions from state.
     public nonisolated func transitions(from state: State) -> Set<StateTransition<Event, State>> {
-        return transitions.filter {
-            $0.from == state
+        guard let transitionsByEvent = transitionsByStateAndEvent[state] else {
+            return []
         }
+        return Set(transitionsByEvent.values)
     }
     
     /// All transitions leading to a state.
@@ -432,11 +469,10 @@ extension StateMachine {
     /// - Parameter state: State.
     /// - Returns: All events going out from this state.
     public nonisolated func events(from state: State) -> Set<Event> {
-        return Set<Event>(transitions.filter {
-            $0.from == state
-        }.map {
-            $0.event
-        })
+        guard let transitionsByEvent = transitionsByStateAndEvent[state] else {
+            return []
+        }
+        return Set(transitionsByEvent.keys)
     }
     
     /// All defined and available events leading to a state.
@@ -458,9 +494,7 @@ extension StateMachine {
     ///   - to: To state.
     /// - Returns: All events leading from state to another state.
     public nonisolated func events(from: State, to: State) -> Set<Event> {
-        return Set<Event>(transitions.filter {
-            $0.from == from && $0.to == to
-        }.map {
+        return Set<Event>(transitions(from: from, to: to).map {
             $0.event
         })
     }
@@ -501,6 +535,6 @@ extension StateMachine {
     /// - Parameter state: State to check if it's an ending state.
     /// - Returns: If the state is an ending state.
     public nonisolated func isEndingState(_ state: State) -> Bool {
-        return transitions(from: state).isEmpty
+        return transitionsByStateAndEvent[state] == nil
     }
 }

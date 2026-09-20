@@ -16,7 +16,7 @@ private func elements<Element: Sendable>(of stream: AsyncStream<Element>) async 
 struct StreamTests {
 
     private func makeStateMachine(initialState: OrderState = .cart) throws -> OrderStateMachine {
-        try #require(StateMachine(transitions: OrderFixture.transitions, initialState: initialState))
+        try StateMachine(transitions: OrderFixture.transitions, initialState: initialState)
     }
 
     // MARK: - Transition stream
@@ -74,7 +74,7 @@ struct StreamTests {
     }
 
     @Test func streamOfStateMachineWithoutTransitionsIsFinished() async throws {
-        let stateMachine = try #require(OrderStateMachine(transitions: [], initialState: .cart))
+        let stateMachine = try OrderStateMachine(transitions: [], initialState: .cart)
         let stream = await stateMachine.transitionStream()
 
         #expect(await elements(of: stream) == [])

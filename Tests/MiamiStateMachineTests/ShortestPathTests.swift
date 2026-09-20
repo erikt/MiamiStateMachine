@@ -5,7 +5,7 @@ struct ShortestPathTests {
     let stateMachine: OrderStateMachine
 
     init() throws {
-        stateMachine = try #require(StateMachine(transitions: OrderFixture.transitions, initialState: .cart))
+        stateMachine = try StateMachine(transitions: OrderFixture.transitions, initialState: .cart)
     }
 
     /// Verifies that a path is a connected way through a state machine, from
@@ -98,7 +98,7 @@ struct ShortestPathTests {
 
     @Test(arguments: OrderState.allCases, OrderState.allCases)
     func processingEventsOfPathLeadsToState(from state: OrderState, to newState: OrderState) async throws {
-        let stateMachine = try #require(StateMachine(transitions: OrderFixture.transitions, initialState: state))
+        let stateMachine = try StateMachine(transitions: OrderFixture.transitions, initialState: state)
 
         let path = stateMachine.shortestPath(from: state, to: newState)
         let fewestEvents = fewestEvents(from: state, in: stateMachine)[newState]
@@ -124,7 +124,7 @@ struct ShortestPathTests {
         let transitions = OrderFixture.transitions.union([
             StateTransition(from: .paid, event: .shipExpress, to: .shipped),
         ])
-        let stateMachine = try #require(StateMachine(transitions: transitions, initialState: .cart))
+        let stateMachine = try StateMachine(transitions: transitions, initialState: .cart)
 
         let path = try #require(stateMachine.shortestPath(from: .cart, to: .delivered))
 
@@ -139,7 +139,7 @@ struct ShortestPathTests {
         let transitions = OrderFixture.transitions.union([
             StateTransition(from: .checkout, event: .shipOnInvoice, to: .shipped),
         ])
-        let stateMachine = try #require(StateMachine(transitions: transitions, initialState: .cart))
+        let stateMachine = try StateMachine(transitions: transitions, initialState: .cart)
 
         let path = try #require(stateMachine.shortestPath(from: .cart, to: .shipped))
 
@@ -150,7 +150,7 @@ struct ShortestPathTests {
     // MARK: - State machine without transitions
 
     @Test func stateMachineWithoutTransitionsHasNoPaths() throws {
-        let stateMachine = try #require(OrderStateMachine(transitions: [], initialState: .cart))
+        let stateMachine = try OrderStateMachine(transitions: [], initialState: .cart)
 
         #expect(stateMachine.shortestPath(from: .cart, to: .paid) == nil)
         #expect(stateMachine.shortestPath(from: .cart, to: .cart) == [])

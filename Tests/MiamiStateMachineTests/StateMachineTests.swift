@@ -4,7 +4,90 @@ import MiamiStateMachine
 struct StateMachineTests {
 
     private func makeStateMachine(initialState: OrderState = .cart) throws -> OrderStateMachine {
-        try #require(StateMachine(transitions: OrderFixture.transitions, initialState: initialState))
+        try StateMachine(transitions: OrderFixture.transitions, initialState: initialState)
+    }
+
+    // MARK: - Creation
+
+    @Test func transitionsInConflictAreReported() throws {
+        // Paying at the checkout would lead to both paid and cancelled.
+        let conflict = OrderTransition(from: .checkout, event: .pay, to: .cancelled)
+        let transitions = OrderFixture.transitions.union([conflict])
+
+        let error = try #require(throws: OrderStateMachine.DefinitionError.self) {
+            try StateMachine(transitions: transitions, initialState: .cart)
+        }
+
+        #expect(error.conflictingTransitions == [
+            StateTransition(from: .checkout, event: .pay, to: .paid),
+            conflict,
+        ])
+    }
+
+    @Test func everyConflictIsReportedAtOnce() throws {
+        let transitions: Set<OrderTransition> = [
+            // Checking out leads three ways from the cart.
+            StateTransition(from: .cart, event: .checkOut, to: .checkout),
+            StateTransition(from: .cart, event: .checkOut, to: .paid),
+            StateTransition(from: .cart, event: .checkOut, to: .cancelled),
+            // Shipping leads two ways from paid.
+            StateTransition(from: .paid, event: .ship, to: .shipped),
+            StateTransition(from: .paid, event: .ship, to: .delivered),
+            // Not part of any conflict.
+            StateTransition(from: .cart, event: .cancel, to: .cancelled),
+            StateTransition(from: .shipped, event: .deliver, to: .delivered),
+        ]
+
+        let error = try #require(throws: OrderStateMachine.DefinitionError.self) {
+            try StateMachine(transitions: transitions, initialState: .cart)
+        }
+
+        #expect(error.conflictingTransitions == transitions.filter { $0.event == .checkOut || $0.event == .ship })
+    }
+
+    @Test func errorDescribesTheConflictTheSameWayEveryTime() throws {
+        let transitions: Set<OrderTransition> = [
+            StateTransition(from: .checkout, event: .pay, to: .paid),
+            StateTransition(from: .checkout, event: .pay, to: .cancelled),
+            StateTransition(from: .cart, event: .checkOut, to: .checkout),
+        ]
+
+        let error = try #require(throws: OrderStateMachine.DefinitionError.self) {
+            try StateMachine(transitions: transitions, initialState: .cart)
+        }
+
+        let expected = "The transitions do not define a consistent state machine. "
+            + "The same event leads from the same state to different states: "
+            + "checkout --(pay)--> cancelled, checkout --(pay)--> paid"
+        #expect(error.description == expected)
+        #expect(error.localizedDescription == expected)
+    }
+
+    @Test func consistentDefinitionIsAccepted() {
+        let transitions: Set<OrderTransition> = [
+            // Two events between the same two states.
+            StateTransition(from: .paid, event: .ship, to: .shipped),
+            StateTransition(from: .paid, event: .shipExpress, to: .shipped),
+            // The same event from two states, leading to different states.
+            StateTransition(from: .cart, event: .cancel, to: .cancelled),
+            StateTransition(from: .checkout, event: .cancel, to: .cart),
+            // A transition leading back to the same state.
+            StateTransition(from: .cart, event: .addItem, to: .cart),
+        ]
+
+        #expect(throws: Never.self) {
+            try StateMachine(transitions: transitions, initialState: .cart)
+        }
+    }
+
+    @Test func initialStateWithoutTransitionsIsAccepted() async throws {
+        // Returned is not part of any transition.
+        let stateMachine = try makeStateMachine(initialState: .returned)
+
+        #expect(await stateMachine.isAtEndingState)
+
+        await stateMachine.process(.cancel)
+        #expect(await stateMachine.rejectedEventsCount == 1, "Every event should be rejected.")
     }
 
     // MARK: - Definition
@@ -74,9 +157,9 @@ struct StateMachineTests {
     }
 
     @Test func stateOnlyLeadingBackToItselfIsNotAnEndingState() async throws {
-        let stateMachine = try #require(StateMachine(transitions: [
+        let stateMachine = try StateMachine(transitions: [
             StateTransition(from: OrderState.cart, event: OrderEvent.addItem, to: .cart),
-        ], initialState: .cart))
+        ], initialState: .cart)
 
         #expect(stateMachine.isEndingState(.cart) == false)
         #expect(await stateMachine.isAtEndingState == false)
@@ -131,9 +214,9 @@ struct StateMachineTests {
     // MARK: - Transition log
 
     @Test func logKeepsTheNewestTransitionsUpToItsCapacity() async throws {
-        let stateMachine = try #require(StateMachine(transitions: OrderFixture.transitions,
-                                                     initialState: .cart,
-                                                     logCapacity: 2))
+        let stateMachine = try StateMachine(transitions: OrderFixture.transitions,
+                                            initialState: .cart,
+                                            logCapacity: 2)
 
         for event in [.checkOut, .pay, .ship, .deliver] as [OrderEvent] {
             await stateMachine.process(event)
@@ -161,7 +244,7 @@ struct StateMachineTests {
     // MARK: - Entered with
 
     @Test func enteredWithIsNilUntilFirstTransition() async throws {
-        let stateMachine = try #require(StateMachine(transitions: OrderFixture.transitions, initialState: .cart))
+        let stateMachine = try StateMachine(transitions: OrderFixture.transitions, initialState: .cart)
         #expect(await stateMachine.enteredWith == nil)
 
         // Rejected, as there is nothing to ship in the cart.
@@ -170,7 +253,7 @@ struct StateMachineTests {
     }
 
     @Test func enteredWithIsLastTransitionMade() async throws {
-        let stateMachine = try #require(StateMachine(transitions: OrderFixture.transitions, initialState: .cart))
+        let stateMachine = try StateMachine(transitions: OrderFixture.transitions, initialState: .cart)
 
         await stateMachine.process(.checkOut)
         #expect(await stateMachine.enteredWith == StateTransition(from: .cart, event: .checkOut, to: .checkout))
@@ -185,9 +268,9 @@ struct StateMachineTests {
 
     @Test(arguments: [0, 1, nil] as [UInt?])
     func enteredWithDoesNotDependOnTheLogCapacity(logCapacity: UInt?) async throws {
-        let stateMachine = try #require(StateMachine(transitions: OrderFixture.transitions,
-                                                     initialState: .cart,
-                                                     logCapacity: logCapacity))
+        let stateMachine = try StateMachine(transitions: OrderFixture.transitions,
+                                            initialState: .cart,
+                                            logCapacity: logCapacity)
         await stateMachine.process(.checkOut)
         await stateMachine.process(.pay)
 
