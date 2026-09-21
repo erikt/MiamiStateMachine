@@ -12,6 +12,10 @@ let package = Package(
         .library(
             name: "MiamiStateMachine",
             targets: ["MiamiStateMachine"]),
+        // An observable state machine for user interfaces, like SwiftUI.
+        .library(
+            name: "MiamiUI",
+            targets: ["MiamiUI"]),
     ],
     dependencies: [
         // 1.1.0 is the first version with the Heap. Deque is Sendable from 1.0.6.
@@ -26,6 +30,9 @@ let package = Package(
                 "MiamiGraph",
                 .product(name: "Collections", package: "swift-collections")
             ]),
+        .target(
+            name: "MiamiUI",
+            dependencies: ["MiamiStateMachine"]),
         // Internal targets are prefixed with Miami, as module names have
         // to be unique among all packages a client depends on.
         .target(
@@ -40,6 +47,9 @@ let package = Package(
         .testTarget(
             name: "MiamiStateMachineTests",
             dependencies: ["MiamiStateMachine"]),
+        .testTarget(
+            name: "MiamiUITests",
+            dependencies: ["MiamiUI", "MiamiStateMachine"]),
         .testTarget(
             name: "MiamiGraphTests",
             dependencies: ["MiamiGraph"]),

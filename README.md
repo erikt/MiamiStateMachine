@@ -164,6 +164,46 @@ Some things to know about the streams:
 
 The `AsyncStream` based solution is a sort of workaround while waiting for Swift to improve observation of values in an actor.
 
+## A state machine in SwiftUI
+
+The package has a second library, `MiamiUI`, for user interfaces. Its `ObservableStateMachine` has the current state as
+an observable property on the main actor, so a SwiftUI view using the state is updated when the state machine makes a
+transition:
+
+```
+import SwiftUI
+import MiamiStateMachine
+import MiamiUI
+
+struct MyView: View {
+    let stateMachine: ObservableStateMachine<MyEvent, MyState>
+
+    var body: some View {
+        Text("The state is \(String(describing: stateMachine.state))")
+
+        Button("Process e1") {
+            stateMachine.send(.e1)
+        }
+        .disabled(stateMachine.accepts(.e1) == false)
+    }
+}
+```
+
+It is created from a state machine, and is best kept in the `@State` of the view owning it:
+
+```
+let observableStateMachine = ObservableStateMachine(stateMachine)
+```
+
+The state machine is still the one deciding. `send(_:)` sends an event to it without waiting, and events are processed
+in the order they are sent. `state` follows what the state machine does, a moment later. The same state machine can be
+used by other parts of an app at the same time, and `state` follows their events too. There are also `accepts(_:)`,
+`eventsFromCurrent` and `isAtEndingState`, for enabling buttons and the like. For anything else, the state machine is
+there as `stateMachine`.
+
+`MiamiUI` needs macOS 14, iOS 17 or later, where the Observation framework is available. It follows the state machine
+with `stateStream()`, and stops when it is no longer in use.
+
 ## The transition log
 
 The state machine keeps a log of the transitions made. The log is a collection, from the oldest transition to the newest:
