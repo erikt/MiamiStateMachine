@@ -1,9 +1,6 @@
-// MARK: - Diagram
+// MARK: - Diagram for Graphviz
 
 extension StateMachine {
-
-    // A diagram is about the definition of the state machine. Like the other
-    // nonisolated members, it only uses constant properties.
 
     /// The definition of the state machine as a diagram, in the DOT language
     /// of Graphviz. Save it to a file, and Graphviz draws the diagram:
@@ -23,50 +20,31 @@ extension StateMachine {
     /// but which of the states that gets which number can differ.
     /// - Complexity: O(*n* log *n*), where *n* is the number of transitions.
     public nonisolated var dotDiagram: String {
-        let names = nodeNames(reserving: Self.initialPointName)
-
-        func name(of state: State) -> String {
-            guard let name = names[state] else {
-                preconditionFailure("Missing name for \(state). All states of the state machine have a name.")
-            }
-            return name
-        }
-
-        // The nodes not drawn like the rest.
-        var nodes: [(name: String, attributes: [String])] = []
-        for (state, name) in names {
-            var attributes: [String] = []
-            if name != "\(state)" {
-                attributes.append("label=\("\(state)".dotQuoted)")
-            }
-            if isEndingState(state) {
-                attributes.append("shape=doublecircle")
-            }
-            if !attributes.isEmpty {
-                nodes.append((name, attributes))
-            }
-        }
-
-        // One arrow for every two states connected by at least one transition.
-        var arrows: [(from: String, to: String, events: [String])] = []
-        for (state, from) in names {
-            for (newState, transitions) in Dictionary(grouping: transitions(from: state), by: \.to) {
-                arrows.append((from, name(of: newState), transitions.map { "\($0.event)" }.sorted()))
-            }
-        }
+        let outline = diagramOutline
+        let names = Self.dotNames(of: outline.nodes, reserving: Self.initialPointName)
 
         var lines = ["digraph {", "    rankdir=LR", "    node [shape=circle]", ""]
 
+        // The nodes not drawn like the rest.
         lines.append("    \(Self.initialPointName.dotQuoted) [shape=point]")
-        for node in nodes.sorted(by: { $0.name < $1.name }) {
-            lines.append("    \(node.name.dotQuoted) [\(node.attributes.joined(separator: ", "))]")
+        for (position, node) in outline.nodes.enumerated() {
+            var attributes: [String] = []
+            if names[position] != node.description {
+                attributes.append("label=\(node.description.dotQuoted)")
+            }
+            if node.isEndingState {
+                attributes.append("shape=doublecircle")
+            }
+            if !attributes.isEmpty {
+                lines.append("    \(names[position].dotQuoted) [\(attributes.joined(separator: ", "))]")
+            }
         }
         lines.append("")
 
-        lines.append("    \(Self.initialPointName.dotQuoted) -> \(name(of: initialState).dotQuoted)")
-        for arrow in arrows.sorted(by: { ($0.from, $0.to) < ($1.from, $1.to) }) {
+        lines.append("    \(Self.initialPointName.dotQuoted) -> \(names[outline.initialNode].dotQuoted)")
+        for arrow in outline.arrows {
             let label = arrow.events.joined(separator: ", ")
-            lines.append("    \(arrow.from.dotQuoted) -> \(arrow.to.dotQuoted) [label=\(label.dotQuoted)]")
+            lines.append("    \(names[arrow.from].dotQuoted) -> \(names[arrow.to].dotQuoted) [label=\(label.dotQuoted)]")
         }
         lines.append("}")
 
@@ -79,29 +57,27 @@ extension StateMachine {
         return "[*]"
     }
 
-    /// A name for the node of every state, which is the description of the
-    /// state. No two nodes have the same name. If a name is already taken,
-    /// by a state with the same description or by the reserved name, a number
-    /// is added to it.
-    /// - Parameter reserved: A name no state is to get.
-    /// - Returns: The names of the nodes, by their states.
-    private nonisolated func nodeNames(reserving reserved: String) -> [State: String] {
-        var names: [State: String] = [:]
+    /// A name for every node, which is the description of its state. No two
+    /// nodes have the same name. If a name is already taken, by a state with
+    /// the same description or by the reserved name, a number is added to it.
+    /// - Parameters:
+    ///   - nodes: The nodes to name, sorted by their descriptions.
+    ///   - reserved: A name no node is to get.
+    /// - Returns: The names of the nodes, by their positions.
+    private static func dotNames(of nodes: [DiagramOutline.Node], reserving reserved: String) -> [String] {
         var taken: Set<String> = [reserved]
 
         // In the order of the descriptions, so that the names depend on
         // nothing else, like the order the states happen to come in.
-        for (state, description) in states.map({ ($0, "\($0)") }).sorted(by: { $0.1 < $1.1 }) {
-            var name = description
+        return nodes.map { node in
+            var name = node.description
             var number = 1
             while !taken.insert(name).inserted {
                 number += 1
-                name = "\(description) (\(number))"
+                name = "\(node.description) (\(number))"
             }
-            names[state] = name
+            return name
         }
-
-        return names
     }
 }
 
