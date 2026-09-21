@@ -36,6 +36,10 @@ struct DiagramOutline {
     /// The position of the initial state.
     let initialNode: Int
 
+    /// The position of a state to mark, which is how a diagram shows
+    /// the state the state machine is at. Nothing is marked if nil.
+    let markedNode: Int?
+
     /// The arrows, sorted by the state they lead from, and then by the state they lead to.
     let arrows: [Arrow]
 }
@@ -48,8 +52,11 @@ extension StateMachine {
     // nonisolated members, it only uses constant properties.
 
     /// What a diagram of the state machine shows.
+    /// - Parameter markedState: A state to mark in the diagram, like the
+    /// current state. Nothing is marked if it is nil, or if it is not one
+    /// of the states of the state machine.
     /// - Complexity: O(*n* log *n*), where *n* is the number of transitions.
-    nonisolated var diagramOutline: DiagramOutline {
+    nonisolated func diagramOutline(marking markedState: State?) -> DiagramOutline {
         let sortedStates = states.map { (state: $0, description: "\($0)") }.sorted { $0.description < $1.description }
 
         var positions: [State: Int] = [:]
@@ -76,6 +83,7 @@ extension StateMachine {
         return DiagramOutline(
             nodes: sortedStates.map { DiagramOutline.Node(description: $0.description, isEndingState: isEndingState($0.state)) },
             initialNode: position(of: initialState),
+            markedNode: markedState.flatMap { positions[$0] },
             arrows: arrows)
     }
 }

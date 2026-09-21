@@ -20,7 +20,25 @@ extension StateMachine {
     /// but which of the states that gets which number can differ.
     /// - Complexity: O(*n* log *n*), where *n* is the number of transitions.
     public nonisolated var dotDiagram: String {
-        let outline = diagramOutline
+        return dotDiagram(marking: nil)
+    }
+
+    /// The state machine as a diagram in the DOT language of Graphviz, like
+    /// `dotDiagram`, with the current state marked by being filled with color.
+    ///
+    /// The diagram is of one moment. The state machine may have moved on
+    /// when the diagram is drawn.
+    /// - Complexity: O(*n* log *n*), where *n* is the number of transitions.
+    public var dotDiagramWithCurrentState: String {
+        return dotDiagram(marking: state)
+    }
+
+    /// The definition of the state machine as a diagram in the DOT language,
+    /// with a state marked.
+    /// - Parameter markedState: The state to mark. Nothing is marked if nil.
+    /// - Returns: The diagram.
+    private nonisolated func dotDiagram(marking markedState: State?) -> String {
+        let outline = diagramOutline(marking: markedState)
         let names = Self.dotNames(of: outline.nodes, reserving: Self.initialPointName)
 
         var lines = ["digraph {", "    rankdir=LR", "    node [shape=circle]", ""]
@@ -34,6 +52,10 @@ extension StateMachine {
             }
             if node.isEndingState {
                 attributes.append("shape=doublecircle")
+            }
+            if position == outline.markedNode {
+                attributes.append("style=filled")
+                attributes.append("fillcolor=gold")
             }
             if !attributes.isEmpty {
                 lines.append("    \(names[position].dotQuoted) [\(attributes.joined(separator: ", "))]")

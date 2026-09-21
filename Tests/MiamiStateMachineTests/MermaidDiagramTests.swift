@@ -188,6 +188,93 @@ struct MermaidDiagramTests {
         #expect(lines(of: stateMachine.mermaidDiagram).contains("state2 --> state2: addItem"))
     }
 
+    // MARK: - The current state
+
+    @Test func diagramWithCurrentStateMarksTheInitialStateAtFirst() async throws {
+        let stateMachine = try StateMachine(transitions: OrderFixture.transitions, initialState: .cart)
+
+        #expect(await stateMachine.mermaidDiagramWithCurrentState == """
+            stateDiagram-v2
+                direction LR
+
+                state "cancelled" as state1
+                state "cart" as state2
+                state "checkout" as state3
+                state "delivered" as state4
+                state "paid" as state5
+                state "shipped" as state6
+
+                [*] --> state2
+                state2 --> state1: cancel
+                state2 --> state2: addItem
+                state2 --> state3: checkOut
+                state2 --> state5: buyNow
+                state3 --> state1: cancel
+                state3 --> state2: editCart
+                state3 --> state5: pay
+                state5 --> state1: cancel
+                state5 --> state6: ship
+                state6 --> state4: deliver
+                state1 --> [*]
+                state4 --> [*]
+
+                classDef current fill:gold,color:black
+                class state2 current
+            """)
+    }
+
+    @Test func markFollowsTheStateMachine() async throws {
+        let stateMachine = try StateMachine(transitions: OrderFixture.transitions, initialState: .cart)
+
+        // Through the cart, the checkout, paid and shipped to delivered, an ending state.
+        let steps: [(event: OrderEvent, identifier: String)] = [
+            (.addItem, "state2"), (.checkOut, "state3"), (.pay, "state5"), (.ship, "state6"), (.deliver, "state4"),
+        ]
+
+        for step in steps {
+            await stateMachine.process(step.event)
+            let marked = lines(of: await stateMachine.mermaidDiagramWithCurrentState).filter { $0.hasPrefix("class ") }
+
+            #expect(marked == ["class \(step.identifier) current"])
+        }
+    }
+
+    @Test func rejectedEventDoesNotMoveTheMark() async throws {
+        let stateMachine = try StateMachine(transitions: OrderFixture.transitions, initialState: .cart)
+        let before = await stateMachine.mermaidDiagramWithCurrentState
+
+        // An order in the cart cannot be shipped.
+        await stateMachine.process(.ship)
+
+        #expect(await stateMachine.mermaidDiagramWithCurrentState == before)
+    }
+
+    @Test func diagramWithCurrentStateIsTheDiagramWithTheMarkAfterIt() async throws {
+        let stateMachine = try StateMachine(transitions: OrderFixture.transitions, initialState: .cart)
+        let diagram = stateMachine.mermaidDiagram
+
+        for (event, identifier) in [(OrderEvent.checkOut, "state3"), (.pay, "state5"), (.ship, "state6"), (.deliver, "state4")] {
+            await stateMachine.process(event)
+
+            #expect(await stateMachine.mermaidDiagramWithCurrentState == """
+                \(diagram)
+
+                    classDef current fill:gold,color:black
+                    class \(identifier) current
+                """)
+        }
+    }
+
+    @Test func diagramOfTheDefinitionMarksNothing() async throws {
+        let stateMachine = try StateMachine(transitions: OrderFixture.transitions, initialState: .cart)
+        let before = stateMachine.mermaidDiagram
+
+        await stateMachine.process(.checkOut)
+
+        #expect(stateMachine.mermaidDiagram == before)
+        #expect(stateMachine.mermaidDiagram.contains("classDef") == false)
+    }
+
     // MARK: - Descriptions needing care
 
     @Test func charactersWithMeaningToMermaidAreWrittenAsEntityCodes() throws {

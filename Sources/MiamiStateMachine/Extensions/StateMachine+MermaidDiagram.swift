@@ -21,7 +21,26 @@ extension StateMachine {
     /// which identifier can differ.
     /// - Complexity: O(*n* log *n*), where *n* is the number of transitions.
     public nonisolated var mermaidDiagram: String {
-        let outline = diagramOutline
+        return mermaidDiagram(marking: nil)
+    }
+
+    /// The state machine as a diagram in the language of Mermaid, like
+    /// `mermaidDiagram`, with the current state marked by being filled with
+    /// color. It is given a style, named `current`.
+    ///
+    /// The diagram is of one moment. The state machine may have moved on
+    /// when the diagram is drawn.
+    /// - Complexity: O(*n* log *n*), where *n* is the number of transitions.
+    public var mermaidDiagramWithCurrentState: String {
+        return mermaidDiagram(marking: state)
+    }
+
+    /// The definition of the state machine as a diagram in the language of
+    /// Mermaid, with a state marked.
+    /// - Parameter markedState: The state to mark. Nothing is marked if nil.
+    /// - Returns: The diagram.
+    private nonisolated func mermaidDiagram(marking markedState: State?) -> String {
+        let outline = diagramOutline(marking: markedState)
 
         func identifier(of position: Int) -> String {
             return "state\(position + 1)"
@@ -41,6 +60,13 @@ extension StateMachine {
         }
         for (position, node) in outline.nodes.enumerated() where node.isEndingState {
             lines.append("    \(identifier(of: position)) --> [*]")
+        }
+
+        // The text is black, as it is light where Mermaid is drawn on a dark background.
+        if let markedNode = outline.markedNode {
+            lines.append("")
+            lines.append("    classDef current fill:gold,color:black")
+            lines.append("    class \(identifier(of: markedNode)) current")
         }
 
         return lines.joined(separator: "\n")

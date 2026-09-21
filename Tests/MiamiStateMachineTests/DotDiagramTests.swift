@@ -1,3 +1,4 @@
+import Foundation
 import Testing
 import MiamiStateMachine
 
@@ -173,6 +174,104 @@ struct DotDiagramTests {
 
         #expect(lines.contains(#""cart" -> "checkout" [label="checkOut"]"#))
         #expect(lines.contains(#""checkout" -> "cart" [label="editCart"]"#))
+    }
+
+    // MARK: - The current state
+
+    /// How the node of the current state is marked.
+    private let mark = "style=filled, fillcolor=gold"
+
+    @Test func diagramWithCurrentStateMarksTheInitialStateAtFirst() async throws {
+        let stateMachine = try StateMachine(transitions: OrderFixture.transitions, initialState: .cart)
+
+        #expect(await stateMachine.dotDiagramWithCurrentState == """
+            digraph {
+                rankdir=LR
+                node [shape=circle]
+
+                "[*]" [shape=point]
+                "cancelled" [shape=doublecircle]
+                "cart" [style=filled, fillcolor=gold]
+                "delivered" [shape=doublecircle]
+
+                "[*]" -> "cart"
+                "cart" -> "cancelled" [label="cancel"]
+                "cart" -> "cart" [label="addItem"]
+                "cart" -> "checkout" [label="checkOut"]
+                "cart" -> "paid" [label="buyNow"]
+                "checkout" -> "cancelled" [label="cancel"]
+                "checkout" -> "cart" [label="editCart"]
+                "checkout" -> "paid" [label="pay"]
+                "paid" -> "cancelled" [label="cancel"]
+                "paid" -> "shipped" [label="ship"]
+                "shipped" -> "delivered" [label="deliver"]
+            }
+            """)
+    }
+
+    @Test func markFollowsTheStateMachine() async throws {
+        let stateMachine = try StateMachine(transitions: OrderFixture.transitions, initialState: .cart)
+
+        // The state machine is at an ending state last, which keeps its double outline.
+        let steps: [(event: OrderEvent, markedNode: String)] = [
+            (.addItem, #""cart" [\#(mark)]"#),
+            (.checkOut, #""checkout" [\#(mark)]"#),
+            (.pay, #""paid" [\#(mark)]"#),
+            (.ship, #""shipped" [\#(mark)]"#),
+            (.deliver, #""delivered" [shape=doublecircle, \#(mark)]"#),
+        ]
+
+        for step in steps {
+            await stateMachine.process(step.event)
+            let markedNodes = lines(of: await stateMachine.dotDiagramWithCurrentState).filter { $0.contains("fillcolor") }
+
+            #expect(markedNodes == [step.markedNode])
+        }
+    }
+
+    @Test func rejectedEventDoesNotMoveTheMark() async throws {
+        let stateMachine = try StateMachine(transitions: OrderFixture.transitions, initialState: .cart)
+        let before = await stateMachine.dotDiagramWithCurrentState
+
+        // An order in the cart cannot be shipped.
+        await stateMachine.process(.ship)
+
+        #expect(await stateMachine.dotDiagramWithCurrentState == before)
+    }
+
+    @Test func diagramWithCurrentStateIsTheDiagramWithOneNodeMarked() async throws {
+        let stateMachine = try StateMachine(transitions: OrderFixture.transitions, initialState: .cart)
+        let diagram = lines(of: stateMachine.dotDiagram)
+
+        for event in [OrderEvent.checkOut, .pay, .ship, .deliver] {
+            await stateMachine.process(event)
+
+            // A node only there for the mark is removed, and any other node loses the mark.
+            let unmarked = lines(of: await stateMachine.dotDiagramWithCurrentState)
+                .filter { !$0.hasSuffix(" [\(mark)]") }
+                .map { $0.replacingOccurrences(of: ", \(mark)", with: "") }
+
+            #expect(unmarked == diagram)
+        }
+    }
+
+    @Test func diagramOfTheDefinitionMarksNothing() async throws {
+        let stateMachine = try StateMachine(transitions: OrderFixture.transitions, initialState: .cart)
+        let before = stateMachine.dotDiagram
+
+        await stateMachine.process(.checkOut)
+
+        #expect(stateMachine.dotDiagram == before)
+        #expect(stateMachine.dotDiagram.contains("fillcolor") == false)
+    }
+
+    @Test func markComesAfterTheLabelOfANode() async throws {
+        // The initial state is named like the point, so its node has a label.
+        let star = NamedState(id: 1, description: "[*]")
+        let stateMachine = try NamedStateMachine(transitions: [], initialState: star)
+
+        #expect(lines(of: await stateMachine.dotDiagramWithCurrentState)
+            .contains(#""[*] (2)" [label="[*]", shape=doublecircle, \#(mark)]"#))
     }
 
     // MARK: - Descriptions needing care
