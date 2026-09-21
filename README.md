@@ -31,6 +31,27 @@ The `Event` is also a type conforming to `Hashable & Sendable`, usually an enum.
 To make the state machine process an event, the `process(:)` is used. If a transition is 
 defined for the event from the current state, the state machine's current state will change.
 
+## Installation
+
+MiamiStateMachine is a Swift package, and needs Swift 6.3 (Xcode 26.4) or later. It supports macOS 15 and iOS 18.
+
+Add the package to the dependencies in `Package.swift`:
+
+```
+.package(url: "https://github.com/erikt/MiamiStateMachine.git", from: "1.0.0")
+```
+
+Then add the libraries to use to the dependencies of a target. `MiamiStateMachine` is the state machine itself.
+`MiamiUI` and `MiamiDiagrams` are only needed for what is described further down:
+
+```
+.product(name: "MiamiStateMachine", package: "MiamiStateMachine"),
+.product(name: "MiamiUI", package: "MiamiStateMachine"),
+.product(name: "MiamiDiagrams", package: "MiamiStateMachine"),
+```
+
+In Xcode, add it as a package dependency of the project, with the same URL.
+
 ## Usage
 
 Start by defining the possible states and events. Enumerations works well for this:
