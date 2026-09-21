@@ -178,8 +178,8 @@ extension Graph {
     /// connected in both directions, as that is an edge each way.
     /// - Parameter source: The vertex to start from.
     /// - Returns: If there is a cycle reachable from the vertex.
-    /// - Complexity: O(*V* + *E*), where *V* is the number of vertices
-    /// and *E* the number of edges.
+    /// - Complexity: O(*V* + *E*) for an adjacency list, where *V* is the
+    /// number of vertices and *E* the number of edges.
     package func hasCycle(reachableFrom source: Vertex<Element>) -> Bool {
         var states = [CycleSearchState](repeating: .unvisited, count: vertices.count)
         return hasCycle(reachableFrom: source, states: &states)
@@ -190,8 +190,8 @@ extension Graph {
     ///
     /// An edge from a vertex to itself is a cycle. So are two vertices
     /// connected in both directions, as that is an edge each way.
-    /// - Complexity: O(*V* + *E*), where *V* is the number of vertices
-    /// and *E* the number of edges.
+    /// - Complexity: O(*V* + *E*) for an adjacency list, where *V* is the
+    /// number of vertices and *E* the number of edges.
     package var hasCycle: Bool {
         var states = [CycleSearchState](repeating: .unvisited, count: vertices.count)
         return vertices.contains { vertex in

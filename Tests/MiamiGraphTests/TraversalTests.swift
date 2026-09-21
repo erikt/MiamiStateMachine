@@ -270,6 +270,22 @@ struct TraversalTests {
         #expect(graph.edgesCallCount == graph.vertices.count)
     }
 
+    @Test func cycleSearchOfTheWholeGraphAsksForTheEdgesOfEveryVertexOnce() {
+        // A chain, with its last vertex added first. The search starts from every
+        // vertex not yet searched, in the order they were added. Starting over for
+        // every vertex, and not remembering what is searched, asks about a
+        // million times for a chain of this length.
+        var graph = CountingGraph<Int>()
+        var vertices = (0 ..< 1_500).map { graph.addVertex($0) }
+        vertices.reverse()
+        for (from, to) in zip(vertices, vertices.dropFirst()) {
+            graph.addEdge(from: from, to: to)
+        }
+
+        #expect(graph.hasCycle == false)
+        #expect(graph.edgesCallCount == graph.vertices.count)
+    }
+
     @Test func cycleSearchIsNotLimitedByTheDepthOfTheGraph() {
         // Tests do not run on the main thread, and other threads have small
         // stacks. A recursive search of a chain this long ends in a crash.
