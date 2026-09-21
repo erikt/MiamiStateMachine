@@ -75,16 +75,27 @@ extension StateMachine {
     }
 }
 
-private extension Character {
+private extension Unicode.Scalar {
 
-    /// If the character can be written as it is in a text in Mermaid. These
-    /// are the letters, the digits, the space and a few signs with no meaning
-    /// to Mermaid. Characters outside ASCII can be written as they are as well.
+    /// If the scalar can be written as it is in a text in Mermaid. These are
+    /// the letters, the digits, the space and a few signs with no meaning to
+    /// Mermaid. Scalars outside ASCII can be written as they are as well.
     var isPlainInMermaid: Bool {
         guard isASCII else {
             return true
         }
-        return isLetter || isNumber || " .,_()'-".contains(self)
+        return properties.isAlphabetic || properties.numericType != nil || " .,_()'-".unicodeScalars.contains(self)
+    }
+
+    /// If Mermaid reads the scalar as whitespace. Mermaid is written in
+    /// JavaScript, where the byte order mark is whitespace too.
+    var isWhitespaceInMermaid: Bool {
+        return properties.isWhitespace || self == "\u{FEFF}"
+    }
+
+    /// The scalar as an entity code in Mermaid.
+    var entityCode: String {
+        return "#\(value);"
     }
 }
 
@@ -99,32 +110,43 @@ private extension String {
     /// is written as an entity code, like `#59;` for a semicolon. A line break
     /// is written as `<br/>`. A text with nothing in it is written as a space,
     /// as Mermaid shows the identifier of a state without a description.
+    ///
+    /// The text is gone through by Unicode scalar, and not by character. A
+    /// semicolon followed by a combining mark is one character, which is not
+    /// a semicolon, and would be written as it is.
     var mermaidEscaped: String {
         var escaped = ""
 
         for character in self {
-            if character.isNewline {
+            guard !character.isNewline else {
+                // A carriage return and a line feed are one character, and one line break.
                 escaped += "<br/>"
-            } else if character.isWhitespace, escaped.suffix(9).lowercased() == "direction" {
-                // Mermaid reads a line with the word direction and a direction after
-                // it, like LR, as the direction of the diagram, wherever in the line
-                // it is, and whether in small letters or capitals.
-                escaped += character.entityCodes
-            } else if character.isPlainInMermaid {
-                escaped.append(character)
-            } else {
-                escaped += character.entityCodes
+                continue
+            }
+
+            for scalar in character.unicodeScalars {
+                if scalar.isWhitespaceInMermaid, escaped.endsWithTheWordDirection {
+                    // Mermaid reads a line with the word direction and a direction after
+                    // it, like LR, as the direction of the diagram, wherever in the line
+                    // it is, and whether in small letters or capitals.
+                    escaped += scalar.entityCode
+                } else if scalar.isPlainInMermaid {
+                    escaped.unicodeScalars.append(scalar)
+                } else {
+                    escaped += scalar.entityCode
+                }
             }
         }
 
-        return escaped.allSatisfy(\.isWhitespace) ? "#32;" : escaped
+        return escaped.unicodeScalars.allSatisfy(\.isWhitespaceInMermaid) ? "#32;" : escaped
     }
-}
 
-private extension Character {
-
-    /// The character as entity codes in Mermaid, one for every Unicode scalar of it.
-    var entityCodes: String {
-        return unicodeScalars.map { "#\($0.value);" }.joined()
+    /// If the string ends with the word direction, in small letters or
+    /// capitals. The scalars are compared, as a character before the word
+    /// can join its first letter, and hide it from a comparison of characters.
+    private var endsWithTheWordDirection: Bool {
+        let word = "direction".unicodeScalars
+        let end = unicodeScalars.suffix(word.count)
+        return end.count == word.count && zip(end, word).allSatisfy { $0.properties.lowercaseMapping.unicodeScalars.elementsEqual([$1]) }
     }
 }

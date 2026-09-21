@@ -46,11 +46,11 @@ extension StateMachine {
         var lines = ["digraph {", "    rankdir=LR", "    node [shape=circle]", ""]
 
         // The nodes not drawn like the rest.
-        lines.append("    \(Self.initialPointName.dotQuoted) [shape=point]")
+        lines.append("    \(quoted(Self.initialPointName)) [shape=point]")
         for (position, node) in outline.nodes.enumerated() {
             var attributes: [String] = []
-            if names[position] != node.description {
-                attributes.append("label=\(node.description.dotQuoted)")
+            if names[position] != node.description.dotEscaped {
+                attributes.append("label=\(quoted(node.description.dotEscaped))")
             }
             if node.isEndingState {
                 attributes.append("shape=doublecircle")
@@ -60,19 +60,24 @@ extension StateMachine {
                 attributes.append("fillcolor=gold")
             }
             if !attributes.isEmpty {
-                lines.append("    \(names[position].dotQuoted) [\(attributes.joined(separator: ", "))]")
+                lines.append("    \(quoted(names[position])) [\(attributes.joined(separator: ", "))]")
             }
         }
         lines.append("")
 
-        lines.append("    \(Self.initialPointName.dotQuoted) -> \(names[outline.initialNode].dotQuoted)")
+        lines.append("    \(quoted(Self.initialPointName)) -> \(quoted(names[outline.initialNode]))")
         for arrow in outline.arrows {
-            let label = arrow.events.joined(separator: ", ")
-            lines.append("    \(names[arrow.from].dotQuoted) -> \(names[arrow.to].dotQuoted) [label=\(label.dotQuoted)]")
+            let label = arrow.events.map(\.dotEscaped).joined(separator: ", ")
+            lines.append("    \(quoted(names[arrow.from])) -> \(quoted(names[arrow.to])) [label=\(quoted(label))]")
         }
         lines.append("}")
 
         return lines.joined(separator: "\n")
+
+        // The names and labels are escaped already.
+        func quoted(_ escaped: String) -> String {
+            return "\"\(escaped)\""
+        }
     }
 
     /// The name of the point with the arrow leading to the initial state. It
@@ -81,9 +86,12 @@ extension StateMachine {
         return "[*]"
     }
 
-    /// A name for every node, which is the description of its state. No two
-    /// nodes have the same name. If a name is already taken, by a state with
-    /// the same description or by the reserved name, a number is added to it.
+    /// A name for every node, which is the description of its state, escaped
+    /// to be written in quotes. No two nodes have the same name. If a name is
+    /// already taken, a number is added to it. It can be taken by a state
+    /// with the same description, by a state with a description that is
+    /// written the same way, like one with another kind of line break, or by
+    /// the reserved name.
     /// - Parameters:
     ///   - nodes: The nodes to name, sorted by their descriptions.
     ///   - reserved: A name no node is to get.
@@ -91,15 +99,21 @@ extension StateMachine {
     private static func dotNames(of nodes: [DiagramOutline.Node], reserving reserved: String) -> [String] {
         var taken: Set<String> = [reserved]
 
+        // The number last added to a name. Counting goes on from it, and does not
+        // start over for every state, when many states have the same description.
+        var lastNumbers: [String: Int] = [:]
+
         // In the order of the descriptions, so that the names depend on
         // nothing else, like the order the states happen to come in.
         return nodes.map { node in
-            var name = node.description
-            var number = 1
+            let wanted = node.description.dotEscaped
+            var name = wanted
+            var number = lastNumbers[wanted, default: 1]
             while !taken.insert(name).inserted {
                 number += 1
-                name = "\(node.description) (\(number))"
+                name = "\(wanted) (\(number))"
             }
+            lastNumbers[wanted] = number
             return name
         }
     }
@@ -107,22 +121,44 @@ extension StateMachine {
 
 private extension String {
 
-    /// The string as a quoted string in the DOT language. Quotes and
-    /// backslashes are escaped, and a line break is written as `\n`.
-    var dotQuoted: String {
-        var quoted = "\""
+    /// The string as the text of a quoted string in the DOT language,
+    /// without the quotes around it.
+    ///
+    /// A quote and a backslash are escaped, and a line break is written as
+    /// `\n`. An ampersand is written as an entity, as Graphviz reads entities
+    /// in the text it draws. A control character is written as a space, as
+    /// Graphviz does not read a file with a null character, and passes the
+    /// others on to files that cannot be read.
+    ///
+    /// The text is gone through by Unicode scalar, and not by character. A
+    /// quote followed by a combining mark is one character, which is not a
+    /// quote, and would be written as it is.
+    var dotEscaped: String {
+        var escaped = ""
+
         for character in self {
-            switch character {
-            case "\"":
-                quoted += "\\\""
-            case "\\":
-                quoted += "\\\\"
-            case _ where character.isNewline:
-                quoted += "\\n"
-            default:
-                quoted.append(character)
+            guard !character.isNewline else {
+                // A carriage return and a line feed are one character, and one line break.
+                escaped += "\\n"
+                continue
+            }
+
+            for scalar in character.unicodeScalars {
+                switch scalar {
+                case "\"":
+                    escaped += "\\\""
+                case "\\":
+                    escaped += "\\\\"
+                case "&":
+                    escaped += "&amp;"
+                case _ where scalar.properties.generalCategory == .control:
+                    escaped += " "
+                default:
+                    escaped.unicodeScalars.append(scalar)
+                }
             }
         }
-        return quoted + "\""
+
+        return escaped
     }
 }

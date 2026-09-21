@@ -326,6 +326,18 @@ struct MermaidDiagramTests {
         #expect(lines.contains("state2 --> state1: \(description)"))
     }
 
+    @Test func signJoinedWithAnotherScalarIsStillWrittenAsAnEntityCode() throws {
+        // A quote and the accent after it are one character, which is not a quote.
+        // Neither is a semicolon with an accent, or a quote after an Arabic number sign.
+        let description = "say \"\u{0301}hi; a;\u{0301}b \u{0600}\"x"
+        let stateMachine = try makeStateMachine(endingAt: description, by: description)
+        let expected = "say #34;\u{0301}hi#59; a#59;\u{0301}b \u{0600}#34;x"
+
+        let lines = lines(of: stateMachine.mermaidDiagram)
+        #expect(lines.contains("state \"\(expected)\" as state1"))
+        #expect(lines.contains("state2 --> state1: \(expected)"))
+    }
+
     /// Mermaid reads a line with the word direction and a direction after it as
     /// the direction of the whole diagram, wherever in the line it is.
     @Test(arguments: [
@@ -334,6 +346,8 @@ struct MermaidDiagramTests {
         ("turn in direction RL now", "turn in direction#32;RL now"),
         ("direction\u{00A0}BT", "direction#160;BT"),
         ("xdirection LRx", "xdirection#32;LRx"),
+        ("direction\u{FEFF}LR", "direction#65279;LR"),
+        ("\u{0600}direction LR", "\u{0600}direction#32;LR"),
         ("directions are fine", "directions are fine"),
         ("direction", "direction"),
     ])

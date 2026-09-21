@@ -313,6 +313,63 @@ struct DotDiagramTests {
         #expect(lines(of: stateMachine.dotDiagram).contains(#""<b>bold</b>" [shape=doublecircle]"#))
     }
 
+    /// A chain of states with the descriptions, the first being the initial state.
+    private func makeChain(of descriptions: [String]) throws -> NamedStateMachine {
+        let states = descriptions.enumerated().map { NamedState(id: $0, description: $1) }
+        let transitions = zip(states, states.dropFirst()).map { StateTransition(from: $0, event: "go", to: $1) }
+        return try StateMachine(transitions: Set(transitions), initialState: states[0])
+    }
+
+    @Test func signJoinedWithAnotherScalarIsStillEscaped() throws {
+        // A quote and the accent after it are one character, which is not a quote.
+        // Neither is a backslash with an accent, or a quote after an Arabic number sign.
+        let stateMachine = try makeChain(of: ["say \"\u{0301}hi\"", "back\\\u{0301}slash", "\u{0600}\"x"])
+        let lines = lines(of: stateMachine.dotDiagram)
+
+        #expect(lines.contains("\"[*]\" -> \"say \\\"\u{0301}hi\\\"\""))
+        #expect(lines.contains("\"back\\\\\u{0301}slash\" -> \"\u{0600}\\\"x\" [label=\"go\"]"))
+    }
+
+    @Test func ampersandIsWrittenAsAnEntity() throws {
+        // Graphviz reads entities in the text it draws, so these two would be drawn the same.
+        let stateMachine = try makeChain(of: ["R&D", "R&amp;D"])
+
+        #expect(lines(of: stateMachine.dotDiagram).contains(#""R&amp;D" -> "R&amp;amp;D" [label="go"]"#))
+    }
+
+    @Test func controlCharacterIsWrittenAsASpace() throws {
+        // Graphviz does not read a file with a null character in it.
+        let stateMachine = try makeChain(of: ["null\u{0}here", "bell\u{7}here", "tab\there"])
+        let lines = lines(of: stateMachine.dotDiagram)
+
+        #expect(lines.contains(#""bell here" -> "tab here" [label="go"]"#))
+        #expect(lines.contains(#""null here" -> "bell here" [label="go"]"#))
+        #expect(stateMachine.dotDiagram.unicodeScalars.allSatisfy { $0.properties.generalCategory != .control || $0 == "\n" })
+    }
+
+    @Test func statesWrittenTheSameWayAreDifferentNodes() throws {
+        // Every kind of line break is written the same way, so the descriptions differ but not the names.
+        let stateMachine = try makeChain(of: ["a\nb", "a\r\nb", "a\u{2028}b", "a\u{85}b"])
+        let lines = lines(of: stateMachine.dotDiagram)
+        let names = [#""a\nb""#, #""a\nb (2)""#, #""a\nb (3)""#, #""a\nb (4)""#]
+
+        // Four nodes in a chain, and not one node with arrows to itself.
+        let arrows = lines.filter { $0.contains("->") && !$0.hasPrefix(#""[*]""#) }
+        #expect(arrows.count == 3)
+        for arrow in arrows {
+            let ends = names.filter { arrow.hasPrefix($0 + " ->") || arrow.contains("-> " + $0 + " [") }
+            #expect(ends.count == 2, "An arrow should connect two different nodes: \(arrow)")
+        }
+        #expect(names.dropFirst().allSatisfy { name in lines.contains { $0.hasPrefix(name + " [label=\"a\\nb\"") } })
+    }
+
+    @Test func manyStatesWithTheSameDescriptionAreNumberedInOrder() throws {
+        let stateMachine = try makeChain(of: Array(repeating: "same", count: 12))
+        let names = Set(lines(of: stateMachine.dotDiagram).filter { $0.contains("[label=\"same\"") }.map { $0.prefix { $0 != "[" }.dropLast() })
+
+        #expect(names == Set((2 ... 12).map { "\"same (\($0))\"" }))
+    }
+
     // MARK: - States with the same description
 
     @Test func statesWithTheSameDescriptionAreDifferentNodes() throws {
