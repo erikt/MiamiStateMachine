@@ -16,6 +16,10 @@ let package = Package(
         .library(
             name: "MiamiUI",
             targets: ["MiamiUI"]),
+        // Diagrams of a state machine, for Graphviz and Mermaid.
+        .library(
+            name: "MiamiDiagrams",
+            targets: ["MiamiDiagrams"]),
     ],
     dependencies: [
         // 1.1.0 is the first version with the Heap. Deque is Sendable from 1.0.6.
@@ -32,6 +36,9 @@ let package = Package(
             ]),
         .target(
             name: "MiamiUI",
+            dependencies: ["MiamiStateMachine"]),
+        .target(
+            name: "MiamiDiagrams",
             dependencies: ["MiamiStateMachine"]),
         // Internal targets are prefixed with Miami, as module names have
         // to be unique among all packages a client depends on.
@@ -50,6 +57,9 @@ let package = Package(
         .testTarget(
             name: "MiamiUITests",
             dependencies: ["MiamiUI", "MiamiStateMachine"]),
+        .testTarget(
+            name: "MiamiDiagramsTests",
+            dependencies: ["MiamiDiagrams", "MiamiStateMachine"]),
         .testTarget(
             name: "MiamiGraphTests",
             dependencies: ["MiamiGraph"]),

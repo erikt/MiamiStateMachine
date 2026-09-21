@@ -285,7 +285,7 @@ states that can still be reached from the current state, use `reachableStatesFro
 
 ## Drawing the state machine
 
-The `.dotDiagram` property on the state machine creates a [GraphViz DOT format](https://graphviz.org) string, and the `.mermaidDiagram` property creates a [Mermaid](https://mermaid.js.org) string. They can be used to render the state machine as a diagram. The `.dotDiagramWithCurrentState` and `.mermaidDiagramWithCurrentState` properties create the same strings with the current state marked, and must be awaited.
+The `.dotDiagram` property on the state machine creates a [GraphViz DOT format](https://graphviz.org) string, and the `.mermaidDiagram` property creates a [Mermaid](https://mermaid.js.org) string. They can be used to render the state machine as a diagram. The `.dotDiagramWithCurrentState` and `.mermaidDiagramWithCurrentState` properties create the same strings with the current state marked, and must be awaited. The properties are in the `MiamiDiagrams` library of the package, which has to be imported.
 
 ## What's with the name?
 

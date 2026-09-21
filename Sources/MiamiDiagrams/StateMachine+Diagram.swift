@@ -1,3 +1,5 @@
+import MiamiStateMachine
+
 /// What a diagram of a state machine shows, whatever language the diagram is
 /// written in: the states, and an arrow for every two states connected by
 /// transitions.
@@ -48,8 +50,9 @@ struct DiagramOutline {
 
 extension StateMachine {
 
-    // A diagram is about the definition of the state machine. Like the other
-    // nonisolated members, it only uses constant properties.
+    // A diagram is about the definition of the state machine. It is made
+    // from what the state machine tells everyone about its definition, as
+    // this is another module, and that never changes, so it is nonisolated.
 
     /// What a diagram of the state machine shows.
     /// - Parameter markedState: A state to mark in the diagram, like the

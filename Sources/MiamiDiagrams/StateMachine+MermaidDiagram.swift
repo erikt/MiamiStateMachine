@@ -1,3 +1,5 @@
+import MiamiStateMachine
+
 // MARK: - Diagram for Mermaid
 
 extension StateMachine {

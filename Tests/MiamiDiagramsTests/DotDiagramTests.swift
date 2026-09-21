@@ -1,6 +1,7 @@
 import Foundation
 import Testing
 import MiamiStateMachine
+import MiamiDiagrams
 
 /// The diagram is text for another program, so the tests spell it out. That
 /// Graphviz reads the text, and draws what is meant, is not tested here.

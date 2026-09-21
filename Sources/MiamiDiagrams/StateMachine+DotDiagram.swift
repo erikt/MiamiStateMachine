@@ -1,3 +1,5 @@
+import MiamiStateMachine
+
 // MARK: - Diagram for Graphviz
 
 extension StateMachine {
