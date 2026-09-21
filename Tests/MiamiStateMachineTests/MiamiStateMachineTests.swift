@@ -1,169 +1,152 @@
-import XCTest
+import Testing
 import MiamiStateMachine
 
-final class MiamiStateMachineTests: XCTestCase {
-    func testStartState() async throws {
-        let sm1 = try StateMachine(transitions: t1, initialState: .s1)
-        let atEnd = await sm1.isAtEndingState
-        let toEnd = await sm1.canTransition(to: .end)
-        let toS2 = await sm1.canTransition(to: .s2)
-        let numToS2 = await sm1.transitionsFromCurrent(to: .s2).count
-        let numToEnd = await sm1.transitionsFromCurrent(to: .end).count
-        let numTransitions = sm1.transitionCount
-        
-        XCTAssertEqual(atEnd, false, "State machine should not have reached an end state.")
-        XCTAssertEqual(numTransitions, 4, "State machine definition should have 4 defined transitions.")
-        XCTAssertEqual(toEnd, false, "No possible transition to end state.")
-        XCTAssertEqual(toS2, true, "Should be possible to transition to s2 state from s1.")
-        XCTAssertEqual(numToS2, 1, "Should be 1 transition from current state to s2.")
-        XCTAssertEqual(numToEnd, 0, "Should not exist any transition to end state from s1.")
+struct MiamiStateMachineTests {
+
+    // MARK: - State machine definitions for testing
+
+    enum S1 {
+        case s1, s2, s3, end
     }
-    
-    func testProcessEvent() async throws {
+
+    enum E1 {
+        case s1ToS2, s2ToS3, s1ToS3, s3ToEnd
+    }
+
+    let t1: Set<StateTransition<E1, S1>> = [
+        StateTransition(from: .s1, event: .s1ToS2, to: .s2),
+        StateTransition(from: .s1, event: .s1ToS3, to: .s3),
+        StateTransition(from: .s2, event: .s2ToS3, to: .s3),
+        StateTransition(from: .s3, event: .s3ToEnd, to: .end)
+    ]
+
+    // --
+
+    enum S2 {
+        case s1, s2, s3
+    }
+
+    enum E2 {
+        case e1, e2, e3
+    }
+
+    let illegalT: Set<StateTransition<E2, S2>> = [
+        StateTransition(from: .s1, event: .e1, to: .s2),
+        StateTransition(from: .s2, event: .e2, to: .s3),
+        StateTransition(from: .s1, event: .e3, to: .s3),
+        StateTransition(from: .s1, event: .e3, to: .s2)
+    ]
+
+    // --
+
+    enum MyState {
+        case s1, s2, s3
+    }
+
+    enum MyEvent {
+        case e1, e2, e3, e4
+    }
+
+    typealias MyTransition = StateTransition<MyEvent, MyState>
+
+    let transitions: Set<MyTransition> = [
+        StateTransition(from: .s1, event: .e1, to: .s2),
+        StateTransition(from: .s2, event: .e2, to: .s3),
+        StateTransition(from: .s1, event: .e3, to: .s3),
+        StateTransition(from: .s1, event: .e4, to: .s1)
+    ]
+
+    // MARK: - Tests
+
+    @Test func startState() async throws {
         let sm1 = try StateMachine(transitions: t1, initialState: .s1)
-        let st1 = await sm1.state
-        XCTAssertEqual(st1, .s1, "State machine should start at s1.")
+
+        #expect(await sm1.isAtEndingState == false, "State machine should not have reached an end state.")
+        #expect(sm1.transitionCount == 4, "State machine definition should have 4 defined transitions.")
+        #expect(await sm1.canTransition(to: .end) == false, "No possible transition to end state.")
+        #expect(await sm1.canTransition(to: .s2), "Should be possible to transition to s2 state from s1.")
+        #expect(await sm1.transitionsFromCurrent(to: .s2).count == 1, "Should be 1 transition from current state to s2.")
+        #expect(await sm1.transitionsFromCurrent(to: .end).count == 0, "Should not exist any transition to end state from s1.")
+    }
+
+    @Test func processEvent() async throws {
+        let sm1 = try StateMachine(transitions: t1, initialState: .s1)
+        #expect(await sm1.state == .s1, "State machine should start at s1.")
+
         await sm1.process(.s3ToEnd)
-        let st2 = await sm1.state
-        XCTAssertEqual(st2, .s1, "State machine should not change state after processing s3ToEnd event.")
-        var eventsProcessed = await sm1.processedEventsCount
-        var stateChanges = await sm1.stateChangeCount
-        XCTAssertEqual(eventsProcessed, 1, "Processed events should be 1")
-        XCTAssertEqual(stateChanges, 0, "State changes should be 0")
-        
+        #expect(await sm1.state == .s1, "State machine should not change state after processing s3ToEnd event.")
+        #expect(await sm1.processedEventsCount == 1, "Processed events should be 1")
+        #expect(await sm1.stateChangeCount == 0, "State changes should be 0")
+
         await sm1.process(.s1ToS2)
-        let st3 = await sm1.state
-        XCTAssertEqual(st3, .s2, "State machine should have transitioned to s2 after processing s1ToS2 event.")
+        #expect(await sm1.state == .s2, "State machine should have transitioned to s2 after processing s1ToS2 event.")
+
         await sm1.process(.s2ToS3)
         await sm1.process(.s3ToEnd)
-        let st4 = await sm1.state
-        let atEnd = await sm1.isAtEndingState
-        XCTAssertEqual(st4, .end, "State machine should be at end state.")
-        XCTAssertTrue(atEnd, "State machine should have reached an end state.")
+        #expect(await sm1.state == .end, "State machine should be at end state.")
+        #expect(await sm1.isAtEndingState, "State machine should have reached an end state.")
 
-        eventsProcessed = await sm1.processedEventsCount
-        stateChanges = await sm1.stateChangeCount
-        let rejected = await sm1.rejectedEventsCount
-        XCTAssertEqual(eventsProcessed, 4, "Events processed should be 4")
-        XCTAssertEqual(stateChanges, 3, "State changes should be 3")
-        XCTAssertEqual(rejected, 1, "Rejected events should be 1")
+        #expect(await sm1.processedEventsCount == 4, "Events processed should be 4")
+        #expect(await sm1.stateChangeCount == 3, "State changes should be 3")
+        #expect(await sm1.rejectedEventsCount == 1, "Rejected events should be 1")
     }
-    
-    func testTransitionLog() async throws {
+
+    @Test func transitionLog() async throws {
         let sm1 = try StateMachine(transitions: t1, initialState: .s1)
         await sm1.process(.s1ToS2)
         await sm1.process(.s2ToS3)
         await sm1.process(.s3ToEnd)
-        
-        var transitions = await sm1.transitionLog
-        let t1 = transitions.popLast()!
-        XCTAssertEqual(t1.from, .s3, "Transition should be from S3")
-        XCTAssertEqual(t1.to, .end, "Transition should be to end")
-        XCTAssertEqual(t1.event, .s3ToEnd, "Transition event should be s3ToEnd")
-        
-        let t2 = transitions.popLast()!
-        XCTAssertEqual(t2.from, .s2, "Transition should be from S2")
-        XCTAssertEqual(t2.to, .s3, "Transition should be to S3")
-        XCTAssertEqual(t2.event, .s2ToS3, "Transition event should be s2ToS3")
 
-        let t3 = transitions.popLast()!
-        XCTAssertEqual(t3.from, .s1, "Transition should be from S1")
-        XCTAssertEqual(t3.to, .s2, "Transition should be to S2")
-        XCTAssertEqual(t3.event, .s1ToS2, "Transition event should be s1ToS2")
+        var log = await sm1.transitionLog
+        var newest = log.popLast()
+        let last = try #require(newest)
+        #expect(last.from == .s3, "Transition should be from S3")
+        #expect(last.to == .end, "Transition should be to end")
+        #expect(last.event == .s3ToEnd, "Transition event should be s3ToEnd")
 
-        XCTAssertEqual(transitions.popLast(), nil, "There should be no more commited transitions")
+        newest = log.popLast()
+        let secondLast = try #require(newest)
+        #expect(secondLast.from == .s2, "Transition should be from S2")
+        #expect(secondLast.to == .s3, "Transition should be to S3")
+        #expect(secondLast.event == .s2ToS3, "Transition event should be s2ToS3")
+
+        newest = log.popLast()
+        let first = try #require(newest)
+        #expect(first.from == .s1, "Transition should be from S1")
+        #expect(first.to == .s2, "Transition should be to S2")
+        #expect(first.event == .s1ToS2, "Transition event should be s1ToS2")
+
+        newest = log.popLast()
+        #expect(newest == nil, "There should be no more commited transitions")
     }
-    
-    func testIllegalStateMachineDefinition() {
-        XCTAssertThrowsError(try StateMachine(transitions: illegalT, initialState: .s1),
-                             "Should not be possible to create an inconsistent state machine definition.")
+
+    @Test func illegalStateMachineDefinition() {
+        #expect(throws: StateMachine<E2, S2>.DefinitionError.self,
+                "Should not be possible to create an inconsistent state machine definition.") {
+            try StateMachine(transitions: illegalT, initialState: .s1)
+        }
     }
 
-    func testTransitionLogWithoutCapacity() async throws {
+    @Test func transitionLogWithoutCapacity() async throws {
         let demoSm = try StateMachine(transitions: transitions, initialState: .s1)
         await demoSm.process(.e4)
         var log = await demoSm.transitionLog
         let expectedT1: MyTransition = StateTransition(from: .s1, event: .e4, to: .s1)
-        XCTAssertEqual(log.last, log.first, "Last log entry and oldest log entry should be the same")
-        XCTAssertEqual(log.count, 1, "Number of log entries should be 1")
-        XCTAssertEqual(log.last, expectedT1, "Last log entry should be from s1")
-        
-        await demoSm.process(.e4)
-        log = await demoSm.transitionLog
-        XCTAssertEqual(log.count, 2, "There should be 2 log entries, not \(log.count)")
-        
-        await demoSm.process(.e4)
-        log = await demoSm.transitionLog
-        XCTAssertEqual(log.count, 3, "There should be 3 log entries, not \(log.count)")
+        #expect(log.last == log.first, "Last log entry and oldest log entry should be the same")
+        #expect(log.count == 1, "Number of log entries should be 1")
+        #expect(log.last == expectedT1, "Last log entry should be from s1")
 
-        await demoSm.process(.e4)
-        log = await demoSm.transitionLog
-        XCTAssertEqual(log.count, 4, "There should be 4 log entries, not \(log.count)")
-
-        await demoSm.process(.e1)
-        log = await demoSm.transitionLog
-        XCTAssertEqual(log.count, 5, "There should be 5 log entries, not \(log.count)")
-
-        await demoSm.process(.e2)
-        log = await demoSm.transitionLog
-        XCTAssertEqual(log.count, 6, "There should be 6 log entries, not \(log.count)")
+        // Three more times back to s1, and then on to s2 and s3.
+        let events: [MyEvent] = [.e4, .e4, .e4, .e1, .e2]
+        for (number, event) in events.enumerated() {
+            await demoSm.process(event)
+            log = await demoSm.transitionLog
+            #expect(log.count == number + 2, "There should be \(number + 2) log entries, not \(log.count)")
+        }
 
         let expOld: MyTransition = StateTransition(from: .s1, event: .e4, to: .s1)
         let expLast: MyTransition = StateTransition(from: .s2, event: .e2, to: .s3)
-        XCTAssertEqual(log.first, expOld, "Oldest entry is not expected")
-        XCTAssertEqual(log.last, expLast, "Last entry is not expected")
+        #expect(log.first == expOld, "Oldest entry is not expected")
+        #expect(log.last == expLast, "Last entry is not expected")
     }
 }
-
-// Global test state machine definitions for testing.
-
-enum S1 {
-    case s1, s2, s3, end
-}
-
-enum E1 {
-    case s1ToS2, s2ToS3, s1ToS3, s3ToEnd
-}
-
-let t1: Set<StateTransition<E1, S1>> = [
-    StateTransition(from: .s1, event: .s1ToS2, to: .s2),
-    StateTransition(from: .s1, event: .s1ToS3, to: .s3),
-    StateTransition(from: .s2, event: .s2ToS3, to: .s3),
-    StateTransition(from: .s3, event: .s3ToEnd, to: .end)
-]
-
-// --
-
-enum S2 {
-    case s1, s2, s3
-}
-
-enum E2 {
-    case e1, e2, e3
-}
-
-let illegalT: Set<StateTransition<E2, S2>> = [
-    StateTransition(from: .s1, event: .e1, to: .s2),
-    StateTransition(from: .s2, event: .e2, to: .s3),
-    StateTransition(from: .s1, event: .e3, to: .s3),
-    StateTransition(from: .s1, event: .e3, to: .s2)
-]
-
-// --
-
-enum MyState {
-    case s1, s2, s3
-}
-
-enum MyEvent {
-    case e1, e2, e3, e4
-}
-
-typealias MyTransition = StateTransition<MyEvent, MyState>
-
-let transitions: Set<MyTransition> = [
-    StateTransition(from: .s1, event: .e1, to: .s2),
-    StateTransition(from: .s2, event: .e2, to: .s3),
-    StateTransition(from: .s1, event: .e3, to: .s3),
-    StateTransition(from: .s1, event: .e4, to: .s1)
-]
