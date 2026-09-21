@@ -3,8 +3,9 @@ import Testing
 import MiamiStateMachine
 
 /// Transitions and rejected events are saved with the names of their
-/// properties as keys. The keys are what saved data depends on, so the
-/// tests spell out the saved format, and do not only encode and decode.
+/// properties as keys, and a log with keys of its own. The keys are what
+/// saved data depends on, so the tests spell out the saved format, and do
+/// not only encode and decode.
 struct CodableTests {
 
     // MARK: - Fixture
@@ -148,6 +149,108 @@ struct CodableTests {
         #expect(key.stringValue == missingKey)
     }
 
+    // MARK: - The log
+
+    /// A log of the numbers from one up to a number, appended in order.
+    private func makeLog(upTo newest: Int, capacity: UInt?) -> CapacityLog<Int> {
+        var log = CapacityLog<Int>(capacity: capacity)
+        for number in stride(from: 1, through: newest, by: 1) {
+            log.append(number)
+        }
+        return log
+    }
+
+    /// A log encoded and decoded again, as JSON and as a property list.
+    private func savedAndRead(_ log: CapacityLog<Int>) throws -> [CapacityLog<Int>] {
+        [
+            try JSONDecoder().decode(CapacityLog<Int>.self, from: JSONEncoder().encode(log)),
+            try PropertyListDecoder().decode(CapacityLog<Int>.self, from: PropertyListEncoder().encode(log)),
+        ]
+    }
+
+    @Test func logIsSavedWithItsCapacityAndItsElements() throws {
+        // Five numbers were appended, and the log kept the three newest.
+        #expect(try json(makeLog(upTo: 5, capacity: 3)) == #"{"capacity":3,"elements":[3,4,5]}"#)
+    }
+
+    @Test func logWithoutCapacityIsSavedWithoutOne() throws {
+        #expect(try json(makeLog(upTo: 3, capacity: nil)) == #"{"elements":[1,2,3]}"#)
+    }
+
+    @Test func emptyLogIsSavedWithoutElements() throws {
+        #expect(try json(makeLog(upTo: 0, capacity: 2)) == #"{"capacity":2,"elements":[]}"#)
+        #expect(try json(makeLog(upTo: 0, capacity: nil)) == #"{"elements":[]}"#)
+    }
+
+    @Test func logIsReadFromTheSavedFormat() throws {
+        var log = try decoded(CapacityLog<Int>.self, from: #"{"elements": [1, 2, 3], "capacity": 3}"#)
+        #expect(Array(log) == [1, 2, 3])
+
+        // The capacity is read too, so the log goes on dropping its oldest element.
+        log.append(4)
+        #expect(Array(log) == [2, 3, 4])
+    }
+
+    @Test func logReadWithoutCapacityKeepsEverything() throws {
+        var log = try decoded(CapacityLog<Int>.self, from: #"{"elements": [1, 2, 3]}"#)
+        for number in 4 ... 1_000 {
+            log.append(number)
+        }
+
+        #expect(log.count == 1_000)
+        #expect(log.first == 1)
+    }
+
+    @Test(arguments: [nil, 0, 1, 3, 5, 10] as [UInt?])
+    func logSavedAndReadGoesOnLikeTheLogItWasSavedFrom(capacity: UInt?) throws {
+        var log = makeLog(upTo: 5, capacity: capacity)
+        var copies = try savedAndRead(log)
+
+        for copy in copies {
+            #expect(Array(copy) == Array(log))
+        }
+
+        // The same elements are dropped from the copies as from the log.
+        for number in 6 ... 20 {
+            log.append(number)
+            for index in copies.indices {
+                copies[index].append(number)
+                #expect(Array(copies[index]) == Array(log))
+            }
+        }
+    }
+
+    /// What is kept of the elements one to four, by the capacity of the log.
+    private static let keptByCapacity: [(capacity: UInt, kept: [Int])] = [
+        (0, []), (1, [4]), (2, [3, 4]), (4, [1, 2, 3, 4]), (9, [1, 2, 3, 4]),
+    ]
+
+    @Test(arguments: keptByCapacity)
+    func logReadWithMoreElementsThanItsCapacityKeepsTheNewest(capacity: UInt, kept: [Int]) throws {
+        // Not written by a log. Edited by hand, or written by something else.
+        let log = try decoded(CapacityLog<Int>.self, from: #"{"capacity": \#(capacity), "elements": [1, 2, 3, 4]}"#)
+
+        #expect(Array(log) == kept)
+    }
+
+    @Test func logWithoutElementsIsNotRead() throws {
+        let error = try #require(throws: DecodingError.self) {
+            try decoded(CapacityLog<Int>.self, from: #"{"capacity": 2}"#)
+        }
+
+        guard case .keyNotFound(let key, _) = error else {
+            Issue.record("Expected a key to be missing, but got: \(error)")
+            return
+        }
+        #expect(key.stringValue == "elements")
+    }
+
+    @Test func logWithNegativeCapacityIsNotRead() throws {
+        #expect(throws: DecodingError.self) {
+            try decoded(CapacityLog<Int>.self, from: #"{"capacity": -1, "elements": []}"#)
+        }
+    }
+
     // MARK: - Saving without reading, and reading without saving
 
     @Test func encodableEventAndStateIsEnoughToSave() throws {
@@ -169,6 +272,20 @@ struct CodableTests {
                                         from: #"{"event": {"name": "go"}, "state": {"name": "b"}}"#)
         #expect(rejectedEvent.event.name == "go")
         #expect(rejectedEvent.state.name == "b")
+    }
+
+    @Test func encodableElementsAreEnoughToSaveLog() throws {
+        var log = CapacityLog<OnlyEncodable>(capacity: 1)
+        log.append(OnlyEncodable(name: "a"))
+        log.append(OnlyEncodable(name: "b"))
+
+        #expect(try json(log) == #"{"capacity":1,"elements":[{"name":"b"}]}"#)
+    }
+
+    @Test func decodableElementsAreEnoughToReadLog() throws {
+        let log = try decoded(CapacityLog<OnlyDecodable>.self, from: #"{"elements": [{"name": "a"}, {"name": "b"}]}"#)
+
+        #expect(log.map(\.name) == ["a", "b"])
     }
 
     // MARK: - With a state machine
@@ -219,7 +336,7 @@ struct CodableTests {
         #expect(error.conflictingTransitions == transitions)
     }
 
-    @Test func logIsSavedFromTheOldestTransitionToTheNewest() async throws {
+    @Test func logAsArrayIsSavedFromTheOldestTransitionToTheNewest() async throws {
         let transitions = try decoded(Set<LightTransition>.self, from: Self.savedDefinition)
         let stateMachine = try StateMachine(transitions: transitions, initialState: .red)
 
@@ -234,6 +351,26 @@ struct CodableTests {
             {"event":"fail","from":"amber","to":"dark"}]
             """)
         try expectUnchangedWhenSaved(log)
+    }
+
+    @Test func logOfStateMachineIsSavedWithItsCapacity() async throws {
+        let transitions = try decoded(Set<LightTransition>.self, from: Self.savedDefinition)
+        let stateMachine = try StateMachine(transitions: transitions, initialState: .red, logCapacity: 2)
+
+        for event in [LightEvent.next, .next, .fail] {
+            await stateMachine.process(event)
+        }
+
+        // Three transitions were made, and the log kept the two newest.
+        let log = await stateMachine.transitionLog
+        #expect(try json(log) == """
+            {"capacity":2,"elements":[\
+            {"event":"next","from":"green","to":"amber"},\
+            {"event":"fail","from":"amber","to":"dark"}]}
+            """)
+
+        let read = try decoded(CapacityLog<LightTransition>.self, from: json(log))
+        #expect(Array(read) == Array(log))
     }
 
     @Test func rejectedEventFromStateMachineIsSaved() async throws {

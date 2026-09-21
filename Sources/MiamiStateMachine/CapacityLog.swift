@@ -16,6 +16,12 @@ import DequeModule
 ///     let oldest = log.first
 ///     let secondNewest = log[log.count - 2]
 ///
+/// The log can be encoded when its elements can, and decoded when they
+/// can be decoded. It is saved with its max capacity, so a decoded log
+/// goes on dropping its oldest elements like the log encoded. The keys
+/// are `capacity`, left out for a log without max capacity, and
+/// `elements`, with the elements from the oldest to the newest.
+///
 /// The log is implemented with the Apple Swift Collection
 /// deque and should be performant.
 public struct CapacityLog<Element> {
@@ -84,6 +90,49 @@ public struct CapacityLog<Element> {
 }
 
 extension CapacityLog: Sendable where Element: Sendable { }
+
+extension CapacityLog {
+
+    /// The keys of an encoded log.
+    private enum CodingKeys: String, CodingKey {
+        case capacity, elements
+    }
+}
+
+extension CapacityLog: Encodable where Element: Encodable {
+
+    /// Encodes the max capacity of the log, if it has one, and
+    /// its elements from the oldest to the newest.
+    /// - Parameter encoder: The encoder to write the log to.
+    public func encode(to encoder: any Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encodeIfPresent(capacity, forKey: .capacity)
+
+        var elements = container.nestedUnkeyedContainer(forKey: .elements)
+        for element in log {
+            try elements.encode(element)
+        }
+    }
+}
+
+extension CapacityLog: Decodable where Element: Decodable {
+
+    /// Create a log by decoding its max capacity and its elements.
+    ///
+    /// The elements are appended to the log one by one, from the oldest
+    /// to the newest. If there are more elements than the max capacity,
+    /// only the newest are kept.
+    /// - Parameter decoder: The decoder to read the log from.
+    public init(from decoder: any Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.init(capacity: try container.decodeIfPresent(UInt.self, forKey: .capacity))
+
+        var elements = try container.nestedUnkeyedContainer(forKey: .elements)
+        while !elements.isAtEnd {
+            append(try elements.decode(Element.self))
+        }
+    }
+}
 
 extension CapacityLog: RandomAccessCollection {
 
