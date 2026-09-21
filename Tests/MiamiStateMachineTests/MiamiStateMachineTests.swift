@@ -9,7 +9,7 @@ struct MiamiStateMachineTests {
         case s1, s2, s3, end
     }
 
-    enum E1 {
+    enum E1: StateMachineEvent {
         case s1ToS2, s2ToS3, s1ToS3, s3ToEnd
     }
 
@@ -26,7 +26,7 @@ struct MiamiStateMachineTests {
         case s1, s2, s3
     }
 
-    enum E2 {
+    enum E2: StateMachineEvent {
         case e1, e2, e3
     }
 
@@ -43,7 +43,7 @@ struct MiamiStateMachineTests {
         case s1, s2, s3
     }
 
-    enum MyEvent {
+    enum MyEvent: StateMachineEvent {
         case e1, e2, e3, e4
     }
 
@@ -134,7 +134,7 @@ struct MiamiStateMachineTests {
         let expectedT1: MyTransition = StateTransition(from: .s1, event: .e4, to: .s1)
         #expect(log.last == log.first, "Last log entry and oldest log entry should be the same")
         #expect(log.count == 1, "Number of log entries should be 1")
-        #expect(log.last == expectedT1, "Last log entry should be from s1")
+        #expect(log.last?.transition == expectedT1, "Last log entry should be from s1")
 
         // Three more times back to s1, and then on to s2 and s3.
         let events: [MyEvent] = [.e4, .e4, .e4, .e1, .e2]
@@ -146,7 +146,7 @@ struct MiamiStateMachineTests {
 
         let expOld: MyTransition = StateTransition(from: .s1, event: .e4, to: .s1)
         let expLast: MyTransition = StateTransition(from: .s2, event: .e2, to: .s3)
-        #expect(log.first == expOld, "Oldest entry is not expected")
-        #expect(log.last == expLast, "Last entry is not expected")
+        #expect(log.first?.transition == expOld, "Oldest entry is not expected")
+        #expect(log.last?.transition == expLast, "Last entry is not expected")
     }
 }

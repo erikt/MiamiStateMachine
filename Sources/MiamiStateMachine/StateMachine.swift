@@ -2,19 +2,22 @@ import Foundation
 
 /// A state machine is an actor with a current state and
 /// a set of transitions defining the machine. The `StateTransition`
-/// connects two states by an event.
+/// connects two states by a kind of event.
+///
+/// An event is a `StateMachineEvent`. It can carry something, which the
+/// state machine never looks at, but delivers with the `TransitionMade`.
 /// 
 /// The state machine actor protects the current state from outside
 /// modification. The state only changes by processing events.
 /// 
 /// Information about the definition of the state machine can be
 /// accessed by non-isolated methods.
-public actor StateMachine<Event: Hashable & Sendable, State: Hashable & Sendable> {
+public actor StateMachine<Event: StateMachineEvent, State: Hashable & Sendable> {
 
     // MARK: - Types
 
     /// A stream of the transitions made by a state machine.
-    public typealias TransitionStream = AsyncStream<StateTransition<Event, State>>
+    public typealias TransitionStream = AsyncStream<TransitionMade<Event, State>>
 
     /// A stream of the events rejected by a state machine, each together
     /// with the state the state machine was at when rejecting the event.
@@ -34,7 +37,7 @@ public actor StateMachine<Event: Hashable & Sendable, State: Hashable & Sendable
         /// The transitions in conflict. For each one of them there is at
         /// least one other transition from the same state, for the same
         /// event, leading to another state.
-        public let conflictingTransitions: Set<StateTransition<Event, State>>
+        public let conflictingTransitions: Set<StateTransition<Event.EventKind, State>>
 
         public var description: String {
             // Sorted, as the same error should have the same description every time.
@@ -47,15 +50,15 @@ public actor StateMachine<Event: Hashable & Sendable, State: Hashable & Sendable
     // MARK: - Private properties
 
     /// Transitions defining the state machine.
-    private let transitions: Set<StateTransition<Event, State>>
+    private let transitions: Set<StateTransition<Event.EventKind, State>>
 
     /// The transitions by the state they lead from and their event, to find
     /// the transition for an event without searching all transitions.
-    private let transitionsByStateAndEvent: [State: [Event: StateTransition<Event, State>]]
+    private let transitionsByStateAndEvent: [State: [Event.EventKind: StateTransition<Event.EventKind, State>]]
 
     /// The transitions as a graph of states, to be able to answer questions
     /// about the state machine definition as a whole.
-    private let transitionGraph: TransitionGraph<Event, State>
+    private let transitionGraph: TransitionGraph<Event.EventKind, State>
 
     /// The kinds of streams created by the state machine.
     private enum StreamKind: Sendable {
@@ -63,7 +66,7 @@ public actor StateMachine<Event: Hashable & Sendable, State: Hashable & Sendable
     }
 
     /// The transition streams in use.
-    private var transitionStreams = StreamRegistry<StateTransition<Event, State>>()
+    private var transitionStreams = StreamRegistry<TransitionMade<Event, State>>()
 
     /// The rejected event streams in use.
     private var rejectedEventStreams = StreamRegistry<RejectedEvent<Event, State>>()
@@ -88,9 +91,13 @@ public actor StateMachine<Event: Hashable & Sendable, State: Hashable & Sendable
     /// has been reached, it throws away the oldest log
     /// entry.
     ///
-    /// The log is a collection of the transitions, from the
+    /// The log is a collection of the transitions made, from the
     /// oldest to the newest.
-    public private(set) var transitionLog: CapacityLog<StateTransition<Event, State>>
+    ///
+    /// The log keeps the events with what they carry. Without a max capacity
+    /// everything ever carried is kept for as long as the state machine is, so
+    /// give the log a capacity when events carry something of size.
+    public private(set) var transitionLog: CapacityLog<TransitionMade<Event, State>>
 
     /// Number of events processed. Includes events that
     /// did not lead to a state change for the state machine.
@@ -103,8 +110,9 @@ public actor StateMachine<Event: Hashable & Sendable, State: Hashable & Sendable
     /// first transition is made.
     ///
     /// The transition is kept apart from the transition log, so it is
-    /// also known by a state machine with a log capacity of zero.
-    public private(set) var enteredWith: StateTransition<Event, State>?
+    /// also known by a state machine with a log capacity of zero. Its
+    /// event is kept with what it carries, until the next transition.
+    public private(set) var enteredWith: TransitionMade<Event, State>?
 
     // MARK: - Computed properties
 
@@ -136,24 +144,24 @@ public actor StateMachine<Event: Hashable & Sendable, State: Hashable & Sendable
         return isEndingState(state)
     }
     
-    /// All possible events (leading to a state change) from
-    /// the current state.
-    public var eventsFromCurrent: Set<Event> {
+    /// All kinds of events accepted at the current state, which are
+    /// the ones leading to a state change from it.
+    public var eventsFromCurrent: Set<Event.EventKind> {
         return events(from: state)
     }
     
-    /// All events leading (incoming) to the current state.
-    public var eventsToCurrent: Set<Event> {
+    /// All kinds of events leading (incoming) to the current state.
+    public var eventsToCurrent: Set<Event.EventKind> {
         return events(to: state)
     }
     
     /// All possible outgoing transitions from the current state.
-    public var transitionsFromCurrent: Set<StateTransition<Event, State>> {
+    public var transitionsFromCurrent: Set<StateTransition<Event.EventKind, State>> {
         return transitions(from: state)
     }
     
     /// All possible incoming transition leading to the current state.
-    public var transitionsToCurrent: Set<StateTransition<Event, State>> {
+    public var transitionsToCurrent: Set<StateTransition<Event.EventKind, State>> {
         return transitions(to: state)
     }
 
@@ -176,23 +184,37 @@ public actor StateMachine<Event: Hashable & Sendable, State: Hashable & Sendable
     /// Any initial state is accepted, also a state without transitions
     /// leading from it. Such a state machine is at an ending state from
     /// the start, and rejects every event.
+    /// The transitions are written in kinds of events, which does not tell the
+    /// type of the events, so it has to be written: `StateMachine<LoadEvent,
+    /// LoadState>(transitions:initialState:)`. It is known from the transitions
+    /// only for events being their own kind.
     /// - Parameters:
     ///   - transitions: Transitions defining the state machine.
     ///   - initialState: Initial state for the state machine.
     ///   - logCapacity: Max capacity of transition log. Set to nil for unlimited
-    ///   number of entries in the transition log.
+    ///   number of entries in the transition log. The entries keep the events
+    ///   with what they carry, so an unlimited log is not for events carrying much.
     /// - Throws: A `DefinitionError` with the transitions in conflict, if two
     /// or more transitions lead from the same state, for the same event,
     /// to different states.
-    public init(transitions: Set<StateTransition<Event, State>>,
+    public init(transitions: Set<StateTransition<Event.EventKind, State>>,
                 initialState: State,
                 logCapacity: UInt? = nil) throws(DefinitionError)
+    {
+        try self.init(definedBy: transitions, initialState: initialState, logCapacity: logCapacity)
+    }
+
+    /// Creates a state machine. It is what the other initializers do, which
+    /// have the same names for their parameters, and cannot call each other.
+    private init(definedBy transitions: Set<StateTransition<Event.EventKind, State>>,
+                 initialState: State,
+                 logCapacity: UInt?) throws(DefinitionError)
     {
         // Find the transition for every state and event. A transition already
         // found for the same state and event, is a transition to another state,
         // as the transitions are a set. The state machine is then not consistent.
-        var transitionsByStateAndEvent: [State: [Event: StateTransition<Event, State>]] = [:]
-        var conflictingTransitions: Set<StateTransition<Event, State>> = []
+        var transitionsByStateAndEvent: [State: [Event.EventKind: StateTransition<Event.EventKind, State>]] = [:]
+        var conflictingTransitions: Set<StateTransition<Event.EventKind, State>> = []
 
         for transition in transitions {
             let found = transitionsByStateAndEvent[transition.from, default: [:]]
@@ -241,27 +263,30 @@ public actor StateMachine<Event: Hashable & Sendable, State: Hashable & Sendable
     ///   - event: Event to process.
     /// - Returns: The transition made, or nil if the event was rejected.
     @discardableResult
-    public func process(_ event: Event) -> StateTransition<Event, State>? {
+    public func process(_ event: Event) -> TransitionMade<Event, State>? {
 
         // Increase the counter for the number of processed events
         // by the state machine. This includes events process that
         // did not lead to a state change.
         processedEventsCount += 1
 
-        guard let t = transition(from: state, for: event) else {
+        // The transition is found by the kind of the event. What the
+        // event carries is not looked at, only delivered with the event.
+        guard let t = transition(from: state, for: event.eventKind) else {
             rejectedEventStreams.yield(RejectedEvent(event: event, state: state))
             return nil
         }
 
-        commit(t)
-        transitionStreams.yield(t)
+        let made = TransitionMade(from: t.from, event: event, to: t.to)
+        commit(made)
+        transitionStreams.yield(made)
         stateStreams.yield(state)
         if isAtEndingState {
             // No further transitions will be made.
             transitionStreams.finishAll()
             stateStreams.finishAll()
         }
-        return t
+        return made
     }
 
     /// Creates a stream of the transitions made from now on, in the
@@ -389,14 +414,14 @@ public actor StateMachine<Event: Hashable & Sendable, State: Hashable & Sendable
     /// All possible transitions from the current state, to another state.
     /// - Parameter newState: State to go to from the current state.
     /// - Returns: All possible transitions from the current state to another state.
-    public func transitionsFromCurrent(to newState: State) -> Set<StateTransition<Event, State>> {
+    public func transitionsFromCurrent(to newState: State) -> Set<StateTransition<Event.EventKind, State>> {
         return transitions(from: self.state, to: newState)
     }
     
     /// All possible transitions to the current state, from another state.
     /// - Parameter oldState: From state
     /// - Returns: All possible transitions from a state to the current state.
-    public func transitionsToCurrent(from oldState: State) -> Set<StateTransition<Event, State>> {
+    public func transitionsToCurrent(from oldState: State) -> Set<StateTransition<Event.EventKind, State>> {
         return transitions(from: oldState, to: self.state)
     }
 
@@ -409,7 +434,7 @@ public actor StateMachine<Event: Hashable & Sendable, State: Hashable & Sendable
     /// state to the new state. If the new state cannot be reached from the
     /// current state, it returns nil. The path is empty if the new state is
     /// the current state.
-    public func shortestPath(to newState: State) -> [StateTransition<Event, State>]? {
+    public func shortestPath(to newState: State) -> [StateTransition<Event.EventKind, State>]? {
         return shortestPath(from: self.state, to: newState)
     }
 
@@ -419,7 +444,7 @@ public actor StateMachine<Event: Hashable & Sendable, State: Hashable & Sendable
     /// in the transition and keep track of processed and accepted
     /// transitions in a stack.
     /// - Parameter transition: State machine accepted transition.
-    private func commit(_ transition: StateTransition<Event, State>) {
+    private func commit(_ transition: TransitionMade<Event, State>) {
         state = transition.to
         enteredWith = transition
         transitionLog.append(transition)
@@ -461,6 +486,29 @@ public actor StateMachine<Event: Hashable & Sendable, State: Hashable & Sendable
     }
 }
 
+// MARK: - Events being their own kind
+
+extension StateMachine where Event.EventKind == Event {
+
+    /// Creates a state machine for events being their own kind, which
+    /// events without anything to carry are. The type of the events is
+    /// then known from the transitions, and does not have to be written.
+    /// - Parameters:
+    ///   - transitions: Transitions defining the state machine.
+    ///   - initialState: Initial state for the state machine.
+    ///   - logCapacity: Max capacity of transition log. Set to nil for unlimited
+    ///   number of entries in the transition log. The entries keep the events
+    ///   with what they carry, so an unlimited log is not for events carrying much.
+    /// - Throws: A `DefinitionError` with the transitions in conflict, if the
+    /// transitions do not define a consistent state machine.
+    public init(transitions: Set<StateTransition<Event, State>>,
+                initialState: State,
+                logCapacity: UInt? = nil) throws(DefinitionError)
+    {
+        try self.init(definedBy: transitions, initialState: initialState, logCapacity: logCapacity)
+    }
+}
+
 // MARK: - Definition error
 
 extension StateMachine.DefinitionError: LocalizedError {
@@ -484,22 +532,23 @@ extension StateMachine {
         return transitions.count
     }
     
-    /// The transition from a state for an event. If the state
-    /// has no transition for the event, it returns nil.
+    /// The transition from a state for a kind of event. If the state
+    /// has no transition for it, it returns nil. For an event, ask
+    /// with `event.eventKind`.
     /// - Parameters:
     ///   - state: From state.
     ///   - event: Event.
     /// - Returns: Transition if there is one for the event at state.
-    public nonisolated func transition(from state: State, for event: Event) -> StateTransition<Event, State>? {
+    public nonisolated func transition(from state: State, for event: Event.EventKind) -> StateTransition<Event.EventKind, State>? {
         return transitionsByStateAndEvent[state]?[event]
     }
     
-    /// All transitions leading to a state for a specific event.
+    /// All transitions leading to a state for a specific kind of event.
     /// - Parameters:
     ///   - state: To state.
     ///   - event: Event.
     /// - Returns: All transitions leading to state for an event.
-    public nonisolated func transitions(to state: State, for event: Event) -> Set<StateTransition<Event, State>> {
+    public nonisolated func transitions(to state: State, for event: Event.EventKind) -> Set<StateTransition<Event.EventKind, State>> {
         return transitions.filter {
             $0.to == state && $0.event == event
         }
@@ -510,7 +559,7 @@ extension StateMachine {
     ///   - state: Starting state.
     ///   - newState: New state to transition to.
     /// - Returns: All possible transitions to the new state.
-    public nonisolated func transitions(from state: State, to newState: State) -> Set<StateTransition<Event, State>> {
+    public nonisolated func transitions(from state: State, to newState: State) -> Set<StateTransition<Event.EventKind, State>> {
         return transitions(from: state).filter {
             $0.to == newState
         }
@@ -519,7 +568,7 @@ extension StateMachine {
     /// All possible transitions from a state.
     /// - Parameter state: State to start from.
     /// - Returns: All possible transitions from state.
-    public nonisolated func transitions(from state: State) -> Set<StateTransition<Event, State>> {
+    public nonisolated func transitions(from state: State) -> Set<StateTransition<Event.EventKind, State>> {
         guard let transitionsByEvent = transitionsByStateAndEvent[state] else {
             return []
         }
@@ -529,42 +578,42 @@ extension StateMachine {
     /// All transitions leading to a state.
     /// - Parameter state: State to go to.
     /// - Returns: All possible transitions to a state.
-    public nonisolated func transitions(to state: State) -> Set<StateTransition<Event, State>> {
+    public nonisolated func transitions(to state: State) -> Set<StateTransition<Event.EventKind, State>> {
         return transitions.filter {
             $0.to == state
         }
     }
 
-    /// All defined and available events handled at a state.
+    /// All kinds of events handled at a state.
     /// - Parameter state: State.
-    /// - Returns: All events going out from this state.
-    public nonisolated func events(from state: State) -> Set<Event> {
+    /// - Returns: All kinds of events going out from this state.
+    public nonisolated func events(from state: State) -> Set<Event.EventKind> {
         guard let transitionsByEvent = transitionsByStateAndEvent[state] else {
             return []
         }
         return Set(transitionsByEvent.keys)
     }
     
-    /// All defined and available events leading to a state.
-    /// Please note, the same event could be handled at different
+    /// All kinds of events leading to a state.
+    /// Please note, the same kind of event could be handled at different
     /// states, all leading to the same state.
     /// - Parameter state: State.
     /// - Returns: All events leading to this state.
-    public nonisolated func events(to state: State) -> Set<Event> {
-        return Set<Event>(transitions.filter {
+    public nonisolated func events(to state: State) -> Set<Event.EventKind> {
+        return Set<Event.EventKind>(transitions.filter {
             $0.to == state
         }.map {
             $0.event
         })
     }
     
-    /// All events defined to go from one state to another state.
+    /// All kinds of events defined to go from one state to another state.
     /// - Parameters:
     ///   - from: From state.
     ///   - to: To state.
     /// - Returns: All events leading from state to another state.
-    public nonisolated func events(from: State, to: State) -> Set<Event> {
-        return Set<Event>(transitions(from: from, to: to).map {
+    public nonisolated func events(from: State, to: State) -> Set<Event.EventKind> {
+        return Set<Event.EventKind>(transitions(from: from, to: to).map {
             $0.event
         })
     }
@@ -581,8 +630,10 @@ extension StateMachine {
     /// The shortest path from a state to another state. This is the way
     /// between the states needing the fewest events.
     ///
-    /// Processing the event of each transition in the path, in order, takes
-    /// a state machine that is in `state` to `newState`.
+    /// Processing an event of the kind of each transition in the path, in
+    /// order, takes a state machine that is in `state` to `newState`. An
+    /// event without anything to carry is its own kind, and can be processed
+    /// as it is in the path.
     ///
     /// If there is more than one shortest path, one of them is returned.
     /// Which one is unspecified, but repeated calls on the same state
@@ -593,7 +644,7 @@ extension StateMachine {
     /// - Returns: The transitions to make, in order, to get from the state to
     /// the new state. If the new state cannot be reached from the state,
     /// it returns nil. The path is empty if the two states are the same.
-    public nonisolated func shortestPath(from state: State, to newState: State) -> [StateTransition<Event, State>]? {
+    public nonisolated func shortestPath(from state: State, to newState: State) -> [StateTransition<Event.EventKind, State>]? {
         return transitionGraph.shortestPath(from: state, to: newState)
     }
     

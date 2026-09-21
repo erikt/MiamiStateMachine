@@ -31,11 +31,11 @@ struct StreamTests {
         }
 
         #expect(await elements(of: stream) == [
-            StateTransition(from: .cart, event: .addItem, to: .cart),
-            StateTransition(from: .cart, event: .checkOut, to: .checkout),
-            StateTransition(from: .checkout, event: .pay, to: .paid),
-            StateTransition(from: .paid, event: .ship, to: .shipped),
-            StateTransition(from: .shipped, event: .deliver, to: .delivered),
+            TransitionMade(from: .cart, event: .addItem, to: .cart),
+            TransitionMade(from: .cart, event: .checkOut, to: .checkout),
+            TransitionMade(from: .checkout, event: .pay, to: .paid),
+            TransitionMade(from: .paid, event: .ship, to: .shipped),
+            TransitionMade(from: .shipped, event: .deliver, to: .delivered),
         ])
     }
 
@@ -120,6 +120,20 @@ struct StreamTests {
     }
 
     // MARK: - Rejected event stream
+
+    @Test func bufferingPolicyLimitsTheRejectedEventsKeptUntilConsumed() async throws {
+        var stateMachine: OrderStateMachine? = try makeStateMachine()
+        let stream = try #require(await stateMachine?.rejectedEventStream(bufferingPolicy: .bufferingNewest(1)))
+
+        // Nothing of this can be done with an order in the cart.
+        for event in [.ship, .deliver, .pay] as [OrderEvent] {
+            await stateMachine?.process(event)
+        }
+
+        // The stream of rejected events finishes when the state machine is let go of.
+        stateMachine = nil
+        #expect(await elements(of: stream).map(\.event) == [.pay])
+    }
 
     @Test func deliversRejectedEventsWithTheStateTheyWereRejectedAt() async throws {
         var stateMachine: OrderStateMachine? = try makeStateMachine()
@@ -326,7 +340,7 @@ struct StreamTests {
         processed: Int,
         stateChanges: Int,
         rejected: Int,
-        log: [OrderTransition],
+        log: [TransitionMade<OrderEvent, OrderState>],
         state: OrderState
     ) {
         let stateMachine = try makeStateMachine()

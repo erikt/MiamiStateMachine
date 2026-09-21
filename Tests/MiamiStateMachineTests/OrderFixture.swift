@@ -9,7 +9,7 @@ enum OrderState: CaseIterable {
 }
 
 /// The events of an order in a web shop.
-enum OrderEvent {
+enum OrderEvent: StateMachineEvent {
     case addItem, checkOut, editCart, pay, buyNow, ship, deliver, cancel
 
     /// Not part of `OrderFixture.transitions`. Used by tests

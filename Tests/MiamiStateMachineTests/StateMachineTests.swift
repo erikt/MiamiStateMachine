@@ -45,6 +45,19 @@ struct StateMachineTests {
         #expect(error.conflictingTransitions == transitions.filter { $0.event == .checkOut || $0.event == .ship })
     }
 
+    @Test func errorDescribesManyConflictsInOrder() throws {
+        // Many conflicts, as a few could come out sorted without being sorted.
+        let names = ["j", "c", "h", "a", "f", "i", "b", "e", "g", "d"]
+        let transitions = Set(names.map { StateTransition(from: "start", event: "go", to: $0) })
+
+        let error = try #require(throws: StateMachine<String, String>.DefinitionError.self) {
+            try StateMachine(transitions: transitions, initialState: "start")
+        }
+
+        let conflicts = names.sorted().map { "start --(go)--> \($0)" }.joined(separator: ", ")
+        #expect(error.description.hasSuffix("to different states: \(conflicts)"))
+    }
+
     @Test func errorDescribesTheConflictTheSameWayEveryTime() throws {
         let transitions: Set<OrderTransition> = [
             StateTransition(from: .checkout, event: .pay, to: .paid),
@@ -95,11 +108,11 @@ struct StateMachineTests {
     @Test func processReturnsTheTransitionMade() async throws {
         let stateMachine = try makeStateMachine()
 
-        #expect(await stateMachine.process(.checkOut) == StateTransition(from: .cart, event: .checkOut, to: .checkout))
-        #expect(await stateMachine.process(.editCart) == StateTransition(from: .checkout, event: .editCart, to: .cart))
+        #expect(await stateMachine.process(.checkOut) == TransitionMade(from: .cart, event: .checkOut, to: .checkout))
+        #expect(await stateMachine.process(.editCart) == TransitionMade(from: .checkout, event: .editCart, to: .cart))
 
         // Leading back to the same state is a transition as well.
-        #expect(await stateMachine.process(.addItem) == StateTransition(from: .cart, event: .addItem, to: .cart))
+        #expect(await stateMachine.process(.addItem) == TransitionMade(from: .cart, event: .addItem, to: .cart))
     }
 
     @Test func processReturnsNilForRejectedEvent() async throws {
@@ -274,8 +287,8 @@ struct StateMachineTests {
 
         let log = await stateMachine.transitionLog
         #expect(log.count == 2)
-        #expect(log.first == StateTransition(from: .paid, event: .ship, to: .shipped))
-        #expect(log.last == StateTransition(from: .shipped, event: .deliver, to: .delivered))
+        #expect(log.first == TransitionMade(from: .paid, event: .ship, to: .shipped))
+        #expect(log.last == TransitionMade(from: .shipped, event: .deliver, to: .delivered))
         #expect(await stateMachine.stateChangeCount == 4, "The counters should not depend on the log.")
     }
 
@@ -318,14 +331,14 @@ struct StateMachineTests {
         let stateMachine = try StateMachine(transitions: OrderFixture.transitions, initialState: .cart)
 
         await stateMachine.process(.checkOut)
-        #expect(await stateMachine.enteredWith == StateTransition(from: .cart, event: .checkOut, to: .checkout))
+        #expect(await stateMachine.enteredWith == TransitionMade(from: .cart, event: .checkOut, to: .checkout))
 
         await stateMachine.process(.pay)
-        #expect(await stateMachine.enteredWith == StateTransition(from: .checkout, event: .pay, to: .paid))
+        #expect(await stateMachine.enteredWith == TransitionMade(from: .checkout, event: .pay, to: .paid))
 
         // A rejected event does not change how the state was entered.
         await stateMachine.process(.checkOut)
-        #expect(await stateMachine.enteredWith == StateTransition(from: .checkout, event: .pay, to: .paid))
+        #expect(await stateMachine.enteredWith == TransitionMade(from: .checkout, event: .pay, to: .paid))
     }
 
     @Test(arguments: [0, 1, nil] as [UInt?])
@@ -336,6 +349,6 @@ struct StateMachineTests {
         await stateMachine.process(.checkOut)
         await stateMachine.process(.pay)
 
-        #expect(await stateMachine.enteredWith == StateTransition(from: .checkout, event: .pay, to: .paid))
+        #expect(await stateMachine.enteredWith == TransitionMade(from: .checkout, event: .pay, to: .paid))
     }
 }

@@ -9,7 +9,7 @@ import Observation
 ///         @State private var door: ObservableStateMachine<DoorEvent, DoorState>
 ///
 ///         var body: some View {
-///             Text("The door is \(door.state)")
+///             Text("The door is \(String(describing: door.state))")
 ///
 ///             Button("Open") {
 ///                 door.send(.open)
@@ -28,7 +28,7 @@ import Observation
 @available(macOS 14.0, iOS 17.0, tvOS 17.0, watchOS 10.0, visionOS 1.0, *)
 @MainActor
 @Observable
-public final class ObservableStateMachine<Event: Hashable & Sendable, State: Hashable & Sendable> {
+public final class ObservableStateMachine<Event: StateMachineEvent, State: Hashable & Sendable> {
 
     // MARK: - Public properties
 
@@ -58,8 +58,8 @@ public final class ObservableStateMachine<Event: Hashable & Sendable, State: Has
 
     // MARK: - Computed properties
 
-    /// All events the state machine accepts at the current state.
-    public var eventsFromCurrent: Set<Event> {
+    /// All kinds of events the state machine accepts at the current state.
+    public var eventsFromCurrent: Set<Event.EventKind> {
         stateMachine.events(from: state)
     }
 
@@ -106,7 +106,7 @@ public final class ObservableStateMachine<Event: Hashable & Sendable, State: Has
     ///   number of entries in the transition log.
     /// - Throws: A `DefinitionError` with the transitions in conflict, if the
     /// transitions do not define a consistent state machine.
-    public convenience init(transitions: Set<StateTransition<Event, State>>,
+    public convenience init(transitions: Set<StateTransition<Event.EventKind, State>>,
                             initialState: State,
                             logCapacity: UInt? = nil) throws(StateMachine<Event, State>.DefinitionError)
     {
@@ -128,15 +128,42 @@ public final class ObservableStateMachine<Event: Hashable & Sendable, State: Has
     /// If the event is accepted, `state` changes a moment later. A rejected
     /// event changes nothing. Process the event with `stateMachine` instead,
     /// to wait for it or to know what it led to.
+    ///
+    /// The order is among the events sent here. An event processed with
+    /// `stateMachine` right after an event was sent can get there first.
     /// - Parameter event: Event to send.
     public func send(_ event: Event) {
         sentEvents.yield(event)
     }
 
-    /// If the state machine accepts an event at the current state.
+    /// If the state machine accepts an event at the current state. Only the
+    /// kind of the event matters, and not what it carries.
     /// - Parameter event: Event to check.
     /// - Returns: If there is a transition for the event from the current state.
     public func accepts(_ event: Event) -> Bool {
-        stateMachine.transition(from: state, for: event) != nil
+        stateMachine.transition(from: state, for: event.eventKind) != nil
+    }
+}
+
+// MARK: - Events being their own kind
+
+@available(macOS 14.0, iOS 17.0, tvOS 17.0, watchOS 10.0, visionOS 1.0, *)
+extension ObservableStateMachine where Event.EventKind == Event {
+
+    /// Creates an observable state machine with a new state machine, for
+    /// events being their own kind, which events without anything to carry
+    /// are. The type of the events is then known from the transitions.
+    /// - Parameters:
+    ///   - transitions: Transitions defining the state machine.
+    ///   - initialState: Initial state for the state machine.
+    ///   - logCapacity: Max capacity of transition log. Set to nil for unlimited
+    ///   number of entries in the transition log.
+    /// - Throws: A `DefinitionError` with the transitions in conflict, if the
+    /// transitions do not define a consistent state machine.
+    public convenience init(transitions: Set<StateTransition<Event, State>>,
+                            initialState: State,
+                            logCapacity: UInt? = nil) throws(StateMachine<Event, State>.DefinitionError)
+    {
+        self.init(try StateMachine(transitions: transitions, initialState: initialState, logCapacity: logCapacity))
     }
 }

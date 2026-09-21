@@ -10,7 +10,7 @@ enum DoorState {
 }
 
 /// The events of a door.
-enum DoorEvent {
+enum DoorEvent: StateMachineEvent {
     case open, close, lock, unlock, breakDown
 }
 

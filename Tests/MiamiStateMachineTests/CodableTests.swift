@@ -19,7 +19,7 @@ struct CodableTests {
     }
 
     /// The events of a traffic light, saved by their names.
-    enum LightEvent: String, Codable {
+    enum LightEvent: String, Codable, StateMachineEvent {
         case next, fail
     }
 
@@ -32,12 +32,12 @@ struct CodableTests {
     }
 
     /// Can be saved, but not read.
-    struct OnlyEncodable: Hashable, Encodable {
+    struct OnlyEncodable: Hashable, Encodable, StateMachineEvent {
         let name: String
     }
 
     /// Can be read, but not saved.
-    struct OnlyDecodable: Hashable, Decodable {
+    struct OnlyDecodable: Hashable, Decodable, StateMachineEvent {
         let name: String
     }
 
@@ -288,6 +288,20 @@ struct CodableTests {
         #expect(log.map(\.name) == ["a", "b"])
     }
 
+    @Test func encodableEventIsEnoughToSaveTransitionMade() throws {
+        let made = TransitionMade(from: 1, event: OnlyEncodable(name: "go"), to: 2)
+
+        #expect(try json(made) == #"{"event":{"name":"go"},"from":1,"to":2}"#)
+    }
+
+    @Test func decodableEventIsEnoughToReadTransitionMade() throws {
+        let made = try decoded(TransitionMade<OnlyDecodable, Int>.self, from: #"{"from": 1, "event": {"name": "go"}, "to": 2}"#)
+
+        #expect(made.from == 1)
+        #expect(made.event.name == "go")
+        #expect(made.to == 2)
+    }
+
     // MARK: - With a state machine
 
     /// A traffic light going around, until it fails at amber.
@@ -369,11 +383,18 @@ struct CodableTests {
             {"event":"fail","from":"amber","to":"dark"}]}
             """)
 
-        let read = try decoded(CapacityLog<LightTransition>.self, from: json(log))
+        // The log is of transitions made, and is read as such. An event without
+        // anything to carry is saved as its kind, so the log can be read as
+        // transitions of the definition too, which is what it was saved as before.
+        let read = try decoded(CapacityLog<TransitionMade<LightEvent, LightState>>.self, from: json(log))
         #expect(Array(read) == Array(log))
+
+        let readAsDefinition = try decoded(CapacityLog<LightTransition>.self, from: json(log))
+        #expect(Array(readAsDefinition) == log.map(\.transition))
     }
 
-    @Test func rejectedEventFromStateMachineIsSaved() async throws {
+    /// Waits for a stream, which goes on forever if the event is never delivered.
+    @Test(.timeLimit(.minutes(1))) func rejectedEventFromStateMachineIsSaved() async throws {
         let transitions = try decoded(Set<LightTransition>.self, from: Self.savedDefinition)
         let stateMachine = try StateMachine(transitions: transitions, initialState: .red)
         let rejectedEvents = await stateMachine.rejectedEventStream()
