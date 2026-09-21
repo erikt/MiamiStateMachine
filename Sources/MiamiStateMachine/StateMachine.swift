@@ -20,6 +20,9 @@ public actor StateMachine<Event: Hashable & Sendable, State: Hashable & Sendable
     /// with the state the state machine was at when rejecting the event.
     public typealias RejectedEventStream = AsyncStream<RejectedEvent<Event, State>>
 
+    /// A stream of the states a state machine is at, one after the other.
+    public typealias StateStream = AsyncStream<State>
+
     /// The reason a state machine cannot be created from a set of transitions.
     ///
     /// The transitions have to define a consistent state machine, where an
@@ -56,7 +59,7 @@ public actor StateMachine<Event: Hashable & Sendable, State: Hashable & Sendable
 
     /// The kinds of streams created by the state machine.
     private enum StreamKind: Sendable {
-        case transitions, rejectedEvents
+        case transitions, rejectedEvents, states
     }
 
     /// The transition streams in use.
@@ -64,6 +67,9 @@ public actor StateMachine<Event: Hashable & Sendable, State: Hashable & Sendable
 
     /// The rejected event streams in use.
     private var rejectedEventStreams = StreamRegistry<RejectedEvent<Event, State>>()
+
+    /// The state streams in use.
+    private var stateStreams = StreamRegistry<State>()
 
     // MARK: - Public nonisolated properties
 
@@ -104,8 +110,8 @@ public actor StateMachine<Event: Hashable & Sendable, State: Hashable & Sendable
 
     /// Number of streams created and still in use. Only for the tests of
     /// the package, to verify that streams no longer in use are forgotten.
-    package var streamCount: (transitions: Int, rejectedEvents: Int) {
-        return (transitionStreams.count, rejectedEventStreams.count)
+    package var streamCount: (transitions: Int, rejectedEvents: Int, states: Int) {
+        return (transitionStreams.count, rejectedEventStreams.count, stateStreams.count)
     }
 
     /// Counter for the number of events processed that did
@@ -215,6 +221,7 @@ public actor StateMachine<Event: Hashable & Sendable, State: Hashable & Sendable
         // would otherwise be left waiting forever.
         transitionStreams.finishAll()
         rejectedEventStreams.finishAll()
+        stateStreams.finishAll()
     }
 
     // MARK: - API methods
@@ -248,9 +255,11 @@ public actor StateMachine<Event: Hashable & Sendable, State: Hashable & Sendable
 
         commit(t)
         transitionStreams.yield(t)
+        stateStreams.yield(state)
         if isAtEndingState {
             // No further transitions will be made.
             transitionStreams.finishAll()
+            stateStreams.finishAll()
         }
         return t
     }
@@ -325,6 +334,48 @@ public actor StateMachine<Event: Hashable & Sendable, State: Hashable & Sendable
 
         let id = rejectedEventStreams.add(continuation)
         forgetStream(id, of: .rejectedEvents, whenCancelled: continuation)
+        return stream
+    }
+
+    /// Creates a stream of the states the state machine is at. It starts
+    /// with the current state, followed by the state entered by every
+    /// transition made from now on, in the order they are made.
+    ///
+    /// The current state is delivered at once, so a stream tells where the
+    /// state machine is whenever it is created. This makes it a good fit for
+    /// a user interface. To know how a state was entered, or to not miss any
+    /// transition, use `transitionStream` instead.
+    ///
+    /// A transition leading back to the same state delivers the state again.
+    /// A rejected event delivers nothing, as the state machine stays where it is.
+    ///
+    /// Every call creates a new stream, independent of all other streams.
+    /// Several consumers can each have a stream of their own, and all of
+    /// them get every state. Cancelling the task of a consumer, or
+    /// letting go of a stream, ends only that stream.
+    ///
+    /// The stream finishes when the state machine reaches an ending state,
+    /// after delivering that state. A stream created at an ending state
+    /// delivers the state and finishes. The stream also finishes if the
+    /// state machine is deallocated.
+    /// - Parameter bufferingPolicy: How states are buffered until they are
+    /// consumed. By default all of them, without any limit. A consumer only
+    /// interested in where the state machine is now, and not in the states
+    /// it passed on the way, can use `.bufferingNewest(1)`.
+    /// - Returns: A new stream of states, starting with the current state.
+    public func stateStream(
+        bufferingPolicy: StateStream.Continuation.BufferingPolicy = .unbounded
+    ) -> StateStream {
+        let (stream, continuation) = StateStream.makeStream(bufferingPolicy: bufferingPolicy)
+        continuation.yield(state)
+
+        guard !isAtEndingState else {
+            continuation.finish()
+            return stream
+        }
+
+        let id = stateStreams.add(continuation)
+        forgetStream(id, of: .states, whenCancelled: continuation)
         return stream
     }
 
@@ -404,6 +455,8 @@ public actor StateMachine<Event: Hashable & Sendable, State: Hashable & Sendable
             transitionStreams.remove(id)
         case .rejectedEvents:
             rejectedEventStreams.remove(id)
+        case .states:
+            stateStreams.remove(id)
         }
     }
 }

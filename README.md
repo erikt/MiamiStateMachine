@@ -133,17 +133,33 @@ Task {
 There is also `rejectedEventStream()`, to be able to know when processed events did __not__ lead to a transition. Its
 elements are `RejectedEvent` values, with the rejected `event` and the `state` the state machine was at.
 
+If what matters is where the state machine is, and not how it got there, ask for a stream of states. It starts with the
+current state, so it can be created at any time without missing where the state machine is:
+
+```
+let states = await stateMachine.stateStream()
+
+Task {
+    for await state in states {
+        print("The state machine is at \(state)")
+    }
+}
+```
+
 Some things to know about the streams:
 
 - Every call creates a new stream. Several consumers can listen at the same time, and all of them get every element.
 - A stream delivers what happens after it was created. Create the stream before processing the events of interest, as
   above. A stream created inside a new task may miss events, as the task can start running after they were processed.
-- A stream of transitions finishes when the state machine reaches an ending state. A stream of rejected events does not,
-  as events are rejected at an ending state too. Both finish when the state machine is deallocated.
+  A stream of states is the exception, as it always starts with the current state.
+- A stream of transitions, or of states, finishes when the state machine reaches an ending state. A stream of rejected
+  events does not, as events are rejected at an ending state too. All of them finish when the state machine is deallocated.
 - Cancelling the task of a consumer, or letting go of a stream, ends only that stream. Ask for a new stream to start
   listening again.
 - A stream keeps its elements until they are consumed, without any limit. If only the latest are of interest, pass a
-  buffering policy: `transitionStream(bufferingPolicy: .bufferingNewest(1))`.
+  buffering policy: `stateStream(bufferingPolicy: .bufferingNewest(1))`.
+- A transition leading back to the same state is delivered like any other, and delivers the state again on a stream of
+  states.
 - Use the transition received to know the state entered, and not `state`. The state machine may have moved on.
 
 The `AsyncStream` based solution is a sort of workaround while waiting for Swift to improve observation of values in an actor.

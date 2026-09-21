@@ -167,12 +167,96 @@ struct StreamTests {
         #expect(rejected != RejectedEvent(event: .deliver, state: .cart))
     }
 
+    // MARK: - State stream
+
+    @Test func startsWithTheCurrentStateAndFinishesAtEndingState() async throws {
+        let stateMachine = try makeStateMachine()
+        let stream = await stateMachine.stateStream()
+
+        for event in [.checkOut, .pay, .ship, .deliver] as [OrderEvent] {
+            await stateMachine.process(event)
+        }
+
+        #expect(await elements(of: stream) == [.cart, .checkout, .paid, .shipped, .delivered])
+    }
+
+    @Test func stateStreamCreatedLateStartsWhereTheStateMachineIs() async throws {
+        let stateMachine = try makeStateMachine()
+        await stateMachine.process(.checkOut)
+        await stateMachine.process(.pay)
+
+        let stream = await stateMachine.stateStream()
+        await stateMachine.process(.cancel)
+
+        #expect(await elements(of: stream) == [.paid, .cancelled])
+    }
+
+    @Test func transitionBackToTheSameStateDeliversTheStateAgain() async throws {
+        let stateMachine = try makeStateMachine()
+        let stream = await stateMachine.stateStream()
+
+        // Adding an item leads from the cart back to the cart. Shipping
+        // from the cart is rejected, and the state machine stays where it is.
+        for event in [.addItem, .ship, .cancel] as [OrderEvent] {
+            await stateMachine.process(event)
+        }
+
+        #expect(await elements(of: stream) == [.cart, .cart, .cancelled])
+    }
+
+    /// Delivered and cancelled are ending states. Returned is not part of any transition.
+    @Test(arguments: [OrderState.delivered, .cancelled, .returned])
+    func stateStreamCreatedAtEndingStateDeliversTheStateAndFinishes(state: OrderState) async throws {
+        let stateMachine = try makeStateMachine(initialState: state)
+        let stream = await stateMachine.stateStream()
+
+        #expect(await elements(of: stream) == [state])
+    }
+
+    @Test func everyStateStreamGetsEveryState() async throws {
+        let stateMachine = try makeStateMachine()
+        let first = await stateMachine.stateStream()
+        await stateMachine.process(.checkOut)
+        let second = await stateMachine.stateStream()
+        await stateMachine.process(.cancel)
+
+        #expect(await elements(of: first) == [.cart, .checkout, .cancelled])
+        #expect(await elements(of: second) == [.checkout, .cancelled])
+    }
+
+    @Test func stateStreamKeepingTheNewestStateOnlySkipsStatesOnTheWay() async throws {
+        let stateMachine = try makeStateMachine()
+        let stream = await stateMachine.stateStream(bufferingPolicy: .bufferingNewest(1))
+
+        for event in [.buyNow, .ship, .deliver] as [OrderEvent] {
+            await stateMachine.process(event)
+        }
+
+        // Nothing was consumed on the way, so only where the state machine ended up is left.
+        #expect(await elements(of: stream) == [.delivered])
+    }
+
+    @Test func cancellingConsumerEndsOnlyItsOwnStateStream() async throws {
+        let stateMachine = try makeStateMachine()
+        let cancelled = await stateMachine.stateStream()
+        let kept = await stateMachine.stateStream()
+
+        let consumer = Task { await elements(of: cancelled) }
+        consumer.cancel()
+        _ = await consumer.value
+
+        await stateMachine.process(.cancel)
+
+        #expect(await elements(of: kept) == [.cart, .cancelled])
+    }
+
     // MARK: - Life cycle
 
     @Test func deallocatedStateMachineFinishesItsStreams() async throws {
         var stateMachine: OrderStateMachine? = try makeStateMachine()
         let transitions = try #require(await stateMachine?.transitionStream())
         let rejectedEvents = try #require(await stateMachine?.rejectedEventStream())
+        let states = try #require(await stateMachine?.stateStream())
 
         await stateMachine?.process(.checkOut)
         await stateMachine?.process(.ship)
@@ -181,19 +265,21 @@ struct StreamTests {
         // What was delivered before is still there to consume.
         #expect(await elements(of: transitions).map(\.event) == [.checkOut])
         #expect(await elements(of: rejectedEvents) == [RejectedEvent(event: .ship, state: .checkout)])
+        #expect(await elements(of: states) == [.cart, .checkout])
     }
 
     @Test func streamsNoLongerInUseAreForgotten() async throws {
         let stateMachine = try makeStateMachine()
         let transitions = await stateMachine.transitionStream()
         let rejectedEvents = await stateMachine.rejectedEventStream()
-        #expect(await stateMachine.streamCount.transitions == 1)
-        #expect(await stateMachine.streamCount.rejectedEvents == 1)
+        let states = await stateMachine.stateStream()
+        #expect(await stateMachine.streamCount == (1, 1, 1))
 
         // Streams of cancelled consumers.
         let consumers = [
             Task { _ = await elements(of: transitions) },
             Task { _ = await elements(of: rejectedEvents) },
+            Task { _ = await elements(of: states) },
         ]
         for consumer in consumers {
             consumer.cancel()
@@ -203,23 +289,26 @@ struct StreamTests {
         // Streams let go of without ever being used.
         _ = await stateMachine.transitionStream()
         _ = await stateMachine.rejectedEventStream()
+        _ = await stateMachine.stateStream()
 
         // The state machine is told by a task of its own, so give it time to run.
-        while await stateMachine.streamCount != (0, 0), !Task.isCancelled {
+        while await stateMachine.streamCount != (0, 0, 0), !Task.isCancelled {
             await Task.yield()
         }
 
-        #expect(await stateMachine.streamCount.transitions == 0)
-        #expect(await stateMachine.streamCount.rejectedEvents == 0)
+        #expect(await stateMachine.streamCount == (0, 0, 0))
     }
 
     @Test func streamsFinishedAtEndingStateAreForgotten() async throws {
         let stateMachine = try makeStateMachine()
-        let stream = await stateMachine.transitionStream()
+        let transitions = await stateMachine.transitionStream()
+        let states = await stateMachine.stateStream()
         await stateMachine.process(.cancel)
 
         #expect(await stateMachine.streamCount.transitions == 0)
-        #expect(await elements(of: stream).map(\.event) == [.cancel])
+        #expect(await stateMachine.streamCount.states == 0)
+        #expect(await elements(of: transitions).map(\.event) == [.cancel])
+        #expect(await elements(of: states) == [.cart, .cancelled])
     }
 
     // MARK: - Concurrent use
