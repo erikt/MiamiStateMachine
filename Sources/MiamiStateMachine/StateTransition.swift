@@ -1,5 +1,8 @@
 /// A transition connects two states via an event. The transition
 /// is only defined in one direction (from a state to another state).
+///
+/// A transition can be encoded when its event and states can, and decoded
+/// when they can be decoded. The keys are `from`, `event` and `to`.
 public struct StateTransition<Event: Hashable & Sendable, State: Hashable & Sendable> {
     
     /// The transition from state.
@@ -27,6 +30,8 @@ public struct StateTransition<Event: Hashable & Sendable, State: Hashable & Send
 extension StateTransition: Sendable { }
 extension StateTransition: Equatable { }
 extension StateTransition: Hashable { }
+extension StateTransition: Encodable where Event: Encodable, State: Encodable { }
+extension StateTransition: Decodable where Event: Decodable, State: Decodable { }
 
 extension StateTransition: CustomStringConvertible {
     public var description: String {

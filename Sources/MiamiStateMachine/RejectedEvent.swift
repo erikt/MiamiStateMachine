@@ -1,5 +1,8 @@
 /// An event rejected by a state machine. There was no transition for
 /// the event from the state the state machine was at.
+///
+/// A rejected event can be encoded when its event and state can, and decoded
+/// when they can be decoded. The keys are `event` and `state`.
 public struct RejectedEvent<Event: Hashable & Sendable, State: Hashable & Sendable> {
 
     /// The rejected event.
@@ -21,6 +24,8 @@ public struct RejectedEvent<Event: Hashable & Sendable, State: Hashable & Sendab
 extension RejectedEvent: Sendable { }
 extension RejectedEvent: Equatable { }
 extension RejectedEvent: Hashable { }
+extension RejectedEvent: Encodable where Event: Encodable, State: Encodable { }
+extension RejectedEvent: Decodable where Event: Decodable, State: Decodable { }
 
 extension RejectedEvent: CustomStringConvertible {
     public var description: String {

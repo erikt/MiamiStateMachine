@@ -1,0 +1,251 @@
+import Foundation
+import Testing
+import MiamiStateMachine
+
+/// Transitions and rejected events are saved with the names of their
+/// properties as keys. The keys are what saved data depends on, so the
+/// tests spell out the saved format, and do not only encode and decode.
+struct CodableTests {
+
+    // MARK: - Fixture
+
+    /// The states of a traffic light, saved by their names.
+    enum LightState: String, Codable {
+        case red, amber, green
+
+        /// An ending state. The light stays dark.
+        case dark
+    }
+
+    /// The events of a traffic light, saved by their names.
+    enum LightEvent: String, Codable {
+        case next, fail
+    }
+
+    typealias LightTransition = StateTransition<LightEvent, LightState>
+    typealias LightRejectedEvent = RejectedEvent<LightEvent, LightState>
+
+    /// An enumeration without a raw type, saved the way Swift chooses.
+    enum Switch: Codable {
+        case on, off
+    }
+
+    /// Can be saved, but not read.
+    struct OnlyEncodable: Hashable, Encodable {
+        let name: String
+    }
+
+    /// Can be read, but not saved.
+    struct OnlyDecodable: Hashable, Decodable {
+        let name: String
+    }
+
+    /// A value encoded as JSON, with the keys sorted to be the same every time.
+    private func json(_ value: some Encodable) throws -> String {
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = .sortedKeys
+        return String(decoding: try encoder.encode(value), as: UTF8.self)
+    }
+
+    /// A value decoded from JSON.
+    private func decoded<Value: Decodable>(_ type: Value.Type, from json: String) throws -> Value {
+        try JSONDecoder().decode(type, from: Data(json.utf8))
+    }
+
+    /// A value encoded and decoded again, as JSON and as a property list.
+    private func expectUnchangedWhenSaved<Value: Codable & Equatable>(_ value: Value) throws {
+        let json = try JSONEncoder().encode(value)
+        #expect(try JSONDecoder().decode(Value.self, from: json) == value)
+
+        let propertyList = try PropertyListEncoder().encode(value)
+        #expect(try PropertyListDecoder().decode(Value.self, from: propertyList) == value)
+    }
+
+    // MARK: - Transitions
+
+    @Test func transitionIsUnchangedWhenSaved() throws {
+        try expectUnchangedWhenSaved(LightTransition(from: .red, event: .next, to: .green))
+
+        // A transition back to the same state.
+        try expectUnchangedWhenSaved(LightTransition(from: .dark, event: .fail, to: .dark))
+    }
+
+    @Test func transitionIsUnchangedWhenSavedWhateverTheTypes() throws {
+        try expectUnchangedWhenSaved(StateTransition<Switch, Switch>(from: .off, event: .on, to: .on))
+        try expectUnchangedWhenSaved(StateTransition<String, Int>(from: 1, event: "one more", to: 2))
+    }
+
+    @Test func transitionIsSavedWithTheNamesOfItsPropertiesAsKeys() throws {
+        let transition = LightTransition(from: .red, event: .next, to: .green)
+
+        #expect(try json(transition) == #"{"event":"next","from":"red","to":"green"}"#)
+    }
+
+    @Test func transitionIsReadFromTheSavedFormat() throws {
+        // Written by hand, and not by encoding, to be what is already saved somewhere.
+        let saved = #"{"from": "amber", "event": "fail", "to": "dark"}"#
+
+        #expect(try decoded(LightTransition.self, from: saved) == StateTransition(from: .amber, event: .fail, to: .dark))
+    }
+
+    @Test(arguments: ["from", "event", "to"])
+    func transitionWithoutOneOfItsKeysIsNotRead(missingKey: String) throws {
+        var saved = ["from": "red", "event": "next", "to": "green"]
+        saved[missingKey] = nil
+
+        let error = try #require(throws: DecodingError.self) {
+            try decoded(LightTransition.self, from: json(saved))
+        }
+
+        guard case .keyNotFound(let key, _) = error else {
+            Issue.record("Expected a key to be missing, but got: \(error)")
+            return
+        }
+        #expect(key.stringValue == missingKey)
+    }
+
+    @Test func transitionWithUnknownStateIsNotRead() throws {
+        // A state removed from the enumeration after the transition was saved.
+        let saved = #"{"from": "red", "event": "next", "to": "blue"}"#
+
+        #expect(throws: DecodingError.self) {
+            try decoded(LightTransition.self, from: saved)
+        }
+    }
+
+    // MARK: - Rejected events
+
+    @Test func rejectedEventIsUnchangedWhenSaved() throws {
+        try expectUnchangedWhenSaved(LightRejectedEvent(event: .next, state: .dark))
+        try expectUnchangedWhenSaved(RejectedEvent<String, Int>(event: "one more", state: 2))
+    }
+
+    @Test func rejectedEventIsSavedWithTheNamesOfItsPropertiesAsKeys() throws {
+        let rejectedEvent = LightRejectedEvent(event: .next, state: .dark)
+
+        #expect(try json(rejectedEvent) == #"{"event":"next","state":"dark"}"#)
+    }
+
+    @Test func rejectedEventIsReadFromTheSavedFormat() throws {
+        let saved = #"{"state": "dark", "event": "fail"}"#
+
+        #expect(try decoded(LightRejectedEvent.self, from: saved) == RejectedEvent(event: .fail, state: .dark))
+    }
+
+    @Test(arguments: ["event", "state"])
+    func rejectedEventWithoutOneOfItsKeysIsNotRead(missingKey: String) throws {
+        var saved = ["event": "next", "state": "dark"]
+        saved[missingKey] = nil
+
+        let error = try #require(throws: DecodingError.self) {
+            try decoded(LightRejectedEvent.self, from: json(saved))
+        }
+
+        guard case .keyNotFound(let key, _) = error else {
+            Issue.record("Expected a key to be missing, but got: \(error)")
+            return
+        }
+        #expect(key.stringValue == missingKey)
+    }
+
+    // MARK: - Saving without reading, and reading without saving
+
+    @Test func encodableEventAndStateIsEnoughToSave() throws {
+        let transition = StateTransition(from: OnlyEncodable(name: "a"), event: OnlyEncodable(name: "go"), to: OnlyEncodable(name: "b"))
+        #expect(try json(transition) == #"{"event":{"name":"go"},"from":{"name":"a"},"to":{"name":"b"}}"#)
+
+        let rejectedEvent = RejectedEvent(event: OnlyEncodable(name: "go"), state: OnlyEncodable(name: "b"))
+        #expect(try json(rejectedEvent) == #"{"event":{"name":"go"},"state":{"name":"b"}}"#)
+    }
+
+    @Test func decodableEventAndStateIsEnoughToRead() throws {
+        let transition = try decoded(StateTransition<OnlyDecodable, OnlyDecodable>.self,
+                                     from: #"{"from": {"name": "a"}, "event": {"name": "go"}, "to": {"name": "b"}}"#)
+        #expect(transition.from.name == "a")
+        #expect(transition.event.name == "go")
+        #expect(transition.to.name == "b")
+
+        let rejectedEvent = try decoded(RejectedEvent<OnlyDecodable, OnlyDecodable>.self,
+                                        from: #"{"event": {"name": "go"}, "state": {"name": "b"}}"#)
+        #expect(rejectedEvent.event.name == "go")
+        #expect(rejectedEvent.state.name == "b")
+    }
+
+    // MARK: - With a state machine
+
+    /// A traffic light going around, until it fails at amber.
+    private static let savedDefinition = """
+        [
+            {"from": "red",   "event": "next", "to": "green"},
+            {"from": "green", "event": "next", "to": "amber"},
+            {"from": "amber", "event": "next", "to": "red"},
+            {"from": "amber", "event": "fail", "to": "dark"}
+        ]
+        """
+
+    @Test func definitionIsReadAndUsedForStateMachine() async throws {
+        let transitions = try decoded(Set<LightTransition>.self, from: Self.savedDefinition)
+        let stateMachine = try StateMachine(transitions: transitions, initialState: .red)
+
+        #expect(stateMachine.transitionCount == 4)
+        #expect(stateMachine.endingStates == [.dark])
+
+        for event in [LightEvent.next, .next, .fail] {
+            await stateMachine.process(event)
+        }
+        #expect(await stateMachine.state == .dark)
+    }
+
+    @Test func definitionIsTheSameWhenSavedAndRead() throws {
+        let transitions = try decoded(Set<LightTransition>.self, from: Self.savedDefinition)
+
+        try expectUnchangedWhenSaved(transitions)
+    }
+
+    @Test func inconsistentDefinitionIsReadButMakesNoStateMachine() throws {
+        // Reading does not check the transitions. Creating the state machine does.
+        let saved = """
+            [
+                {"from": "red", "event": "next", "to": "green"},
+                {"from": "red", "event": "next", "to": "amber"}
+            ]
+            """
+        let transitions = try decoded(Set<LightTransition>.self, from: saved)
+        #expect(transitions.count == 2)
+
+        let error = try #require(throws: StateMachine<LightEvent, LightState>.DefinitionError.self) {
+            try StateMachine(transitions: transitions, initialState: .red)
+        }
+        #expect(error.conflictingTransitions == transitions)
+    }
+
+    @Test func logIsSavedFromTheOldestTransitionToTheNewest() async throws {
+        let transitions = try decoded(Set<LightTransition>.self, from: Self.savedDefinition)
+        let stateMachine = try StateMachine(transitions: transitions, initialState: .red)
+
+        for event in [LightEvent.next, .next, .fail] {
+            await stateMachine.process(event)
+        }
+
+        let log = Array(await stateMachine.transitionLog)
+        #expect(try json(log) == """
+            [{"event":"next","from":"red","to":"green"},\
+            {"event":"next","from":"green","to":"amber"},\
+            {"event":"fail","from":"amber","to":"dark"}]
+            """)
+        try expectUnchangedWhenSaved(log)
+    }
+
+    @Test func rejectedEventFromStateMachineIsSaved() async throws {
+        let transitions = try decoded(Set<LightTransition>.self, from: Self.savedDefinition)
+        let stateMachine = try StateMachine(transitions: transitions, initialState: .red)
+        let rejectedEvents = await stateMachine.rejectedEventStream()
+
+        // A red light does not fail.
+        await stateMachine.process(.fail)
+
+        var iterator = rejectedEvents.makeAsyncIterator()
+        let rejectedEvent = try #require(await iterator.next())
+        #expect(try json(rejectedEvent) == #"{"event":"fail","state":"red"}"#)
+    }
+}
