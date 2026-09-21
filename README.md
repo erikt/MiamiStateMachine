@@ -201,8 +201,7 @@ used by other parts of an app at the same time, and `state` follows their events
 `eventsFromCurrent` and `isAtEndingState`, for enabling buttons and the like. For anything else, the state machine is
 there as `stateMachine`.
 
-`MiamiUI` needs macOS 14, iOS 17 or later, where the Observation framework is available. It follows the state machine
-with `stateStream()`, and stops when it is no longer in use.
+It follows the state machine with `stateStream()`, and stops when it is no longer in use.
 
 ## The transition log
 
