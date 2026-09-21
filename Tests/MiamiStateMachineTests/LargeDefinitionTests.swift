@@ -102,16 +102,19 @@ struct LargeDefinitionTests {
         #expect(comparisonsMade < 100 * stateCount)
     }
 
-    @Test func diagramDoesNotSearchAllTransitionsForEveryState() throws {
+    @Test func diagramsDoNotSearchAllTransitionsForEveryState() throws {
         let stateMachine = try StateMachine(transitions: makeRing(), initialState: state(0))
         let comparisonsBefore = comparisons.value
 
-        let diagram = stateMachine.dotDiagram
+        let diagrams = [stateMachine.dotDiagram, stateMachine.mermaidDiagram]
 
         // An arrow for every transition, and the one to the initial state.
-        #expect(diagram.split(separator: "\n").filter { $0.contains("->") }.count == stateCount + 1)
+        for diagram in diagrams {
+            #expect(diagram.split(separator: "\n").filter { $0.contains("->") }.count == stateCount + 1)
+        }
 
-        // Looking for the transitions between every two states is 4 000 000 searches.
+        // Looking for the transitions between every two states is 4 000 000
+        // searches, for each of the two diagrams.
         let comparisonsMade = comparisons.value - comparisonsBefore
         #expect(comparisonsMade < 100 * stateCount)
     }
