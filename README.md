@@ -196,6 +196,37 @@ state, so there is no need for an asynchronous context. To get the shortest path
 let pathFromCurrent = await stateMachine.shortestPath(to: .s3)
 ```
 
+## Checking the definition
+
+The state machine can answer questions about its definition as a whole. They are made for finding mistakes in a
+definition, and fit well in a unit test:
+
+```
+// States the state machine will never be at, as nothing leads to them from the initial state.
+stateMachine.unreachableStates
+
+// States from where the state machine can never get to an ending state.
+stateMachine.statesWithoutPathToEndingState
+
+// If there is a way from a state back to the same state, so that the state machine can go on forever.
+stateMachine.hasCycle
+```
+
+For the state machine above, the first two are empty and the last is `false`. An unreachable state is often a forgotten
+transition, or a transition leading to the wrong state. A state machine without ending states, meant to go on forever,
+has all its states without a path to an ending state.
+
+There are also `states`, `endingStates` and `reachableStates(from:)`. A state is always reachable from itself:
+
+```
+stateMachine.reachableStates(from: .s2)
+
+// [s2, s3]
+```
+
+All of these are part of the definition of the state machine, so there is no need for an asynchronous context. For the
+states that can still be reached from the current state, use `reachableStatesFromCurrent`, which must be awaited.
+
 ## What's with the name?
 
 Look, naming is hard, ok? If nothing else, we all know *the rhythm is gonna get you*. 

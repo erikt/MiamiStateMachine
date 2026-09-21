@@ -5,7 +5,11 @@ import MiamiGraph
 /// least one transition are connected by an edge.
 ///
 /// The graph is used to answer questions about the state machine
-/// definition as a whole, like how to get from a state to another state.
+/// definition as a whole, like how to get from a state to another state,
+/// or which states cannot be reached at all.
+///
+/// A state not part of any transition is not part of the graph. Nothing
+/// leads to or from such a state, and it can only be reached from itself.
 struct TransitionGraph<Event: Hashable & Sendable, State: Hashable & Sendable>: Sendable {
 
     /// A direct connection from a state to another state.
@@ -17,7 +21,7 @@ struct TransitionGraph<Event: Hashable & Sendable, State: Hashable & Sendable>: 
     // MARK: - Private properties
 
     /// The states, connected by edges in the direction of the transitions.
-    private var states = AdjacencyList<State>()
+    private var graph = AdjacencyList<State>()
 
     /// The vertex of each state.
     private var verticesByState: [State: Vertex<State>] = [:]
@@ -43,9 +47,22 @@ struct TransitionGraph<Event: Hashable & Sendable, State: Hashable & Sendable>: 
 
             let source = vertex(for: transition.from)
             let destination = vertex(for: transition.to)
-            states.addEdge(from: source, to: destination)
+            graph.addEdge(from: source, to: destination)
             transitionsByHop[hop] = transition
         }
+    }
+
+    // MARK: - Properties
+
+    /// All states a transition leads from or to.
+    var states: Set<State> {
+        return Set(verticesByState.keys)
+    }
+
+    /// If there is a way from a state back to the same state, by one
+    /// transition or several.
+    var hasCycle: Bool {
+        return graph.hasCycle
     }
 
     // MARK: - Methods
@@ -72,7 +89,7 @@ struct TransitionGraph<Event: Hashable & Sendable, State: Hashable & Sendable>: 
 
         guard let source = verticesByState[state],
               let destination = verticesByState[newState],
-              let path = states.pathWithFewestEdges(from: source, to: destination)
+              let path = graph.pathWithFewestEdges(from: source, to: destination)
         else {
             return nil
         }
@@ -86,6 +103,30 @@ struct TransitionGraph<Event: Hashable & Sendable, State: Hashable & Sendable>: 
         }
     }
 
+    /// All states that can be reached from a state, by no transition,
+    /// one transition or several. The state itself is always one of them.
+    /// - Parameter state: State to start from.
+    /// - Returns: The state, and every state there is a path to from it.
+    func reachableStates(from state: State) -> Set<State> {
+        guard let vertex = verticesByState[state] else {
+            return [state]
+        }
+        return Set(graph.breadthFirstTraversal(from: vertex).map(\.data))
+    }
+
+    /// All states with a path to at least one of some states. Every one
+    /// of those states is included, having an empty path to itself.
+    ///
+    /// The states are found by one single search of the transitions
+    /// backwards, starting from all the states at once.
+    /// - Parameter destinations: The states to find the paths to.
+    /// - Returns: The destinations, and every state with a path to any of them.
+    func states(leadingToAnyOf destinations: Set<State>) -> Set<State> {
+        let vertices = destinations.compactMap { verticesByState[$0] }
+        let leading = graph.reversed().breadthFirstTraversal(from: vertices).map(\.data)
+        return destinations.union(leading)
+    }
+
     // MARK: - Private methods
 
     /// The vertex of a state. If the state is not yet
@@ -97,7 +138,7 @@ struct TransitionGraph<Event: Hashable & Sendable, State: Hashable & Sendable>: 
             return vertex
         }
 
-        let vertex = states.addVertex(state)
+        let vertex = graph.addVertex(state)
         verticesByState[state] = vertex
         return vertex
     }

@@ -63,13 +63,16 @@ public actor StateMachine<Event: Hashable & Sendable, State: Hashable & Sendable
     /// The identity of the next stream to be created.
     private var nextStreamID: UInt64 = 0
 
+    // MARK: - Public nonisolated properties
+
+    /// The starting state for the state machine. It is part of the
+    /// definition, and can be read without waiting for the state machine.
+    public nonisolated let initialState: State
+
     // MARK: - Public isolated properties
-    
+
     /// The current state of the state machine.
     public private(set) var state: State
-
-    /// The starting state for the state machine.
-    public let initialState: State
 
     /// A log keeping track of all processed transitions
     /// of the state machine. The log has a max capacity of
@@ -144,6 +147,13 @@ public actor StateMachine<Event: Hashable & Sendable, State: Hashable & Sendable
     /// All possible incoming transition leading to the current state.
     public var transitionsToCurrent: Set<StateTransition<Event, State>> {
         return transitions(to: state)
+    }
+
+    /// All states that can still be reached from the current state, by
+    /// processing no event, one event or several. The current state
+    /// is always one of them.
+    public var reachableStatesFromCurrent: Set<State> {
+        return reachableStates(from: state)
     }
 
     // MARK: - Initialization
@@ -550,5 +560,67 @@ extension StateMachine {
     /// - Returns: If the state is an ending state.
     public nonisolated func isEndingState(_ state: State) -> Bool {
         return transitionsByStateAndEvent[state] == nil
+    }
+}
+
+// MARK: - Checks of the definition
+
+extension StateMachine {
+
+    // These are about the definition of the state machine as a whole, and
+    // are useful for finding mistakes in it. Like the other nonisolated
+    // members, they only use constant properties.
+
+    /// All states of the state machine. These are the initial state,
+    /// and every state a transition leads from or to.
+    public nonisolated var states: Set<State> {
+        return transitionGraph.states.union([initialState])
+    }
+
+    /// All ending states of the state machine. No transitions lead from an
+    /// ending state, so a state machine at the state will not accept any events.
+    public nonisolated var endingStates: Set<State> {
+        return states.filter { isEndingState($0) }
+    }
+
+    /// All states that can be reached from a state, by processing no
+    /// event, one event or several. The state itself is always one of
+    /// them, as it is reached without processing any event.
+    ///
+    /// A state is reachable from another state exactly when there is
+    /// a shortest path between them.
+    /// - Parameter state: State to start from.
+    /// - Returns: The state, and every state that can be reached from it.
+    public nonisolated func reachableStates(from state: State) -> Set<State> {
+        return transitionGraph.reachableStates(from: state)
+    }
+
+    /// All states that cannot be reached from the initial state. The state
+    /// machine will never be at any of them.
+    ///
+    /// An unreachable state is often a mistake in the definition, like a
+    /// missing transition, or a transition leading to the wrong state.
+    public nonisolated var unreachableStates: Set<State> {
+        return states.subtracting(reachableStates(from: initialState))
+    }
+
+    /// All states without a path to any ending state. A state machine
+    /// getting to one of them will never reach an ending state.
+    ///
+    /// For a state machine meant to end, such a state is a mistake in the
+    /// definition. For a state machine without ending states, meant to go
+    /// on forever, these are all its states.
+    public nonisolated var statesWithoutPathToEndingState: Set<State> {
+        return states.subtracting(transitionGraph.states(leadingToAnyOf: endingStates))
+    }
+
+    /// If the definition has a cycle. A cycle is a way from a state back to
+    /// the same state, by one transition or several. A state machine with
+    /// a cycle can go on processing events forever.
+    ///
+    /// A cycle among unreachable states counts as well, as this
+    /// is about the definition and not about the initial state.
+    public nonisolated var hasCycle: Bool {
+        return transitionGraph.hasCycle
     }
 }

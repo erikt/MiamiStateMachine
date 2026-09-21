@@ -83,6 +83,25 @@ struct LargeDefinitionTests {
         #expect(await stateMachine.stateChangeCount == eventCount)
     }
 
+    @Test func checksOfTheDefinitionDoNotSearchFromEveryState() throws {
+        // The ring, and a way out of it to an ending state.
+        let ending = CountedState(number: stateCount, comparisons: comparisons)
+        let transitions = makeRing().union([StateTransition(from: state(0), event: 1, to: ending)])
+        let stateMachine = try StateMachine(transitions: transitions, initialState: state(0))
+        let comparisonsBefore = comparisons.value
+
+        #expect(stateMachine.states.count == stateCount + 1)
+        #expect(stateMachine.endingStates == [ending])
+        #expect(stateMachine.unreachableStates.isEmpty)
+        #expect(stateMachine.statesWithoutPathToEndingState.isEmpty)
+        #expect(stateMachine.hasCycle)
+
+        // Asking for the reachable states of every state, one at a time, is
+        // 4 000 000 states to put in sets, and about as many comparisons.
+        let comparisonsMade = comparisons.value - comparisonsBefore
+        #expect(comparisonsMade < 100 * stateCount)
+    }
+
     @Test func conflictIsFoundInLargeDefinition() throws {
         let conflict = StateTransition(from: state(1_000), event: 0, to: state(7))
         let transitions = makeRing().union([conflict])
