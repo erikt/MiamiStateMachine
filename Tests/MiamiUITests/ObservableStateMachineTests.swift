@@ -241,9 +241,11 @@ struct ObservableStateMachineTests {
     @Test func createsItsOwnStateMachine() async throws {
         let door = try ObservableStateMachine(transitions: DoorFixture.transitions, initialState: .closed, logCapacity: 1)
 
+        // One event at a time. Only the newest state is kept for the main actor,
+        // so opened is not always seen when the door is closed right after.
         door.send(.open)
-        door.send(.close)
         await wait(for: .opened, at: door)
+        door.send(.close)
         await wait(for: .closed, at: door)
 
         #expect(await door.stateMachine.transitionLog.count == 1)

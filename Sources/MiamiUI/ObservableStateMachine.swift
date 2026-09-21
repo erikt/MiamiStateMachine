@@ -39,6 +39,11 @@ public final class ObservableStateMachine<Event: Hashable & Sendable, State: Has
     ///
     /// It is the initial state until the state machine has been heard from,
     /// which is a moment after the observable state machine is created.
+    ///
+    /// Only the newest state is kept for the main actor. If the state machine
+    /// makes several transitions before the main actor has time for them, the
+    /// states in between are never seen here. Every state is delivered by
+    /// `stateStream()` of the state machine.
     public private(set) var state: State
 
     // MARK: - Private properties
