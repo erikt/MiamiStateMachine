@@ -102,6 +102,20 @@ struct LargeDefinitionTests {
         #expect(comparisonsMade < 100 * stateCount)
     }
 
+    @Test func diagramDoesNotSearchAllTransitionsForEveryState() throws {
+        let stateMachine = try StateMachine(transitions: makeRing(), initialState: state(0))
+        let comparisonsBefore = comparisons.value
+
+        let diagram = stateMachine.dotDiagram
+
+        // An arrow for every transition, and the one to the initial state.
+        #expect(diagram.split(separator: "\n").filter { $0.contains("->") }.count == stateCount + 1)
+
+        // Looking for the transitions between every two states is 4 000 000 searches.
+        let comparisonsMade = comparisons.value - comparisonsBefore
+        #expect(comparisonsMade < 100 * stateCount)
+    }
+
     @Test func conflictIsFoundInLargeDefinition() throws {
         let conflict = StateTransition(from: state(1_000), event: 0, to: state(7))
         let transitions = makeRing().union([conflict])

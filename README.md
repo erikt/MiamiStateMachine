@@ -283,6 +283,10 @@ stateMachine.reachableStates(from: .s2)
 All of these are part of the definition of the state machine, so there is no need for an asynchronous context. For the
 states that can still be reached from the current state, use `reachableStatesFromCurrent`, which must be awaited.
 
+## Drawing the state machine
+
+The `.dotDiagram` property on the state machine creates a GraphViz DOT format[](https://graphviz.org) string. It can be used to render the state machine as a diagram. 
+
 ## What's with the name?
 
 Look, naming is hard, ok? If nothing else, we all know *the rhythm is gonna get you*. 
