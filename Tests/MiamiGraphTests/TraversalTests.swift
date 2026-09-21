@@ -41,6 +41,41 @@ struct TraversalTests {
         #expect(fixture.graph.depthFirstTraversal(from: a).names() == ["A", "B", "C"])
     }
 
+    @Test(arguments: GraphKind.allCases)
+    func breadthFirstFromSeveralVerticesVisitsEveryVertexOnce(kind: GraphKind) throws {
+        let fixture = try Fixture.diamond(kind)
+        let (a, b, c, d) = (try fixture.vertex("A"), try fixture.vertex("B"), try fixture.vertex("C"), try fixture.vertex("D"))
+
+        // D is reached from both B and C.
+        #expect(fixture.graph.breadthFirstTraversal(from: [b, c]).names() == ["B", "C", "D", "E"])
+
+        // The sources come first, then what is one edge from any of them.
+        #expect(fixture.graph.breadthFirstTraversal(from: [d, a]).names() == ["D", "A", "E", "B", "C"])
+
+        // A source given twice, and a source reached from another source.
+        #expect(fixture.graph.breadthFirstTraversal(from: [a, a, b]).names() == ["A", "B", "C", "D", "E"])
+    }
+
+    @Test(arguments: GraphKind.allCases)
+    func breadthFirstFromNoVerticesVisitsNothing(kind: GraphKind) throws {
+        let fixture = try Fixture.diamond(kind)
+
+        #expect(fixture.graph.breadthFirstTraversal(from: []).isEmpty)
+    }
+
+    @Test func breadthFirstFromSeveralVerticesAsksForTheEdgesOfEveryVertexOnce() {
+        // Every vertex of a chain as a source. Searching from one source at a
+        // time would ask for the edges about 500 000 times.
+        var graph = CountingGraph<Int>()
+        let vertices = (0 ..< 1_000).map { graph.addVertex($0) }
+        for (vertex, next) in zip(vertices, vertices.dropFirst()) {
+            graph.addEdge(from: vertex, to: next)
+        }
+
+        #expect(graph.breadthFirstTraversal(from: vertices).count == 1_000)
+        #expect(graph.edgesCallCount == 1_000)
+    }
+
     // MARK: - Path with fewest edges
 
     @Test(arguments: GraphKind.allCases)

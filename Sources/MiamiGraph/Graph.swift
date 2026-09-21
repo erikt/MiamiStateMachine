@@ -91,6 +91,32 @@ extension Graph {
         vertices.indices.contains(vertex.index)
     }
 
+    /// The graph with every edge leading the other way, from its
+    /// destination to its source. The weights are the same.
+    ///
+    /// The vertices are the same as well, so the vertices of
+    /// this graph can be used with the reversed graph.
+    /// - Returns: The reversed graph, as an adjacency list.
+    /// - Complexity: O(*V* + *E*) for an adjacency list, where *V* is the
+    /// number of vertices and *E* the number of edges.
+    package func reversed() -> AdjacencyList<Element> {
+        var reversed = AdjacencyList<Element>()
+
+        // Vertices are added in order, so they get the same
+        // indices in the reversed graph as in this graph.
+        for vertex in vertices {
+            reversed.addVertex(vertex.data)
+        }
+
+        for vertex in vertices {
+            for edge in edges(from: vertex) {
+                reversed.addEdge(from: edge.destination, to: edge.source, weight: edge.weight)
+            }
+        }
+
+        return reversed
+    }
+
     /// The edges of the graph, one on every line, in the order of the
     /// vertices they lead from. A vertex without any edges leading from
     /// it has a line of its own.

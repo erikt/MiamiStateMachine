@@ -102,6 +102,51 @@ struct GraphTests {
         #expect(copy.edges(from: a).count == 1)
     }
 
+    // MARK: - Reversed
+
+    @Test(arguments: GraphKind.allCases)
+    func reversedGraphHasEveryEdgeLeadingTheOtherWay(kind: GraphKind) throws {
+        let fixture = try Fixture.diamond(kind)
+        let reversed = fixture.graph.reversed()
+        let (a, b, c, d, e) = (try fixture.vertex("A"), try fixture.vertex("B"), try fixture.vertex("C"),
+                               try fixture.vertex("D"), try fixture.vertex("E"))
+
+        #expect(reversed.vertices == fixture.graph.vertices)
+        #expect(reversed.edges(from: a).isEmpty, "Nothing leads to A in the diamond.")
+        #expect(reversed.edges(from: d) == [Edge(source: d, destination: b), Edge(source: d, destination: c)])
+        #expect(reversed.edges(from: e) == [Edge(source: e, destination: d)])
+
+        // Everything leading to E, which is all but X.
+        #expect(reversed.breadthFirstTraversal(from: e).names() == ["E", "D", "B", "C", "A"])
+    }
+
+    @Test(arguments: GraphKind.allCases)
+    func reversedGraphKeepsTheWeights(kind: GraphKind) throws {
+        let fixture = try Fixture.weighted(kind, .oneWay)
+        let reversed = fixture.graph.reversed()
+        let (a, c) = (try fixture.vertex("A"), try fixture.vertex("C"))
+
+        #expect(reversed.lightestEdge(from: c, to: a) == Edge(source: c, destination: a, weight: 9))
+        #expect(reversed.lightestEdge(from: a, to: c) == nil)
+    }
+
+    @Test(arguments: GraphKind.allCases)
+    func reversingTwiceGivesTheSameEdges(kind: GraphKind) throws {
+        let fixture = try Fixture.weighted(kind, .oneWay)
+        let twice = fixture.graph.reversed().reversed()
+
+        for vertex in fixture.graph.vertices {
+            #expect(Set(twice.edges(from: vertex)) == Set(fixture.graph.edges(from: vertex)))
+        }
+    }
+
+    @Test(arguments: GraphKind.allCases)
+    func reversedEmptyGraphIsEmpty(kind: GraphKind) {
+        #expect(kind.makeGraph().reversed().vertices.isEmpty)
+    }
+
+    // MARK: - Description
+
     @Test(arguments: GraphKind.allCases)
     func describesItsEdgesAndVerticesWithoutEdges(kind: GraphKind) throws {
         let fixture = try Fixture(kind, vertices: ["A", "B", "C"], edges: [

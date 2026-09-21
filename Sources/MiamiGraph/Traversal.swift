@@ -11,12 +11,32 @@ extension Graph {
     /// - Parameter source: The vertex to start from.
     /// - Returns: The reachable vertices, starting with the source.
     package func breadthFirstTraversal(from source: Vertex<Element>) -> [Vertex<Element>] {
+        return breadthFirstTraversal(from: [source])
+    }
+
+    /// All vertices reachable from at least one of several vertices, in
+    /// breadth-first order.
+    ///
+    /// The sources come first, in the order given, followed by the vertices
+    /// one edge from a source, then two edges, and so on. A vertex is only
+    /// included once, also when it can be reached from several sources.
+    /// - Parameter sources: The vertices to start from.
+    /// - Returns: The reachable vertices, starting with the sources.
+    /// - Complexity: O(*V* + *E*) for an adjacency list, where *V* is the
+    /// number of vertices and *E* the number of edges. It does not
+    /// depend on the number of sources.
+    package func breadthFirstTraversal(from sources: [Vertex<Element>]) -> [Vertex<Element>] {
         var queue = Queue<Vertex<Element>>()
         var isEnqueued = [Bool](repeating: false, count: vertices.count)
         var visited: [Vertex<Element>] = []
 
-        queue.enqueue(source)
-        isEnqueued[source.index] = true
+        for source in sources {
+            precondition(contains(source), "Vertex is not part of the graph.")
+            if !isEnqueued[source.index] {
+                queue.enqueue(source)
+                isEnqueued[source.index] = true
+            }
+        }
 
         while let vertex = queue.dequeue() {
             visited.append(vertex)
