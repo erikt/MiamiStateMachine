@@ -54,14 +54,16 @@ public actor StateMachine<Event: Hashable & Sendable, State: Hashable & Sendable
     /// about the state machine definition as a whole.
     private let transitionGraph: TransitionGraph<Event, State>
 
-    /// The continuations of the transition streams in use, by stream identity.
-    private var transitionContinuations: [UInt64: TransitionStream.Continuation] = [:]
+    /// The kinds of streams created by the state machine.
+    private enum StreamKind: Sendable {
+        case transitions, rejectedEvents
+    }
 
-    /// The continuations of the rejected event streams in use, by stream identity.
-    private var rejectedEventContinuations: [UInt64: RejectedEventStream.Continuation] = [:]
+    /// The transition streams in use.
+    private var transitionStreams = StreamRegistry<StateTransition<Event, State>>()
 
-    /// The identity of the next stream to be created.
-    private var nextStreamID: UInt64 = 0
+    /// The rejected event streams in use.
+    private var rejectedEventStreams = StreamRegistry<RejectedEvent<Event, State>>()
 
     // MARK: - Public nonisolated properties
 
@@ -103,7 +105,7 @@ public actor StateMachine<Event: Hashable & Sendable, State: Hashable & Sendable
     /// Number of streams created and still in use. Only for the tests of
     /// the package, to verify that streams no longer in use are forgotten.
     package var streamCount: (transitions: Int, rejectedEvents: Int) {
-        return (transitionContinuations.count, rejectedEventContinuations.count)
+        return (transitionStreams.count, rejectedEventStreams.count)
     }
 
     /// Counter for the number of events processed that did
@@ -211,12 +213,8 @@ public actor StateMachine<Event: Hashable & Sendable, State: Hashable & Sendable
     deinit {
         // Finish the streams still in use. Their consumers
         // would otherwise be left waiting forever.
-        for continuation in transitionContinuations.values {
-            continuation.finish()
-        }
-        for continuation in rejectedEventContinuations.values {
-            continuation.finish()
-        }
+        transitionStreams.finishAll()
+        rejectedEventStreams.finishAll()
     }
 
     // MARK: - API methods
@@ -244,22 +242,15 @@ public actor StateMachine<Event: Hashable & Sendable, State: Hashable & Sendable
         processedEventsCount += 1
 
         guard let t = transition(from: state, for: event) else {
-            for continuation in rejectedEventContinuations.values {
-                continuation.yield(RejectedEvent(event: event, state: state))
-            }
+            rejectedEventStreams.yield(RejectedEvent(event: event, state: state))
             return nil
         }
 
         commit(t)
-        for continuation in transitionContinuations.values {
-            continuation.yield(t)
-        }
+        transitionStreams.yield(t)
         if isAtEndingState {
             // No further transitions will be made.
-            for continuation in transitionContinuations.values {
-                continuation.finish()
-            }
-            transitionContinuations.removeAll()
+            transitionStreams.finishAll()
         }
         return t
     }
@@ -304,13 +295,8 @@ public actor StateMachine<Event: Hashable & Sendable, State: Hashable & Sendable
             return stream
         }
 
-        let id = makeStreamID()
-        transitionContinuations[id] = continuation
-        continuation.onTermination = { [weak self] termination in
-            // A stream finished by the state machine is already removed.
-            guard case .cancelled = termination else { return }
-            Task { await self?.removeTransitionContinuation(id) }
-        }
+        let id = transitionStreams.add(continuation)
+        forgetStream(id, of: .transitions, whenCancelled: continuation)
         return stream
     }
 
@@ -337,13 +323,8 @@ public actor StateMachine<Event: Hashable & Sendable, State: Hashable & Sendable
     ) -> RejectedEventStream {
         let (stream, continuation) = RejectedEventStream.makeStream(bufferingPolicy: bufferingPolicy)
 
-        let id = makeStreamID()
-        rejectedEventContinuations[id] = continuation
-        continuation.onTermination = { [weak self] termination in
-            // A stream is only finished by a state machine being deallocated.
-            guard case .cancelled = termination else { return }
-            Task { await self?.removeRejectedEventContinuation(id) }
-        }
+        let id = rejectedEventStreams.add(continuation)
+        forgetStream(id, of: .rejectedEvents, whenCancelled: continuation)
         return stream
     }
 
@@ -394,24 +375,36 @@ public actor StateMachine<Event: Hashable & Sendable, State: Hashable & Sendable
         stateChangeCount += 1
     }
 
-    /// The identity of a new stream.
-    private func makeStreamID() -> UInt64 {
-        defer { nextStreamID += 1 }
-        return nextStreamID
+    /// Forget a stream when it is no longer in use, because the task of its
+    /// consumer was cancelled or the stream was let go of. A stream finished
+    /// by the state machine itself is already forgotten.
+    /// - Parameters:
+    ///   - id: The identity of the stream.
+    ///   - kind: The kind of stream.
+    ///   - continuation: The continuation feeding the stream.
+    private func forgetStream<Element>(_ id: UInt64,
+                                       of kind: StreamKind,
+                                       whenCancelled continuation: AsyncStream<Element>.Continuation)
+    {
+        continuation.onTermination = { [weak self] termination in
+            guard case .cancelled = termination else { return }
+
+            // Called from anywhere, so a task is needed to get to the state machine.
+            Task { await self?.forgetStream(id, of: kind) }
+        }
     }
 
-    /// Forget a transition stream no longer in use, because the task
-    /// of its consumer was cancelled or the stream was let go of.
-    /// - Parameter id: The identity of the stream.
-    private func removeTransitionContinuation(_ id: UInt64) {
-        transitionContinuations[id] = nil
-    }
-
-    /// Forget a rejected event stream no longer in use, because the task
-    /// of its consumer was cancelled or the stream was let go of.
-    /// - Parameter id: The identity of the stream.
-    private func removeRejectedEventContinuation(_ id: UInt64) {
-        rejectedEventContinuations[id] = nil
+    /// Forget a stream no longer in use.
+    /// - Parameters:
+    ///   - id: The identity of the stream.
+    ///   - kind: The kind of stream.
+    private func forgetStream(_ id: UInt64, of kind: StreamKind) {
+        switch kind {
+        case .transitions:
+            transitionStreams.remove(id)
+        case .rejectedEvents:
+            rejectedEventStreams.remove(id)
+        }
     }
 }
 
