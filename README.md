@@ -138,7 +138,7 @@ if let transition = await stateMachine.process(.e1) {
 ## Events carrying something
 
 An event can carry something, like the data loaded or the reason for a failure. The transitions are then written
-with the kind of event, which is the event without what it carries:
+with the event symbol, which is the event without what it carries:
 
 ```
 enum LoadState {
@@ -150,11 +150,11 @@ enum LoadEvent: StateMachineEvent {
     case finish(bytes: Int)
     case fail(reason: String)
 
-    enum EventKind {
+    enum EventSymbol {
         case start, finish, fail
     }
 
-    var eventKind: EventKind {
+    var eventSymbol: EventSymbol {
         switch self {
         case .start: .start
         case .finish: .finish
@@ -163,7 +163,7 @@ enum LoadEvent: StateMachineEvent {
     }
 }
 
-let transitions: Set<StateTransition<LoadEvent.EventKind, LoadState>> = [
+let transitions: Set<StateTransition<LoadEvent.EventSymbol, LoadState>> = [
     StateTransition(from: .idle, event: .start, to: .loading),
     StateTransition(from: .loading, event: .finish, to: .ready),
     StateTransition(from: .loading, event: .fail, to: .failed),
@@ -195,7 +195,7 @@ if let made = await stateMachine.process(.finish(bytes: 512)) {
 // Loaded 512 bytes
 ```
 
-An event carrying something has to have a `EventKind` of its own, as above. Without one it is its own kind, and what it
+An event carrying something has to have an `EventSymbol` of its own, as above. Without one it is its own symbol, and what it
 carries then decides the transition. The log keeps the events with what they carry, so give it a capacity when that
 is much: `StateMachine<LoadEvent, LoadState>(transitions: transitions, initialState: .idle, logCapacity: 10)`.
 
@@ -328,7 +328,7 @@ for transition in path ?? [] {
 }
 ```
 
-For events carrying something, the transitions of the path have the kinds of events to process, and not the events.
+For events carrying something, the transitions of the path have the event symbols to process, and not the events.
 
 If there is no way to get to the state, the path is `nil`. The path from a state to the same state is empty. If there is
 more than one shortest path, one of them is returned.

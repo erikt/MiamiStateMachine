@@ -3,7 +3,7 @@
 ///
 /// It is like the `StateTransition` of the definition it was made by, but
 /// has the event itself, with what the event carries, where the transition
-/// of the definition has the kind of event. The transition of the definition
+/// of the definition has the event symbol. The transition of the definition
 /// is `transition`.
 ///
 /// A transition made can be encoded when its event and states can, and decoded
@@ -21,8 +21,8 @@ public struct TransitionMade<Event: StateMachineEvent, State: Hashable & Sendabl
     public let to: State
 
     /// The transition of the definition that was made.
-    public var transition: StateTransition<Event.EventKind, State> {
-        return StateTransition(from: from, event: event.eventKind, to: to)
+    public var transition: StateTransition<Event.EventSymbol, State> {
+        return StateTransition(from: from, event: event.eventSymbol, to: to)
     }
 
     /// Create a transition made from a state to another state, by an event.

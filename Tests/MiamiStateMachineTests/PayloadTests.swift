@@ -2,7 +2,7 @@ import Foundation
 import Testing
 import MiamiStateMachine
 
-/// Events carrying something. The definition is written in kinds of events,
+/// Events carrying something. The definition is written in event symbols,
 /// and what an event carries is delivered with it, without being looked at.
 @Suite(.timeLimit(.minutes(1)))
 struct PayloadTests {
@@ -20,11 +20,11 @@ struct PayloadTests {
         case fail(reason: String)
         case retry
 
-        enum EventKind: String, Codable {
+        enum EventSymbol: String, Codable {
             case start, finish, fail, retry
         }
 
-        var eventKind: EventKind {
+        var eventSymbol: EventSymbol {
             switch self {
             case .start: .start
             case .finish: .finish
@@ -34,7 +34,7 @@ struct PayloadTests {
         }
     }
 
-    typealias LoadTransition = StateTransition<LoadEvent.EventKind, LoadState>
+    typealias LoadTransition = StateTransition<LoadEvent.EventSymbol, LoadState>
     typealias LoadStateMachine = StateMachine<LoadEvent, LoadState>
 
     /// Loading can fail and be tried again. Ready is an ending state.
@@ -164,7 +164,7 @@ struct PayloadTests {
 
     @Test func conflictIsBetweenKindsOfEvents() throws {
         // Loaded cannot lead from loading to two states, whatever it carries.
-        let conflict = StateTransition<LoadEvent.EventKind, LoadState>(from: .loading, event: .finish, to: .failed)
+        let conflict = StateTransition<LoadEvent.EventSymbol, LoadState>(from: .loading, event: .finish, to: .failed)
 
         let error = try #require(throws: LoadStateMachine.DefinitionError.self) {
             try LoadStateMachine(transitions: Self.transitions.union([conflict]), initialState: .idle)
@@ -181,12 +181,12 @@ struct PayloadTests {
             let data: [UInt8]
         }
 
-        enum EventKind {
+        enum EventSymbol {
             case received
         }
 
         let attachment: Attachment
-        var eventKind: EventKind { .received }
+        var eventSymbol: EventSymbol { .received }
     }
 
     @Test func eventDoesNotHaveToBeHashable() async throws {
@@ -207,7 +207,7 @@ struct PayloadTests {
         let made = try #require(await stateMachine.process(.checkOut))
 
         #expect(made.event == .checkOut)
-        #expect(made.event.eventKind == .checkOut)
+        #expect(made.event.eventSymbol == .checkOut)
         #expect(made.transition == StateTransition(from: .cart, event: .checkOut, to: .checkout))
     }
 

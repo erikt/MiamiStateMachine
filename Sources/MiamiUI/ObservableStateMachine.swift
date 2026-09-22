@@ -58,8 +58,8 @@ public final class ObservableStateMachine<Event: StateMachineEvent, State: Hasha
 
     // MARK: - Computed properties
 
-    /// All kinds of events the state machine accepts at the current state.
-    public var eventsFromCurrent: Set<Event.EventKind> {
+    /// All event symbols the state machine accepts at the current state.
+    public var eventsFromCurrent: Set<Event.EventSymbol> {
         stateMachine.events(from: state)
     }
 
@@ -106,7 +106,7 @@ public final class ObservableStateMachine<Event: StateMachineEvent, State: Hasha
     ///   number of entries in the transition log.
     /// - Throws: A `DefinitionError` with the transitions in conflict, if the
     /// transitions do not define a consistent state machine.
-    public convenience init(transitions: Set<StateTransition<Event.EventKind, State>>,
+    public convenience init(transitions: Set<StateTransition<Event.EventSymbol, State>>,
                             initialState: State,
                             logCapacity: UInt? = nil) throws(StateMachine<Event, State>.DefinitionError)
     {
@@ -137,21 +137,21 @@ public final class ObservableStateMachine<Event: StateMachineEvent, State: Hasha
     }
 
     /// If the state machine accepts an event at the current state. Only the
-    /// kind of the event matters, and not what it carries.
+    /// symbol of the event matters, and not what it carries.
     /// - Parameter event: Event to check.
     /// - Returns: If there is a transition for the event from the current state.
     public func accepts(_ event: Event) -> Bool {
-        stateMachine.transition(from: state, for: event.eventKind) != nil
+        stateMachine.transition(from: state, for: event.eventSymbol) != nil
     }
 }
 
-// MARK: - Events being their own kind
+// MARK: - Events being their own symbol
 
 @available(macOS 14.0, iOS 17.0, tvOS 17.0, watchOS 10.0, visionOS 1.0, *)
-extension ObservableStateMachine where Event.EventKind == Event {
+extension ObservableStateMachine where Event.EventSymbol == Event {
 
     /// Creates an observable state machine with a new state machine, for
-    /// events being their own kind, which events without anything to carry
+    /// events being their own symbol, which events without anything to carry
     /// are. The type of the events is then known from the transitions.
     /// - Parameters:
     ///   - transitions: Transitions defining the state machine.

@@ -2,7 +2,7 @@ import Foundation
 
 /// A state machine is an actor with a current state and
 /// a set of transitions defining the machine. The `StateTransition`
-/// connects two states by a kind of event.
+/// connects two states by an event symbol.
 ///
 /// An event is a `StateMachineEvent`. It can carry something, which the
 /// state machine never looks at, but delivers with the `TransitionMade`.
@@ -37,7 +37,7 @@ public actor StateMachine<Event: StateMachineEvent, State: Hashable & Sendable> 
         /// The transitions in conflict. For each one of them there is at
         /// least one other transition from the same state, for the same
         /// event, leading to another state.
-        public let conflictingTransitions: Set<StateTransition<Event.EventKind, State>>
+        public let conflictingTransitions: Set<StateTransition<Event.EventSymbol, State>>
 
         public var description: String {
             // Sorted, as the same error should have the same description every time.
@@ -50,15 +50,15 @@ public actor StateMachine<Event: StateMachineEvent, State: Hashable & Sendable> 
     // MARK: - Private properties
 
     /// Transitions defining the state machine.
-    private let transitions: Set<StateTransition<Event.EventKind, State>>
+    private let transitions: Set<StateTransition<Event.EventSymbol, State>>
 
     /// The transitions by the state they lead from and their event, to find
     /// the transition for an event without searching all transitions.
-    private let transitionsByStateAndEvent: [State: [Event.EventKind: StateTransition<Event.EventKind, State>]]
+    private let transitionsByStateAndEvent: [State: [Event.EventSymbol: StateTransition<Event.EventSymbol, State>]]
 
     /// The transitions as a graph of states, to be able to answer questions
     /// about the state machine definition as a whole.
-    private let transitionGraph: TransitionGraph<Event.EventKind, State>
+    private let transitionGraph: TransitionGraph<Event.EventSymbol, State>
 
     /// The kinds of streams created by the state machine.
     private enum StreamKind: Sendable {
@@ -144,24 +144,24 @@ public actor StateMachine<Event: StateMachineEvent, State: Hashable & Sendable> 
         return isEndingState(state)
     }
     
-    /// All kinds of events accepted at the current state, which are
+    /// All event symbols accepted at the current state, which are
     /// the ones leading to a state change from it.
-    public var eventsFromCurrent: Set<Event.EventKind> {
+    public var eventsFromCurrent: Set<Event.EventSymbol> {
         return events(from: state)
     }
     
-    /// All kinds of events leading (incoming) to the current state.
-    public var eventsToCurrent: Set<Event.EventKind> {
+    /// All event symbols leading (incoming) to the current state.
+    public var eventsToCurrent: Set<Event.EventSymbol> {
         return events(to: state)
     }
     
     /// All possible outgoing transitions from the current state.
-    public var transitionsFromCurrent: Set<StateTransition<Event.EventKind, State>> {
+    public var transitionsFromCurrent: Set<StateTransition<Event.EventSymbol, State>> {
         return transitions(from: state)
     }
     
     /// All possible incoming transition leading to the current state.
-    public var transitionsToCurrent: Set<StateTransition<Event.EventKind, State>> {
+    public var transitionsToCurrent: Set<StateTransition<Event.EventSymbol, State>> {
         return transitions(to: state)
     }
 
@@ -184,10 +184,10 @@ public actor StateMachine<Event: StateMachineEvent, State: Hashable & Sendable> 
     /// Any initial state is accepted, also a state without transitions
     /// leading from it. Such a state machine is at an ending state from
     /// the start, and rejects every event.
-    /// The transitions are written in kinds of events, which does not tell the
+    /// The transitions are written in event symbols, which does not tell the
     /// type of the events, so it has to be written: `StateMachine<LoadEvent,
     /// LoadState>(transitions:initialState:)`. It is known from the transitions
-    /// only for events being their own kind.
+    /// only for events being their own symbol.
     /// - Parameters:
     ///   - transitions: Transitions defining the state machine.
     ///   - initialState: Initial state for the state machine.
@@ -197,7 +197,7 @@ public actor StateMachine<Event: StateMachineEvent, State: Hashable & Sendable> 
     /// - Throws: A `DefinitionError` with the transitions in conflict, if two
     /// or more transitions lead from the same state, for the same event,
     /// to different states.
-    public init(transitions: Set<StateTransition<Event.EventKind, State>>,
+    public init(transitions: Set<StateTransition<Event.EventSymbol, State>>,
                 initialState: State,
                 logCapacity: UInt? = nil) throws(DefinitionError)
     {
@@ -206,15 +206,15 @@ public actor StateMachine<Event: StateMachineEvent, State: Hashable & Sendable> 
 
     /// Creates a state machine. It is what the other initializers do, which
     /// have the same names for their parameters, and cannot call each other.
-    private init(definedBy transitions: Set<StateTransition<Event.EventKind, State>>,
+    private init(definedBy transitions: Set<StateTransition<Event.EventSymbol, State>>,
                  initialState: State,
                  logCapacity: UInt?) throws(DefinitionError)
     {
         // Find the transition for every state and event. A transition already
         // found for the same state and event, is a transition to another state,
         // as the transitions are a set. The state machine is then not consistent.
-        var transitionsByStateAndEvent: [State: [Event.EventKind: StateTransition<Event.EventKind, State>]] = [:]
-        var conflictingTransitions: Set<StateTransition<Event.EventKind, State>> = []
+        var transitionsByStateAndEvent: [State: [Event.EventSymbol: StateTransition<Event.EventSymbol, State>]] = [:]
+        var conflictingTransitions: Set<StateTransition<Event.EventSymbol, State>> = []
 
         for transition in transitions {
             let found = transitionsByStateAndEvent[transition.from, default: [:]]
@@ -270,9 +270,9 @@ public actor StateMachine<Event: StateMachineEvent, State: Hashable & Sendable> 
         // did not lead to a state change.
         processedEventsCount += 1
 
-        // The transition is found by the kind of the event. What the
+        // The transition is found by the symbol of the event. What the
         // event carries is not looked at, only delivered with the event.
-        guard let t = transition(from: state, for: event.eventKind) else {
+        guard let t = transition(from: state, for: event.eventSymbol) else {
             rejectedEventStreams.yield(RejectedEvent(event: event, state: state))
             return nil
         }
@@ -414,14 +414,14 @@ public actor StateMachine<Event: StateMachineEvent, State: Hashable & Sendable> 
     /// All possible transitions from the current state, to another state.
     /// - Parameter newState: State to go to from the current state.
     /// - Returns: All possible transitions from the current state to another state.
-    public func transitionsFromCurrent(to newState: State) -> Set<StateTransition<Event.EventKind, State>> {
+    public func transitionsFromCurrent(to newState: State) -> Set<StateTransition<Event.EventSymbol, State>> {
         return transitions(from: self.state, to: newState)
     }
     
     /// All possible transitions to the current state, from another state.
     /// - Parameter oldState: From state
     /// - Returns: All possible transitions from a state to the current state.
-    public func transitionsToCurrent(from oldState: State) -> Set<StateTransition<Event.EventKind, State>> {
+    public func transitionsToCurrent(from oldState: State) -> Set<StateTransition<Event.EventSymbol, State>> {
         return transitions(from: oldState, to: self.state)
     }
 
@@ -434,7 +434,7 @@ public actor StateMachine<Event: StateMachineEvent, State: Hashable & Sendable> 
     /// state to the new state. If the new state cannot be reached from the
     /// current state, it returns nil. The path is empty if the new state is
     /// the current state.
-    public func shortestPath(to newState: State) -> [StateTransition<Event.EventKind, State>]? {
+    public func shortestPath(to newState: State) -> [StateTransition<Event.EventSymbol, State>]? {
         return shortestPath(from: self.state, to: newState)
     }
 
@@ -486,11 +486,11 @@ public actor StateMachine<Event: StateMachineEvent, State: Hashable & Sendable> 
     }
 }
 
-// MARK: - Events being their own kind
+// MARK: - Events being their own symbol
 
-extension StateMachine where Event.EventKind == Event {
+extension StateMachine where Event.EventSymbol == Event {
 
-    /// Creates a state machine for events being their own kind, which
+    /// Creates a state machine for events being their own symbol, which
     /// events without anything to carry are. The type of the events is
     /// then known from the transitions, and does not have to be written.
     /// - Parameters:
@@ -532,23 +532,23 @@ extension StateMachine {
         return transitions.count
     }
     
-    /// The transition from a state for a kind of event. If the state
+    /// The transition from a state for an event symbol. If the state
     /// has no transition for it, it returns nil. For an event, ask
-    /// with `event.eventKind`.
+    /// with `event.eventSymbol`.
     /// - Parameters:
     ///   - state: From state.
     ///   - event: Event.
     /// - Returns: Transition if there is one for the event at state.
-    public nonisolated func transition(from state: State, for event: Event.EventKind) -> StateTransition<Event.EventKind, State>? {
+    public nonisolated func transition(from state: State, for event: Event.EventSymbol) -> StateTransition<Event.EventSymbol, State>? {
         return transitionsByStateAndEvent[state]?[event]
     }
     
-    /// All transitions leading to a state for a specific kind of event.
+    /// All transitions leading to a state for a specific event symbol.
     /// - Parameters:
     ///   - state: To state.
     ///   - event: Event.
     /// - Returns: All transitions leading to state for an event.
-    public nonisolated func transitions(to state: State, for event: Event.EventKind) -> Set<StateTransition<Event.EventKind, State>> {
+    public nonisolated func transitions(to state: State, for event: Event.EventSymbol) -> Set<StateTransition<Event.EventSymbol, State>> {
         return transitions.filter {
             $0.to == state && $0.event == event
         }
@@ -559,7 +559,7 @@ extension StateMachine {
     ///   - state: Starting state.
     ///   - newState: New state to transition to.
     /// - Returns: All possible transitions to the new state.
-    public nonisolated func transitions(from state: State, to newState: State) -> Set<StateTransition<Event.EventKind, State>> {
+    public nonisolated func transitions(from state: State, to newState: State) -> Set<StateTransition<Event.EventSymbol, State>> {
         return transitions(from: state).filter {
             $0.to == newState
         }
@@ -568,7 +568,7 @@ extension StateMachine {
     /// All possible transitions from a state.
     /// - Parameter state: State to start from.
     /// - Returns: All possible transitions from state.
-    public nonisolated func transitions(from state: State) -> Set<StateTransition<Event.EventKind, State>> {
+    public nonisolated func transitions(from state: State) -> Set<StateTransition<Event.EventSymbol, State>> {
         guard let transitionsByEvent = transitionsByStateAndEvent[state] else {
             return []
         }
@@ -578,42 +578,42 @@ extension StateMachine {
     /// All transitions leading to a state.
     /// - Parameter state: State to go to.
     /// - Returns: All possible transitions to a state.
-    public nonisolated func transitions(to state: State) -> Set<StateTransition<Event.EventKind, State>> {
+    public nonisolated func transitions(to state: State) -> Set<StateTransition<Event.EventSymbol, State>> {
         return transitions.filter {
             $0.to == state
         }
     }
 
-    /// All kinds of events handled at a state.
+    /// All event symbols handled at a state.
     /// - Parameter state: State.
-    /// - Returns: All kinds of events going out from this state.
-    public nonisolated func events(from state: State) -> Set<Event.EventKind> {
+    /// - Returns: All event symbols going out from this state.
+    public nonisolated func events(from state: State) -> Set<Event.EventSymbol> {
         guard let transitionsByEvent = transitionsByStateAndEvent[state] else {
             return []
         }
         return Set(transitionsByEvent.keys)
     }
     
-    /// All kinds of events leading to a state.
-    /// Please note, the same kind of event could be handled at different
+    /// All event symbols leading to a state.
+    /// Please note, the same event symbol could be handled at different
     /// states, all leading to the same state.
     /// - Parameter state: State.
     /// - Returns: All events leading to this state.
-    public nonisolated func events(to state: State) -> Set<Event.EventKind> {
-        return Set<Event.EventKind>(transitions.filter {
+    public nonisolated func events(to state: State) -> Set<Event.EventSymbol> {
+        return Set<Event.EventSymbol>(transitions.filter {
             $0.to == state
         }.map {
             $0.event
         })
     }
     
-    /// All kinds of events defined to go from one state to another state.
+    /// All event symbols defined to go from one state to another state.
     /// - Parameters:
     ///   - from: From state.
     ///   - to: To state.
     /// - Returns: All events leading from state to another state.
-    public nonisolated func events(from: State, to: State) -> Set<Event.EventKind> {
-        return Set<Event.EventKind>(transitions(from: from, to: to).map {
+    public nonisolated func events(from: State, to: State) -> Set<Event.EventSymbol> {
+        return Set<Event.EventSymbol>(transitions(from: from, to: to).map {
             $0.event
         })
     }
@@ -630,9 +630,9 @@ extension StateMachine {
     /// The shortest path from a state to another state. This is the way
     /// between the states needing the fewest events.
     ///
-    /// Processing an event of the kind of each transition in the path, in
+    /// Processing an event with the symbol of each transition in the path, in
     /// order, takes a state machine that is in `state` to `newState`. An
-    /// event without anything to carry is its own kind, and can be processed
+    /// event without anything to carry is its own symbol, and can be processed
     /// as it is in the path.
     ///
     /// If there is more than one shortest path, one of them is returned.
@@ -644,7 +644,7 @@ extension StateMachine {
     /// - Returns: The transitions to make, in order, to get from the state to
     /// the new state. If the new state cannot be reached from the state,
     /// it returns nil. The path is empty if the two states are the same.
-    public nonisolated func shortestPath(from state: State, to newState: State) -> [StateTransition<Event.EventKind, State>]? {
+    public nonisolated func shortestPath(from state: State, to newState: State) -> [StateTransition<Event.EventSymbol, State>]? {
         return transitionGraph.shortestPath(from: state, to: newState)
     }
     

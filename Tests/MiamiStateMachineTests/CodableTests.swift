@@ -384,7 +384,7 @@ struct CodableTests {
             """)
 
         // The log is of transitions made, and is read as such. An event without
-        // anything to carry is saved as its kind, so the log can be read as
+        // anything to carry is saved as its symbol, so the log can be read as
         // transitions of the definition too, which is what it was saved as before.
         let read = try decoded(CapacityLog<TransitionMade<LightEvent, LightState>>.self, from: json(log))
         #expect(Array(read) == Array(log))

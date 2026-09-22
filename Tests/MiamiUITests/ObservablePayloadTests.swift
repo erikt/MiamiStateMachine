@@ -17,11 +17,11 @@ struct ObservablePayloadTests {
         case show(count: Int)
         case clear
 
-        enum EventKind {
+        enum EventSymbol {
             case search, show, clear
         }
 
-        var eventKind: EventKind {
+        var eventSymbol: EventSymbol {
             switch self {
             case .search: .search
             case .show: .show
@@ -30,7 +30,7 @@ struct ObservablePayloadTests {
         }
     }
 
-    static let transitions: Set<StateTransition<SearchEvent.EventKind, SearchState>> = [
+    static let transitions: Set<StateTransition<SearchEvent.EventSymbol, SearchState>> = [
         StateTransition(from: .empty, event: .search, to: .searching),
         StateTransition(from: .searching, event: .show, to: .results),
         StateTransition(from: .results, event: .search, to: .searching),
