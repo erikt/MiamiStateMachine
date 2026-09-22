@@ -135,10 +135,11 @@ if let transition = await stateMachine.process(.e1) {
 }
 ```
 
-## Events carrying something
+## Events with values
 
 An event can carry something, like the data loaded or the reason for a failure. The transitions are then written
-with the event symbol, which is the event without what it carries:
+with the event symbol (as in *a symbol from the input alphabet of a state machine* in automata theory), which is the
+event without what it carries:
 
 ```
 enum LoadState {
@@ -155,10 +156,14 @@ enum LoadEvent: StateMachineEvent {
     }
 
     var eventSymbol: EventSymbol {
+        // Map event to symbol
         switch self {
-        case .start: .start
-        case .finish: .finish
-        case .fail: .fail
+        case LoadEvent.start:
+            return EventSymbol.start
+        case LoadEvent.finish:
+            return EventSymbol.finish
+        case LoadEvent.fail:
+            return EventSymbol.fail
         }
     }
 }
@@ -196,11 +201,14 @@ if let made = await stateMachine.process(.finish(bytes: 512)) {
 ```
 
 An event carrying something has to have an `EventSymbol` of its own, as above. Without one it is its own symbol, and what it
-carries then decides the transition. The log keeps the events with what they carry, so give it a capacity when that
-is much: `StateMachine<LoadEvent, LoadState>(transitions: transitions, initialState: .idle, logCapacity: 10)`.
+carries then decides the transition.
 
-There is an example app for macOS in `Examples/VendingMachine`, a vending machine with a button for every event. Run
-it with `swift run` in that folder, or open the folder in Xcode.
+Keep in mind, the log keeps the events, including the carried values. If the values are large, keep memory consumption
+down by setting a capacity on the state machine log:
+
+```
+StateMachine<LoadEvent, LoadState>(transitions: transitions, initialState: .idle, logCapacity: 10)
+```
 
 ## Reacting to state changes
 
@@ -378,8 +386,7 @@ The `.dotDiagram` property on the state machine creates a [GraphViz DOT format](
 
 ## What's with the name?
 
-Look, naming is hard, ok? If nothing else, we all know *the rhythm is gonna get you*. 
-Just be happy I didn't name it `RageAgainstTheStateMachine`.
+Look, naming is hard, ok? Just be happy I didn't name it `RageAgainstTheStateMachine`.
 
 ## Improvements
 
