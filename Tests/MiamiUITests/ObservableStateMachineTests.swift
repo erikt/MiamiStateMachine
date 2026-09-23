@@ -116,6 +116,44 @@ struct ObservableStateMachineTests {
         #expect(last == .broken)
     }
 
+    // MARK: - Processing events
+
+    @available(macOS 14.0, iOS 17.0, tvOS 17.0, watchOS 10.0, visionOS 1.0, *)
+    @Test func processingReturnsTheTransitionMade() async throws {
+        let door = ObservableStateMachine(try makeStateMachine())
+
+        let transition = await door.process(.open)
+
+        #expect(transition == TransitionEvent(from: .closed, event: .open, to: .opened))
+        await wait(for: .opened, at: door)
+    }
+
+    @available(macOS 14.0, iOS 17.0, tvOS 17.0, watchOS 10.0, visionOS 1.0, *)
+    @Test func processingRejectedEventReturnsNil() async throws {
+        let door = ObservableStateMachine(try makeStateMachine())
+
+        // A closed door cannot be closed.
+        let transition = await door.process(.close)
+
+        #expect(transition == nil)
+        #expect(await door.stateMachine.rejectedEventsCount == 1)
+        #expect(door.state == .closed)
+    }
+
+    @available(macOS 14.0, iOS 17.0, tvOS 17.0, watchOS 10.0, visionOS 1.0, *)
+    @Test func eventProcessedWaitsForTheEventsSentBeforeIt() async throws {
+        let door = ObservableStateMachine(try makeStateMachine())
+
+        // Unlocking is only accepted after the events sent before it.
+        door.send(.open)
+        door.send(.close)
+        door.send(.lock)
+        let transition = await door.process(.unlock)
+
+        #expect(transition == TransitionEvent(from: .locked, event: .unlock, to: .closed))
+        #expect(await door.stateMachine.stateChangeCount == 4)
+    }
+
     // MARK: - Questions about the current state
 
     @available(macOS 14.0, iOS 17.0, tvOS 17.0, watchOS 10.0, visionOS 1.0, *)

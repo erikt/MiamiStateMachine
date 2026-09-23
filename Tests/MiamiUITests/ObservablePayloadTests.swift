@@ -55,6 +55,16 @@ struct ObservablePayloadTests {
     }
 
     @available(macOS 14.0, iOS 17.0, tvOS 17.0, watchOS 10.0, visionOS 1.0, *)
+    @Test func eventProcessedIsReturnedWithWhatItCarries() async throws {
+        let search = try makeSearch()
+
+        let transition = await search.process(.search(text: "conga"))
+
+        #expect(transition?.event == .search(text: "conga"))
+        #expect(transition?.rule == TransitionRule(from: .empty, event: .search, to: .searching))
+    }
+
+    @available(macOS 14.0, iOS 17.0, tvOS 17.0, watchOS 10.0, visionOS 1.0, *)
     @Test func createsItsOwnStateMachineFromRulesInTriggers() async throws {
         let search = try ObservableStateMachine<SearchEvent, SearchState>(transitions: Self.transitions, initialState: .results, logCapacity: 1)
         #expect(search.state == .results)

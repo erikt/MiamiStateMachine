@@ -10,6 +10,8 @@ All changes to MiamiStateMachine that users of the package will notice. The form
 
 - The documentation of the four libraries, generated with DocC, at
   [erikt.github.io/MiamiStateMachine](https://erikt.github.io/MiamiStateMachine/).
+- `process(_:)` on `ObservableStateMachine`, which processes an event after the events already sent and returns the
+  transition made, or nil if the event was rejected.
 - An example in `examples/VendingMachine`: a vending machine with a server and a command line client, using the macro
   `@StateMachineEvent`, events carrying values, and diagrams. Its README tells how to build and run it.
 

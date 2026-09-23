@@ -312,8 +312,9 @@ let observableStateMachine = ObservableStateMachine(stateMachine)
 ```
 
 The state machine is still the one deciding. `send(_:)` sends an event to it without waiting, and events are processed
-in the order they are sent. `state` follows what the state machine does, a moment later. The same state machine can be
-used by other parts of an app at the same time, and `state` follows their events too. There are also `accepts(_:)`,
+in the order they are sent. `process(_:)` does the same, but waits for the event and returns the transition made, or
+nil if the event was rejected. `state` follows what the state machine does, a moment later. The same state machine can
+be used by other parts of an app at the same time, and `state` follows their events too. There are also `accepts(_:)`,
 `eventsFromCurrent` and `isAtEndingState`, for enabling buttons and the like. For anything else, the state machine is
 there as `stateMachine`.
 

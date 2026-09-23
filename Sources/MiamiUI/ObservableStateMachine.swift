@@ -23,8 +23,9 @@ import Observation
 /// parts of an app at the same time, and `state` follows their events as well.
 ///
 /// `state` is what was last heard from the state machine, which can have
-/// moved on. Use the state machine itself, by `stateMachine`, to know what
-/// an event led to, or for anything else the observable state machine lacks.
+/// moved on. Use `process(_:)` to know what an event led to, and the state
+/// machine itself, by `stateMachine`, for anything else the observable state
+/// machine lacks.
 @available(macOS 14.0, iOS 17.0, tvOS 17.0, watchOS 10.0, visionOS 1.0, *)
 @MainActor
 @Observable
@@ -50,7 +51,7 @@ public final class ObservableStateMachine<Event: StateMachineEvent, State: Hasha
 
     /// The events sent, waiting to be processed by the state machine.
     @ObservationIgnored
-    private let sentEvents: AsyncStream<Event>.Continuation
+    private let sentEvents: AsyncStream<SentEvent>.Continuation
 
     /// The task following the states of the state machine.
     @ObservationIgnored
@@ -80,11 +81,12 @@ public final class ObservableStateMachine<Event: StateMachineEvent, State: Hasha
         // A task for every event could get the events to the state machine in
         // another order than they were sent. One task taking them from a
         // stream keeps the order. It ends when the stream is finished.
-        let (events, sentEvents) = AsyncStream.makeStream(of: Event.self)
+        let (events, sentEvents) = AsyncStream.makeStream(of: SentEvent.self)
         self.sentEvents = sentEvents
         Task {
-            for await event in events {
-                await stateMachine.process(event)
+            for await sent in events {
+                let transition = await stateMachine.process(sent.event)
+                sent.waiting?.resume(returning: transition)
             }
         }
 
@@ -126,14 +128,33 @@ public final class ObservableStateMachine<Event: StateMachineEvent, State: Hasha
     /// processed. Events are processed in the order they are sent.
     ///
     /// If the event is accepted, `state` changes a moment later. A rejected
-    /// event changes nothing. Process the event with `stateMachine` instead,
-    /// to wait for it or to know what it led to.
+    /// event changes nothing. Use `process(_:)` instead, to wait for the event
+    /// or to know what it led to.
     ///
-    /// The order is among the events sent here. An event processed with
-    /// `stateMachine` right after an event was sent can get there first.
+    /// The order is among the events sent here and with `process(_:)`. An
+    /// event processed with `stateMachine` right after an event was sent can
+    /// get there first.
     /// - Parameter event: Event to send.
     public func send(_ event: Event) {
-        sentEvents.yield(event)
+        sentEvents.yield(SentEvent(event: event, waiting: nil))
+    }
+
+    /// Processes an event, after the events already sent, and waits for it.
+    ///
+    /// The event is in the same order as the events sent with `send(_:)`, so
+    /// it is processed after them, and before events sent later. Processing
+    /// it with `stateMachine` instead could get it there first.
+    ///
+    /// `state` changes a moment later, and has not always caught up when
+    /// this returns. The event is processed also if the task waiting for it
+    /// is cancelled.
+    /// - Parameter event: Event to process.
+    /// - Returns: The transition made, or nil if the event was rejected.
+    @discardableResult
+    public func process(_ event: Event) async -> TransitionEvent<Event, State>? {
+        await withCheckedContinuation { continuation in
+            sentEvents.yield(SentEvent(event: event, waiting: continuation))
+        }
     }
 
     /// If the state machine accepts an event at the current state. Only the
@@ -142,6 +163,22 @@ public final class ObservableStateMachine<Event: StateMachineEvent, State: Hasha
     /// - Returns: If there is a transition for the event from the current state.
     public func accepts(_ event: Event) -> Bool {
         stateMachine.transition(from: state, for: event.eventTrigger) != nil
+    }
+}
+
+// MARK: - Events sent
+
+@available(macOS 14.0, iOS 17.0, tvOS 17.0, watchOS 10.0, visionOS 1.0, *)
+extension ObservableStateMachine {
+
+    /// An event waiting to be processed, and what waits for its transition.
+    struct SentEvent: Sendable {
+
+        /// The event to process.
+        let event: Event
+
+        /// What waits for the transition the event makes, if anything does.
+        let waiting: CheckedContinuation<TransitionEvent<Event, State>?, Never>?
     }
 }
 
