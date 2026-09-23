@@ -38,7 +38,7 @@ MiamiStateMachine is a Swift package, and needs Swift 6.3 (Xcode 26.4) or later.
 Add the package to the dependencies in `Package.swift`:
 
 ```
-.package(url: "https://github.com/erikt/MiamiStateMachine.git", from: "2.0.0")
+.package(url: "https://github.com/erikt/MiamiStateMachine.git", from: "3.0.0")
 ```
 
 Then add the libraries to use to the dependencies of a target. `MiamiStateMachine` is the state machine itself.

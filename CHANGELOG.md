@@ -6,6 +6,8 @@ All changes to MiamiStateMachine that users of the package will notice. The form
 
 ## [Unreleased]
 
+## [3.0.0] - 2026-09-23
+
 ### Changed
 
 - **Breaking:** `StateTransition`, a rule of the definition, is renamed to `TransitionRule`.
@@ -126,7 +128,8 @@ revision of 1.0.0 does not match a recorded value, remove the entry for 1.0.0 fr
 
 The state machine as it was in June 2023, tagged afterwards. It is the last version for Swift 5.6.
 
-[Unreleased]: https://github.com/erikt/MiamiStateMachine/compare/2.0.0...HEAD
+[Unreleased]: https://github.com/erikt/MiamiStateMachine/compare/3.0.0...HEAD
+[3.0.0]: https://github.com/erikt/MiamiStateMachine/compare/2.0.0...3.0.0
 [2.0.0]: https://github.com/erikt/MiamiStateMachine/compare/1.0.0...2.0.0
 [1.0.0]: https://github.com/erikt/MiamiStateMachine/compare/0.3.0...1.0.0
 [0.3.0]: https://github.com/erikt/MiamiStateMachine/compare/0.2.0...0.3.0
