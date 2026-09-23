@@ -49,16 +49,9 @@ public actor StateMachine<Event: StateMachineEvent, State: Hashable & Sendable> 
 
     // MARK: - Private properties
 
-    /// Transitions defining the state machine.
-    private let transitions: Set<TransitionRule<Event.EventTrigger, State>>
-
-    /// The transitions by the state they lead from and their event, to find
-    /// the transition for an event without searching all transitions.
-    private let transitionsByStateAndEvent: [State: [Event.EventTrigger: TransitionRule<Event.EventTrigger, State>]]
-
-    /// The transitions as a graph of states, to be able to answer questions
-    /// about the state machine definition as a whole.
-    private let transitionGraph: TransitionGraph<Event.EventTrigger, State>
+    /// The definition of the state machine: its rules, kept in the forms the
+    /// questions about them need.
+    private let definition: StateMachineDefinition<Event.EventTrigger, State>
 
     /// The kinds of streams created by the state machine.
     private enum StreamKind: Sendable {
@@ -210,29 +203,12 @@ public actor StateMachine<Event: StateMachineEvent, State: Hashable & Sendable> 
                  initialState: State,
                  logCapacity: UInt?) throws(DefinitionError)
     {
-        // Find the transition for every state and event. A transition already
-        // found for the same state and event, is a transition to another state,
-        // as the transitions are a set. The state machine is then not consistent.
-        var transitionsByStateAndEvent: [State: [Event.EventTrigger: TransitionRule<Event.EventTrigger, State>]] = [:]
-        var conflictingTransitions: Set<TransitionRule<Event.EventTrigger, State>> = []
-
-        for transition in transitions {
-            let found = transitionsByStateAndEvent[transition.from, default: [:]]
-                .updateValue(transition, forKey: transition.event)
-
-            if let found {
-                conflictingTransitions.insert(found)
-                conflictingTransitions.insert(transition)
-            }
+        do {
+            self.definition = try StateMachineDefinition(rules: transitions)
+        } catch {
+            throw DefinitionError(conflictingTransitions: error.rules)
         }
 
-        guard conflictingTransitions.isEmpty else {
-            throw DefinitionError(conflictingTransitions: conflictingTransitions)
-        }
-
-        self.transitions = transitions
-        self.transitionsByStateAndEvent = transitionsByStateAndEvent
-        self.transitionGraph = TransitionGraph(transitions: transitions)
         self.transitionLog = CapacityLog(capacity: logCapacity)
         self.initialState = initialState
         self.state = initialState
@@ -529,7 +505,7 @@ extension StateMachine {
     /// Total number of transitions defining the state machine. The number of
     /// transitions made by the state machine is `stateChangeCount`.
     public nonisolated var transitionCount: Int {
-        return transitions.count
+        return definition.ruleCount
     }
     
     /// The transition from a state for an event trigger. If the state
@@ -540,7 +516,7 @@ extension StateMachine {
     ///   - event: Event.
     /// - Returns: Transition if there is one for the event at state.
     public nonisolated func transition(from state: State, for event: Event.EventTrigger) -> TransitionRule<Event.EventTrigger, State>? {
-        return transitionsByStateAndEvent[state]?[event]
+        return definition.rule(from: state, for: event)
     }
     
     /// All transitions leading to a state for a specific event trigger.
@@ -549,8 +525,8 @@ extension StateMachine {
     ///   - event: Event.
     /// - Returns: All transitions leading to state for an event.
     public nonisolated func transitions(to state: State, for event: Event.EventTrigger) -> Set<TransitionRule<Event.EventTrigger, State>> {
-        return transitions.filter {
-            $0.to == state && $0.event == event
+        return definition.rules(to: state).filter {
+            $0.event == event
         }
     }
     
@@ -569,29 +545,21 @@ extension StateMachine {
     /// - Parameter state: State to start from.
     /// - Returns: All possible transitions from state.
     public nonisolated func transitions(from state: State) -> Set<TransitionRule<Event.EventTrigger, State>> {
-        guard let transitionsByEvent = transitionsByStateAndEvent[state] else {
-            return []
-        }
-        return Set(transitionsByEvent.values)
+        return definition.rules(from: state)
     }
     
     /// All transitions leading to a state.
     /// - Parameter state: State to go to.
     /// - Returns: All possible transitions to a state.
     public nonisolated func transitions(to state: State) -> Set<TransitionRule<Event.EventTrigger, State>> {
-        return transitions.filter {
-            $0.to == state
-        }
+        return definition.rules(to: state)
     }
 
     /// All event triggers handled at a state.
     /// - Parameter state: State.
     /// - Returns: All event triggers going out from this state.
     public nonisolated func events(from state: State) -> Set<Event.EventTrigger> {
-        guard let transitionsByEvent = transitionsByStateAndEvent[state] else {
-            return []
-        }
-        return Set(transitionsByEvent.keys)
+        return definition.events(from: state)
     }
     
     /// All event triggers leading to a state.
@@ -600,11 +568,7 @@ extension StateMachine {
     /// - Parameter state: State.
     /// - Returns: All events leading to this state.
     public nonisolated func events(to state: State) -> Set<Event.EventTrigger> {
-        return Set<Event.EventTrigger>(transitions.filter {
-            $0.to == state
-        }.map {
-            $0.event
-        })
+        return Set(definition.rules(to: state).map(\.event))
     }
     
     /// All event triggers defined to go from one state to another state.
@@ -645,7 +609,7 @@ extension StateMachine {
     /// the new state. If the new state cannot be reached from the state,
     /// it returns nil. The path is empty if the two states are the same.
     public nonisolated func shortestPath(from state: State, to newState: State) -> [TransitionRule<Event.EventTrigger, State>]? {
-        return transitionGraph.shortestPath(from: state, to: newState)
+        return definition.graph.shortestPath(from: state, to: newState)
     }
     
     /// If a state is an ending state. No transitions lead from an ending
@@ -656,7 +620,7 @@ extension StateMachine {
     /// - Parameter state: State to check if it's an ending state.
     /// - Returns: If the state is an ending state.
     public nonisolated func isEndingState(_ state: State) -> Bool {
-        return transitionsByStateAndEvent[state] == nil
+        return definition.isEndingState(state)
     }
 }
 
@@ -671,7 +635,7 @@ extension StateMachine {
     /// All states of the state machine. These are the initial state,
     /// and every state a transition leads from or to.
     public nonisolated var states: Set<State> {
-        return transitionGraph.states.union([initialState])
+        return definition.graph.states.union([initialState])
     }
 
     /// All ending states of the state machine. No transitions lead from an
@@ -689,7 +653,7 @@ extension StateMachine {
     /// - Parameter state: State to start from.
     /// - Returns: The state, and every state that can be reached from it.
     public nonisolated func reachableStates(from state: State) -> Set<State> {
-        return transitionGraph.reachableStates(from: state)
+        return definition.graph.reachableStates(from: state)
     }
 
     /// All states that cannot be reached from the initial state. The state
@@ -708,7 +672,7 @@ extension StateMachine {
     /// definition. For a state machine without ending states, meant to go
     /// on forever, these are all its states.
     public nonisolated var statesWithoutPathToEndingState: Set<State> {
-        return states.subtracting(transitionGraph.states(leadingToAnyOf: endingStates))
+        return states.subtracting(definition.graph.states(leadingToAnyOf: endingStates))
     }
 
     /// If the definition has a cycle. A cycle is a way from a state back to
@@ -718,6 +682,6 @@ extension StateMachine {
     /// A cycle among unreachable states counts as well, as this
     /// is about the definition and not about the initial state.
     public nonisolated var hasCycle: Bool {
-        return transitionGraph.hasCycle
+        return definition.graph.hasCycle
     }
 }

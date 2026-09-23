@@ -83,6 +83,21 @@ struct LargeDefinitionTests {
         #expect(await stateMachine.stateChangeCount == eventCount)
     }
 
+    @Test func questionsAboutWhatLeadsToAStateDoNotSearchAllTransitions() throws {
+        let stateMachine = try StateMachine(transitions: makeRing(), initialState: state(0))
+        let comparisonsBefore = comparisons.value
+
+        // In the ring, one transition leads to every state, from the state before it.
+        #expect(stateMachine.transitions(to: state(500)) == [TransitionRule(from: state(499), event: 0, to: state(500))])
+        #expect(stateMachine.transitions(to: state(500), for: 0).count == 1)
+        #expect(stateMachine.events(to: state(500)) == [0])
+
+        // Searching all transitions compares the state of every one of them,
+        // 2 000 comparisons for each question.
+        let comparisonsMade = comparisons.value - comparisonsBefore
+        #expect(comparisonsMade < 100)
+    }
+
     @Test func checksOfTheDefinitionDoNotSearchFromEveryState() throws {
         // The ring, and a way out of it to an ending state.
         let ending = CountedState(number: stateCount, comparisons: comparisons)

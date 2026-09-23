@@ -14,6 +14,8 @@ All changes to MiamiStateMachine that users of the package will notice. The form
 - **Breaking:** The associated type `EventSymbol` of `StateMachineEvent` is renamed to `EventTrigger`, and the property
   `eventSymbol` to `eventTrigger`.
 
+- `transitions(to:)`, `transitions(to:for:)` and `events(to:)` no longer go through every rule of the definition.
+
 The saved formats do not change, as the keys are the names of the properties.
 
 ### Added
