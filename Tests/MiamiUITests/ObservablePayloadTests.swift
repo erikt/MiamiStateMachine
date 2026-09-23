@@ -55,7 +55,7 @@ struct ObservablePayloadTests {
     }
 
     @available(macOS 14.0, iOS 17.0, tvOS 17.0, watchOS 10.0, visionOS 1.0, *)
-    @Test func createsItsOwnStateMachineFromTransitionsInKinds() async throws {
+    @Test func createsItsOwnStateMachineFromRulesInTriggers() async throws {
         let search = try ObservableStateMachine<SearchEvent, SearchState>(transitions: Self.transitions, initialState: .results, logCapacity: 1)
         #expect(search.state == .results)
 
@@ -73,7 +73,7 @@ struct ObservablePayloadTests {
     }
 
     @available(macOS 14.0, iOS 17.0, tvOS 17.0, watchOS 10.0, visionOS 1.0, *)
-    @Test func whatAViewAsksIsAnsweredByTheKindOfEvent() throws {
+    @Test func whatAViewAsksIsAnsweredByTheTrigger() throws {
         let search = try makeSearch()
 
         // Any text can be searched for, and nothing is shown before searching.

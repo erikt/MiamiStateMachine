@@ -150,7 +150,7 @@ struct PayloadTests {
 
     // MARK: - The definition
 
-    @Test func definitionIsAskedInKindsOfEvents() async throws {
+    @Test func definitionIsAskedInTriggers() async throws {
         let stateMachine = try makeStateMachine()
 
         #expect(stateMachine.events(from: .loading) == [.finish, .fail])
@@ -162,7 +162,7 @@ struct PayloadTests {
         #expect(await stateMachine.eventsFromCurrent == [.finish, .fail])
     }
 
-    @Test func conflictIsBetweenKindsOfEvents() throws {
+    @Test func conflictIsBetweenTriggers() throws {
         // Loaded cannot lead from loading to two states, whatever it carries.
         let conflict = TransitionRule<LoadEvent.EventTrigger, LoadState>(from: .loading, event: .finish, to: .failed)
 
@@ -200,7 +200,7 @@ struct PayloadTests {
         #expect(made?.to == 1)
     }
 
-    @Test func eventWithoutAnythingToCarryIsItsOwnKind() async throws {
+    @Test func eventWithoutAnythingToCarryIsItsOwnTrigger() async throws {
         // The type of the events is known from the transitions, as before.
         let stateMachine = try StateMachine(transitions: OrderFixture.transitions, initialState: .cart)
 
@@ -254,7 +254,7 @@ struct PayloadTests {
         #expect(Array(read) == Array(log))
     }
 
-    @Test func definitionIsSavedInKindsOfEvents() throws {
+    @Test func definitionIsSavedInTriggers() throws {
         let saved = #"[{"from": "idle", "event": "start", "to": "loading"}, {"from": "loading", "event": "finish", "to": "ready"}]"#
 
         let transitions = try JSONDecoder().decode(Set<LoadTransition>.self, from: Data(saved.utf8))
