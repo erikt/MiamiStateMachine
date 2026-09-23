@@ -10,6 +10,8 @@ All changes to MiamiStateMachine that users of the package will notice. The form
 
 - The documentation of the four libraries, generated with DocC, at
   [erikt.github.io/MiamiStateMachine](https://erikt.github.io/MiamiStateMachine/).
+- An example in `examples/VendingMachine`: a vending machine with a server and a command line client, using the macro
+  `@StateMachineEvent`, events carrying values, and diagrams. Its README tells how to build and run it.
 
 ## [3.0.0] - 2026-09-23
 
