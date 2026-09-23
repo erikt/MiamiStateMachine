@@ -6,6 +6,11 @@ All changes to MiamiStateMachine that users of the package will notice. The form
 
 ## [Unreleased]
 
+### Added
+
+- The documentation of the four libraries, generated with DocC, at
+  [erikt.github.io/MiamiStateMachine](https://erikt.github.io/MiamiStateMachine/).
+
 ## [3.0.0] - 2026-09-23
 
 ### Changed

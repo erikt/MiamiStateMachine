@@ -33,6 +33,8 @@ let package = Package(
         // A wide range, as an app can only have one version of swift-syntax,
         // which all the macros it uses have to agree on.
         .package(url: "https://github.com/swiftlang/swift-syntax.git", "600.0.0"..<"700.0.0"),
+        // Only for generating the documentation, with `swift package generate-documentation`.
+        .package(url: "https://github.com/swiftlang/swift-docc-plugin.git", from: "1.4.0"),
     ],
     targets: [
         // Targets are the basic building blocks of a package. A target can define a module or a test suite.

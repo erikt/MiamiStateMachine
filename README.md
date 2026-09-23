@@ -53,6 +53,10 @@ Then add the libraries to use to the dependencies of a target. `MiamiStateMachin
 
 In Xcode, add it as a package dependency of the project, with the same URL.
 
+## Documentation
+
+The documentation of the four libraries is at [erikt.github.io/MiamiStateMachine](https://erikt.github.io/MiamiStateMachine/).
+
 ## Usage
 
 Start by defining the possible states and events. Enumerations works well for this:
