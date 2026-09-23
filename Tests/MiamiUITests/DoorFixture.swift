@@ -14,7 +14,7 @@ enum DoorEvent: StateMachineEvent {
     case open, close, lock, unlock, breakDown
 }
 
-typealias DoorTransition = StateTransition<DoorEvent, DoorState>
+typealias DoorTransition = TransitionRule<DoorEvent, DoorState>
 typealias DoorStateMachine = StateMachine<DoorEvent, DoorState>
 
 @available(macOS 14.0, iOS 17.0, tvOS 17.0, watchOS 10.0, visionOS 1.0, *)
@@ -29,11 +29,11 @@ enum DoorFixture {
     ///
     /// A door can break down when opened or closed, but not when locked.
     static let transitions: Set<DoorTransition> = [
-        StateTransition(from: .closed, event: .open, to: .opened),
-        StateTransition(from: .opened, event: .close, to: .closed),
-        StateTransition(from: .closed, event: .lock, to: .locked),
-        StateTransition(from: .locked, event: .unlock, to: .closed),
-        StateTransition(from: .opened, event: .breakDown, to: .broken),
-        StateTransition(from: .closed, event: .breakDown, to: .broken),
+        TransitionRule(from: .closed, event: .open, to: .opened),
+        TransitionRule(from: .opened, event: .close, to: .closed),
+        TransitionRule(from: .closed, event: .lock, to: .locked),
+        TransitionRule(from: .locked, event: .unlock, to: .closed),
+        TransitionRule(from: .opened, event: .breakDown, to: .broken),
+        TransitionRule(from: .closed, event: .breakDown, to: .broken),
     ]
 }

@@ -50,9 +50,9 @@ struct LargeDiagramTests {
     }
 
     /// A ring of states, where the event 0 leads from every state to the next one.
-    private func makeRing() -> Set<StateTransition<Int, CountedState>> {
+    private func makeRing() -> Set<TransitionRule<Int, CountedState>> {
         Set((0 ..< stateCount).map { number in
-            StateTransition(from: state(number), event: 0, to: state(number + 1))
+            TransitionRule(from: state(number), event: 0, to: state(number + 1))
         })
     }
 

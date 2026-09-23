@@ -70,8 +70,8 @@ struct DotDiagramTests {
 
     @Test func diagramWithoutEndingStatesHasNoDoubleOutline() throws {
         let stateMachine = try OrderStateMachine(transitions: [
-            StateTransition(from: .cart, event: .checkOut, to: .checkout),
-            StateTransition(from: .checkout, event: .editCart, to: .cart),
+            TransitionRule(from: .cart, event: .checkOut, to: .checkout),
+            TransitionRule(from: .checkout, event: .editCart, to: .cart),
         ], initialState: .checkout)
 
         #expect(stateMachine.dotDiagram == """
@@ -110,7 +110,7 @@ struct DotDiagramTests {
         // Many ending states, as a few could come out sorted without being sorted.
         let endings = ["j", "c", "h", "a", "f", "i", "b", "e", "g", "d"]
         let transitions = endings.enumerated().map { number, ending in
-            StateTransition(from: start, event: "to \(ending)", to: NamedState(id: number + 1, description: ending))
+            TransitionRule(from: start, event: "to \(ending)", to: NamedState(id: number + 1, description: ending))
         }
         let stateMachine = try NamedStateMachine(transitions: Set(transitions), initialState: start)
         let lines = lines(of: stateMachine.dotDiagram)
@@ -147,8 +147,8 @@ struct DotDiagramTests {
 
     @Test func eventsBetweenTheSameStatesShareOneArrow() throws {
         let transitions = OrderFixture.transitions.union([
-            StateTransition(from: .paid, event: .shipOnInvoice, to: .shipped),
-            StateTransition(from: .paid, event: .shipExpress, to: .shipped),
+            TransitionRule(from: .paid, event: .shipOnInvoice, to: .shipped),
+            TransitionRule(from: .paid, event: .shipExpress, to: .shipped),
         ])
         let stateMachine = try StateMachine(transitions: transitions, initialState: .cart)
         let arrows = lines(of: stateMachine.dotDiagram).filter { $0.hasPrefix(#""paid" -> "shipped""#) }
@@ -163,7 +163,7 @@ struct DotDiagramTests {
         // Many events, as a few could come out sorted without being sorted.
         let events = ["j", "c", "h", "a", "f", "i", "b", "e", "g", "d"]
         let stateMachine = try NamedStateMachine(
-            transitions: Set(events.map { StateTransition(from: one, event: $0, to: two) }),
+            transitions: Set(events.map { TransitionRule(from: one, event: $0, to: two) }),
             initialState: one)
 
         #expect(lines(of: stateMachine.dotDiagram).contains(#""one" -> "two" [label="a, b, c, d, e, f, g, h, i, j"]"#))
@@ -284,9 +284,9 @@ struct DotDiagramTests {
         let carriage = NamedState(id: 4, description: "carriage\r\nreturn")
 
         let stateMachine = try NamedStateMachine(transitions: [
-            StateTransition(from: quote, event: #"a "quoted" event"#, to: slash),
-            StateTransition(from: slash, event: "line\nbreak", to: lines),
-            StateTransition(from: lines, event: #"back\slash"#, to: carriage),
+            TransitionRule(from: quote, event: #"a "quoted" event"#, to: slash),
+            TransitionRule(from: slash, event: "line\nbreak", to: lines),
+            TransitionRule(from: lines, event: #"back\slash"#, to: carriage),
         ], initialState: quote)
 
         #expect(stateMachine.dotDiagram == #"""
@@ -316,7 +316,7 @@ struct DotDiagramTests {
     /// A chain of states with the descriptions, the first being the initial state.
     private func makeChain(of descriptions: [String]) throws -> NamedStateMachine {
         let states = descriptions.enumerated().map { NamedState(id: $0, description: $1) }
-        let transitions = zip(states, states.dropFirst()).map { StateTransition(from: $0, event: "go", to: $1) }
+        let transitions = zip(states, states.dropFirst()).map { TransitionRule(from: $0, event: "go", to: $1) }
         return try StateMachine(transitions: Set(transitions), initialState: states[0])
     }
 
@@ -378,8 +378,8 @@ struct DotDiagramTests {
         let twinB = NamedState(id: 3, description: "twin")
 
         let stateMachine = try NamedStateMachine(transitions: [
-            StateTransition(from: start, event: "to a", to: twinA),
-            StateTransition(from: start, event: "to b", to: twinB),
+            TransitionRule(from: start, event: "to a", to: twinA),
+            TransitionRule(from: start, event: "to b", to: twinB),
         ], initialState: start)
         let lines = lines(of: stateMachine.dotDiagram)
 
@@ -402,7 +402,7 @@ struct DotDiagramTests {
         let end = NamedState(id: 2, description: "end")
 
         let stateMachine = try NamedStateMachine(transitions: [
-            StateTransition(from: star, event: "go", to: end),
+            TransitionRule(from: star, event: "go", to: end),
         ], initialState: star)
 
         #expect(stateMachine.dotDiagram == """
@@ -427,8 +427,8 @@ struct DotDiagramTests {
         let numbered = NamedState(id: 3, description: "twin (2)")
 
         let stateMachine = try NamedStateMachine(transitions: [
-            StateTransition(from: twinA, event: "go", to: twinB),
-            StateTransition(from: twinB, event: "go", to: numbered),
+            TransitionRule(from: twinA, event: "go", to: twinB),
+            TransitionRule(from: twinB, event: "go", to: numbered),
         ], initialState: twinA)
         let lines = lines(of: stateMachine.dotDiagram)
 

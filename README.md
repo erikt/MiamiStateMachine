@@ -23,7 +23,7 @@ the framework.
 A `StateMachine` has a `state: State` (the current state). The `State` is a type
 conforming to `Hashable` and `Sendable`. An `enum` defining the possible states works well. 
 
-The transitions between states are defined by `StateTransition`, a value with the `from: State`, the
+The transitions between states are defined by `TransitionRule`, a value with the `from: State`, the
 `event: Event` needed to do the transition and the `to: State` where the state machine ends up.
 
 The `Event` is a type conforming to `StateMachineEvent`, usually an enum.
@@ -69,12 +69,12 @@ enum MyEvent: StateMachineEvent {
 The state machine is defined by the transitions it can do:
 
 ```
-typealias MyTransition = StateTransition<MyEvent, MyState>
+typealias MyTransition = TransitionRule<MyEvent, MyState>
 
 let transitions: Set<MyTransition> = [
-    StateTransition(from: .s1, event: .e1, to: .s2),
-    StateTransition(from: .s2, event: .e2, to: .s3),
-    StateTransition(from: .s1, event: .e3, to: .s3),
+    TransitionRule(from: .s1, event: .e1, to: .s2),
+    TransitionRule(from: .s2, event: .e2, to: .s3),
+    TransitionRule(from: .s1, event: .e3, to: .s3),
 ]
 ```
 
@@ -138,8 +138,7 @@ if let transition = await stateMachine.process(.e1) {
 ## Events with values
 
 An event can carry something, like the data loaded or the reason for a failure. The transitions are then written
-with the event symbol (as in *a symbol from the input alphabet of a state machine* in automata theory), which is the
-event without what it carries:
+with the event trigger, which is the event without what it carries:
 
 ```
 enum LoadState {
@@ -151,27 +150,27 @@ enum LoadEvent: StateMachineEvent {
     case finish(bytes: Int)
     case fail(reason: String)
 
-    enum EventSymbol {
+    enum EventTrigger {
         case start, finish, fail
     }
 
-    var eventSymbol: EventSymbol {
-        // Map event to symbol
+    var eventTrigger: EventTrigger {
+        // Map event to trigger
         switch self {
         case LoadEvent.start:
-            return EventSymbol.start
+            return EventTrigger.start
         case LoadEvent.finish:
-            return EventSymbol.finish
+            return EventTrigger.finish
         case LoadEvent.fail:
-            return EventSymbol.fail
+            return EventTrigger.fail
         }
     }
 }
 
-let transitions: Set<StateTransition<LoadEvent.EventSymbol, LoadState>> = [
-    StateTransition(from: .idle, event: .start, to: .loading),
-    StateTransition(from: .loading, event: .finish, to: .ready),
-    StateTransition(from: .loading, event: .fail, to: .failed),
+let transitions: Set<TransitionRule<LoadEvent.EventTrigger, LoadState>> = [
+    TransitionRule(from: .idle, event: .start, to: .loading),
+    TransitionRule(from: .loading, event: .finish, to: .ready),
+    TransitionRule(from: .loading, event: .fail, to: .failed),
 ]
 
 let stateMachine = try StateMachine<LoadEvent, LoadState>(transitions: transitions, initialState: .idle)
@@ -200,8 +199,8 @@ if let made = await stateMachine.process(.finish(bytes: 512)) {
 // Loaded 512 bytes
 ```
 
-An event carrying something has to have an `EventSymbol` of its own, as above. Without one it is its own symbol, and what it
-carries then decides the transition.
+An event carrying something has to have an `EventTrigger` of its own, as above. Without one it is its own trigger,
+and what it carries then decides the transition.
 
 Keep in mind, the log keeps the events, including the carried values. If the values are large, keep memory consumption
 down by setting a capacity on the state machine log:
@@ -336,7 +335,7 @@ for transition in path ?? [] {
 }
 ```
 
-For events carrying something, the transitions of the path have the event symbols to process, and not the events.
+For events carrying something, the transitions of the path have the event triggers to process, and not the events.
 
 If there is no way to get to the state, the path is `nil`. The path from a state to the same state is empty. If there is
 more than one shortest path, one of them is returned.

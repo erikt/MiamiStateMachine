@@ -1,9 +1,9 @@
-/// A transition connects two states via an event. The transition
-/// is only defined in one direction (from a state to another state).
+/// A rule of the definition of a state machine: the transition from a state,
+/// for an event, to another state. A rule only leads in one direction.
 ///
-/// A transition can be encoded when its event and states can, and decoded
+/// A rule can be encoded when its event and states can, and decoded
 /// when they can be decoded. The keys are `from`, `event` and `to`.
-public struct StateTransition<Event: Hashable & Sendable, State: Hashable & Sendable> {
+public struct TransitionRule<Event: Hashable & Sendable, State: Hashable & Sendable> {
     
     /// The transition from state.
     public let from: State
@@ -27,13 +27,13 @@ public struct StateTransition<Event: Hashable & Sendable, State: Hashable & Send
     }
 }
 
-extension StateTransition: Sendable { }
-extension StateTransition: Equatable { }
-extension StateTransition: Hashable { }
-extension StateTransition: Encodable where Event: Encodable, State: Encodable { }
-extension StateTransition: Decodable where Event: Decodable, State: Decodable { }
+extension TransitionRule: Sendable { }
+extension TransitionRule: Equatable { }
+extension TransitionRule: Hashable { }
+extension TransitionRule: Encodable where Event: Encodable, State: Encodable { }
+extension TransitionRule: Decodable where Event: Decodable, State: Decodable { }
 
-extension StateTransition: CustomStringConvertible {
+extension TransitionRule: CustomStringConvertible {
     public var description: String {
         return "\(from) --(\(event))--> \(to)"
     }

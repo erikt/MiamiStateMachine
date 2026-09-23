@@ -17,11 +17,11 @@ struct ObservablePayloadTests {
         case show(count: Int)
         case clear
 
-        enum EventSymbol {
+        enum EventTrigger {
             case search, show, clear
         }
 
-        var eventSymbol: EventSymbol {
+        var eventTrigger: EventTrigger {
             switch self {
             case .search: .search
             case .show: .show
@@ -30,11 +30,11 @@ struct ObservablePayloadTests {
         }
     }
 
-    static let transitions: Set<StateTransition<SearchEvent.EventSymbol, SearchState>> = [
-        StateTransition(from: .empty, event: .search, to: .searching),
-        StateTransition(from: .searching, event: .show, to: .results),
-        StateTransition(from: .results, event: .search, to: .searching),
-        StateTransition(from: .results, event: .clear, to: .empty),
+    static let transitions: Set<TransitionRule<SearchEvent.EventTrigger, SearchState>> = [
+        TransitionRule(from: .empty, event: .search, to: .searching),
+        TransitionRule(from: .searching, event: .show, to: .results),
+        TransitionRule(from: .results, event: .search, to: .searching),
+        TransitionRule(from: .results, event: .clear, to: .empty),
     ]
 
     @available(macOS 14.0, iOS 17.0, tvOS 17.0, watchOS 10.0, visionOS 1.0, *)

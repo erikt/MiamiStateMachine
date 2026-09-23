@@ -31,11 +31,11 @@ struct StreamTests {
         }
 
         #expect(await elements(of: stream) == [
-            TransitionMade(from: .cart, event: .addItem, to: .cart),
-            TransitionMade(from: .cart, event: .checkOut, to: .checkout),
-            TransitionMade(from: .checkout, event: .pay, to: .paid),
-            TransitionMade(from: .paid, event: .ship, to: .shipped),
-            TransitionMade(from: .shipped, event: .deliver, to: .delivered),
+            TransitionEvent(from: .cart, event: .addItem, to: .cart),
+            TransitionEvent(from: .cart, event: .checkOut, to: .checkout),
+            TransitionEvent(from: .checkout, event: .pay, to: .paid),
+            TransitionEvent(from: .paid, event: .ship, to: .shipped),
+            TransitionEvent(from: .shipped, event: .deliver, to: .delivered),
         ])
     }
 
@@ -340,7 +340,7 @@ struct StreamTests {
         processed: Int,
         stateChanges: Int,
         rejected: Int,
-        log: [TransitionMade<OrderEvent, OrderState>],
+        log: [TransitionEvent<OrderEvent, OrderState>],
         state: OrderState
     ) {
         let stateMachine = try makeStateMachine()

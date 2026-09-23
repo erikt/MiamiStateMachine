@@ -13,11 +13,11 @@ struct MiamiStateMachineTests {
         case s1ToS2, s2ToS3, s1ToS3, s3ToEnd
     }
 
-    let t1: Set<StateTransition<E1, S1>> = [
-        StateTransition(from: .s1, event: .s1ToS2, to: .s2),
-        StateTransition(from: .s1, event: .s1ToS3, to: .s3),
-        StateTransition(from: .s2, event: .s2ToS3, to: .s3),
-        StateTransition(from: .s3, event: .s3ToEnd, to: .end)
+    let t1: Set<TransitionRule<E1, S1>> = [
+        TransitionRule(from: .s1, event: .s1ToS2, to: .s2),
+        TransitionRule(from: .s1, event: .s1ToS3, to: .s3),
+        TransitionRule(from: .s2, event: .s2ToS3, to: .s3),
+        TransitionRule(from: .s3, event: .s3ToEnd, to: .end)
     ]
 
     // --
@@ -30,11 +30,11 @@ struct MiamiStateMachineTests {
         case e1, e2, e3
     }
 
-    let illegalT: Set<StateTransition<E2, S2>> = [
-        StateTransition(from: .s1, event: .e1, to: .s2),
-        StateTransition(from: .s2, event: .e2, to: .s3),
-        StateTransition(from: .s1, event: .e3, to: .s3),
-        StateTransition(from: .s1, event: .e3, to: .s2)
+    let illegalT: Set<TransitionRule<E2, S2>> = [
+        TransitionRule(from: .s1, event: .e1, to: .s2),
+        TransitionRule(from: .s2, event: .e2, to: .s3),
+        TransitionRule(from: .s1, event: .e3, to: .s3),
+        TransitionRule(from: .s1, event: .e3, to: .s2)
     ]
 
     // --
@@ -47,13 +47,13 @@ struct MiamiStateMachineTests {
         case e1, e2, e3, e4
     }
 
-    typealias MyTransition = StateTransition<MyEvent, MyState>
+    typealias MyTransition = TransitionRule<MyEvent, MyState>
 
     let transitions: Set<MyTransition> = [
-        StateTransition(from: .s1, event: .e1, to: .s2),
-        StateTransition(from: .s2, event: .e2, to: .s3),
-        StateTransition(from: .s1, event: .e3, to: .s3),
-        StateTransition(from: .s1, event: .e4, to: .s1)
+        TransitionRule(from: .s1, event: .e1, to: .s2),
+        TransitionRule(from: .s2, event: .e2, to: .s3),
+        TransitionRule(from: .s1, event: .e3, to: .s3),
+        TransitionRule(from: .s1, event: .e4, to: .s1)
     ]
 
     // MARK: - Tests
@@ -131,10 +131,10 @@ struct MiamiStateMachineTests {
         let demoSm = try StateMachine(transitions: transitions, initialState: .s1)
         await demoSm.process(.e4)
         var log = await demoSm.transitionLog
-        let expectedT1: MyTransition = StateTransition(from: .s1, event: .e4, to: .s1)
+        let expectedT1: MyTransition = TransitionRule(from: .s1, event: .e4, to: .s1)
         #expect(log.last == log.first, "Last log entry and oldest log entry should be the same")
         #expect(log.count == 1, "Number of log entries should be 1")
-        #expect(log.last?.transition == expectedT1, "Last log entry should be from s1")
+        #expect(log.last?.rule == expectedT1, "Last log entry should be from s1")
 
         // Three more times back to s1, and then on to s2 and s3.
         let events: [MyEvent] = [.e4, .e4, .e4, .e1, .e2]
@@ -144,9 +144,9 @@ struct MiamiStateMachineTests {
             #expect(log.count == number + 2, "There should be \(number + 2) log entries, not \(log.count)")
         }
 
-        let expOld: MyTransition = StateTransition(from: .s1, event: .e4, to: .s1)
-        let expLast: MyTransition = StateTransition(from: .s2, event: .e2, to: .s3)
-        #expect(log.first?.transition == expOld, "Oldest entry is not expected")
-        #expect(log.last?.transition == expLast, "Last entry is not expected")
+        let expOld: MyTransition = TransitionRule(from: .s1, event: .e4, to: .s1)
+        let expLast: MyTransition = TransitionRule(from: .s2, event: .e2, to: .s3)
+        #expect(log.first?.rule == expOld, "Oldest entry is not expected")
+        #expect(log.last?.rule == expLast, "Last entry is not expected")
     }
 }

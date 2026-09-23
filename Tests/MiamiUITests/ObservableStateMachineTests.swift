@@ -260,6 +260,6 @@ struct ObservableStateMachineTests {
             try ObservableStateMachine(transitions: DoorFixture.transitions.union([conflict]), initialState: .closed)
         }
 
-        #expect(error.conflictingTransitions == [conflict, StateTransition(from: .closed, event: .open, to: .opened)])
+        #expect(error.conflictingTransitions == [conflict, TransitionRule(from: .closed, event: .open, to: .opened)])
     }
 }

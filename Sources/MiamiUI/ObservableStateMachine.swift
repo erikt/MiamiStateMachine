@@ -58,8 +58,8 @@ public final class ObservableStateMachine<Event: StateMachineEvent, State: Hasha
 
     // MARK: - Computed properties
 
-    /// All event symbols the state machine accepts at the current state.
-    public var eventsFromCurrent: Set<Event.EventSymbol> {
+    /// All event triggers the state machine accepts at the current state.
+    public var eventsFromCurrent: Set<Event.EventTrigger> {
         stateMachine.events(from: state)
     }
 
@@ -106,7 +106,7 @@ public final class ObservableStateMachine<Event: StateMachineEvent, State: Hasha
     ///   number of entries in the transition log.
     /// - Throws: A `DefinitionError` with the transitions in conflict, if the
     /// transitions do not define a consistent state machine.
-    public convenience init(transitions: Set<StateTransition<Event.EventSymbol, State>>,
+    public convenience init(transitions: Set<TransitionRule<Event.EventTrigger, State>>,
                             initialState: State,
                             logCapacity: UInt? = nil) throws(StateMachine<Event, State>.DefinitionError)
     {
@@ -137,21 +137,21 @@ public final class ObservableStateMachine<Event: StateMachineEvent, State: Hasha
     }
 
     /// If the state machine accepts an event at the current state. Only the
-    /// symbol of the event matters, and not what it carries.
+    /// trigger of the event matters, and not what it carries.
     /// - Parameter event: Event to check.
     /// - Returns: If there is a transition for the event from the current state.
     public func accepts(_ event: Event) -> Bool {
-        stateMachine.transition(from: state, for: event.eventSymbol) != nil
+        stateMachine.transition(from: state, for: event.eventTrigger) != nil
     }
 }
 
-// MARK: - Events being their own symbol
+// MARK: - Events being their own trigger
 
 @available(macOS 14.0, iOS 17.0, tvOS 17.0, watchOS 10.0, visionOS 1.0, *)
-extension ObservableStateMachine where Event.EventSymbol == Event {
+extension ObservableStateMachine where Event.EventTrigger == Event {
 
     /// Creates an observable state machine with a new state machine, for
-    /// events being their own symbol, which events without anything to carry
+    /// events being their own trigger, which events without anything to carry
     /// are. The type of the events is then known from the transitions.
     /// - Parameters:
     ///   - transitions: Transitions defining the state machine.
@@ -160,7 +160,7 @@ extension ObservableStateMachine where Event.EventSymbol == Event {
     ///   number of entries in the transition log.
     /// - Throws: A `DefinitionError` with the transitions in conflict, if the
     /// transitions do not define a consistent state machine.
-    public convenience init(transitions: Set<StateTransition<Event, State>>,
+    public convenience init(transitions: Set<TransitionRule<Event, State>>,
                             initialState: State,
                             logCapacity: UInt? = nil) throws(StateMachine<Event, State>.DefinitionError)
     {

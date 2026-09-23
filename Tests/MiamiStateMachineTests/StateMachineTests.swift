@@ -19,7 +19,7 @@ struct StateMachineTests {
         }
 
         #expect(error.conflictingTransitions == [
-            StateTransition(from: .checkout, event: .pay, to: .paid),
+            TransitionRule(from: .checkout, event: .pay, to: .paid),
             conflict,
         ])
     }
@@ -27,15 +27,15 @@ struct StateMachineTests {
     @Test func everyConflictIsReportedAtOnce() throws {
         let transitions: Set<OrderTransition> = [
             // Checking out leads three ways from the cart.
-            StateTransition(from: .cart, event: .checkOut, to: .checkout),
-            StateTransition(from: .cart, event: .checkOut, to: .paid),
-            StateTransition(from: .cart, event: .checkOut, to: .cancelled),
+            TransitionRule(from: .cart, event: .checkOut, to: .checkout),
+            TransitionRule(from: .cart, event: .checkOut, to: .paid),
+            TransitionRule(from: .cart, event: .checkOut, to: .cancelled),
             // Shipping leads two ways from paid.
-            StateTransition(from: .paid, event: .ship, to: .shipped),
-            StateTransition(from: .paid, event: .ship, to: .delivered),
+            TransitionRule(from: .paid, event: .ship, to: .shipped),
+            TransitionRule(from: .paid, event: .ship, to: .delivered),
             // Not part of any conflict.
-            StateTransition(from: .cart, event: .cancel, to: .cancelled),
-            StateTransition(from: .shipped, event: .deliver, to: .delivered),
+            TransitionRule(from: .cart, event: .cancel, to: .cancelled),
+            TransitionRule(from: .shipped, event: .deliver, to: .delivered),
         ]
 
         let error = try #require(throws: OrderStateMachine.DefinitionError.self) {
@@ -48,7 +48,7 @@ struct StateMachineTests {
     @Test func errorDescribesManyConflictsInOrder() throws {
         // Many conflicts, as a few could come out sorted without being sorted.
         let names = ["j", "c", "h", "a", "f", "i", "b", "e", "g", "d"]
-        let transitions = Set(names.map { StateTransition(from: "start", event: "go", to: $0) })
+        let transitions = Set(names.map { TransitionRule(from: "start", event: "go", to: $0) })
 
         let error = try #require(throws: StateMachine<String, String>.DefinitionError.self) {
             try StateMachine(transitions: transitions, initialState: "start")
@@ -60,9 +60,9 @@ struct StateMachineTests {
 
     @Test func errorDescribesTheConflictTheSameWayEveryTime() throws {
         let transitions: Set<OrderTransition> = [
-            StateTransition(from: .checkout, event: .pay, to: .paid),
-            StateTransition(from: .checkout, event: .pay, to: .cancelled),
-            StateTransition(from: .cart, event: .checkOut, to: .checkout),
+            TransitionRule(from: .checkout, event: .pay, to: .paid),
+            TransitionRule(from: .checkout, event: .pay, to: .cancelled),
+            TransitionRule(from: .cart, event: .checkOut, to: .checkout),
         ]
 
         let error = try #require(throws: OrderStateMachine.DefinitionError.self) {
@@ -79,13 +79,13 @@ struct StateMachineTests {
     @Test func consistentDefinitionIsAccepted() {
         let transitions: Set<OrderTransition> = [
             // Two events between the same two states.
-            StateTransition(from: .paid, event: .ship, to: .shipped),
-            StateTransition(from: .paid, event: .shipExpress, to: .shipped),
+            TransitionRule(from: .paid, event: .ship, to: .shipped),
+            TransitionRule(from: .paid, event: .shipExpress, to: .shipped),
             // The same event from two states, leading to different states.
-            StateTransition(from: .cart, event: .cancel, to: .cancelled),
-            StateTransition(from: .checkout, event: .cancel, to: .cart),
+            TransitionRule(from: .cart, event: .cancel, to: .cancelled),
+            TransitionRule(from: .checkout, event: .cancel, to: .cart),
             // A transition leading back to the same state.
-            StateTransition(from: .cart, event: .addItem, to: .cart),
+            TransitionRule(from: .cart, event: .addItem, to: .cart),
         ]
 
         #expect(throws: Never.self) {
@@ -105,14 +105,14 @@ struct StateMachineTests {
 
     // MARK: - Processing events
 
-    @Test func processReturnsTheTransitionMade() async throws {
+    @Test func processReturnsTheTransitionEvent() async throws {
         let stateMachine = try makeStateMachine()
 
-        #expect(await stateMachine.process(.checkOut) == TransitionMade(from: .cart, event: .checkOut, to: .checkout))
-        #expect(await stateMachine.process(.editCart) == TransitionMade(from: .checkout, event: .editCart, to: .cart))
+        #expect(await stateMachine.process(.checkOut) == TransitionEvent(from: .cart, event: .checkOut, to: .checkout))
+        #expect(await stateMachine.process(.editCart) == TransitionEvent(from: .checkout, event: .editCart, to: .cart))
 
         // Leading back to the same state is a transition as well.
-        #expect(await stateMachine.process(.addItem) == TransitionMade(from: .cart, event: .addItem, to: .cart))
+        #expect(await stateMachine.process(.addItem) == TransitionEvent(from: .cart, event: .addItem, to: .cart))
     }
 
     @Test func processReturnsNilForRejectedEvent() async throws {
@@ -159,25 +159,25 @@ struct StateMachineTests {
         let stateMachine = try makeStateMachine()
 
         #expect(stateMachine.transitionCount == 10)
-        #expect(stateMachine.transition(from: .cart, for: .buyNow) == StateTransition(from: .cart, event: .buyNow, to: .paid))
+        #expect(stateMachine.transition(from: .cart, for: .buyNow) == TransitionRule(from: .cart, event: .buyNow, to: .paid))
         #expect(stateMachine.transition(from: .cart, for: .ship) == nil, "There is nothing to ship in the cart.")
 
         #expect(stateMachine.transitions(from: .checkout) == [
-            StateTransition(from: .checkout, event: .editCart, to: .cart),
-            StateTransition(from: .checkout, event: .pay, to: .paid),
-            StateTransition(from: .checkout, event: .cancel, to: .cancelled),
+            TransitionRule(from: .checkout, event: .editCart, to: .cart),
+            TransitionRule(from: .checkout, event: .pay, to: .paid),
+            TransitionRule(from: .checkout, event: .cancel, to: .cancelled),
         ])
         #expect(stateMachine.transitions(to: .paid) == [
-            StateTransition(from: .cart, event: .buyNow, to: .paid),
-            StateTransition(from: .checkout, event: .pay, to: .paid),
+            TransitionRule(from: .cart, event: .buyNow, to: .paid),
+            TransitionRule(from: .checkout, event: .pay, to: .paid),
         ])
         #expect(stateMachine.transitions(from: .cart, to: .paid) == [
-            StateTransition(from: .cart, event: .buyNow, to: .paid),
+            TransitionRule(from: .cart, event: .buyNow, to: .paid),
         ])
         #expect(stateMachine.transitions(to: .cancelled, for: .cancel) == [
-            StateTransition(from: .cart, event: .cancel, to: .cancelled),
-            StateTransition(from: .checkout, event: .cancel, to: .cancelled),
-            StateTransition(from: .paid, event: .cancel, to: .cancelled),
+            TransitionRule(from: .cart, event: .cancel, to: .cancelled),
+            TransitionRule(from: .checkout, event: .cancel, to: .cancelled),
+            TransitionRule(from: .paid, event: .cancel, to: .cancelled),
         ])
         #expect(stateMachine.transitions(to: .cancelled, for: .pay).isEmpty)
         #expect(stateMachine.transitions(from: .delivered).isEmpty)
@@ -221,7 +221,7 @@ struct StateMachineTests {
 
     @Test func stateOnlyLeadingBackToItselfIsNotAnEndingState() async throws {
         let stateMachine = try StateMachine(transitions: [
-            StateTransition(from: OrderState.cart, event: OrderEvent.addItem, to: .cart),
+            TransitionRule(from: OrderState.cart, event: OrderEvent.addItem, to: .cart),
         ], initialState: .cart)
 
         #expect(stateMachine.isEndingState(.cart) == false)
@@ -239,13 +239,13 @@ struct StateMachineTests {
         #expect(await stateMachine.eventsToCurrent == [.checkOut])
         #expect(await stateMachine.transitionsFromCurrent == stateMachine.transitions(from: .checkout))
         #expect(await stateMachine.transitionsToCurrent == [
-            StateTransition(from: .cart, event: .checkOut, to: .checkout),
+            TransitionRule(from: .cart, event: .checkOut, to: .checkout),
         ])
         #expect(await stateMachine.transitionsFromCurrent(to: .paid) == [
-            StateTransition(from: .checkout, event: .pay, to: .paid),
+            TransitionRule(from: .checkout, event: .pay, to: .paid),
         ])
         #expect(await stateMachine.transitionsToCurrent(from: .cart) == [
-            StateTransition(from: .cart, event: .checkOut, to: .checkout),
+            TransitionRule(from: .cart, event: .checkOut, to: .checkout),
         ])
         #expect(await stateMachine.transitionsToCurrent(from: .paid).isEmpty)
         #expect(await stateMachine.canTransition(to: .paid))
@@ -287,8 +287,8 @@ struct StateMachineTests {
 
         let log = await stateMachine.transitionLog
         #expect(log.count == 2)
-        #expect(log.first == TransitionMade(from: .paid, event: .ship, to: .shipped))
-        #expect(log.last == TransitionMade(from: .shipped, event: .deliver, to: .delivered))
+        #expect(log.first == TransitionEvent(from: .paid, event: .ship, to: .shipped))
+        #expect(log.last == TransitionEvent(from: .shipped, event: .deliver, to: .delivered))
         #expect(await stateMachine.stateChangeCount == 4, "The counters should not depend on the log.")
     }
 
@@ -327,18 +327,18 @@ struct StateMachineTests {
         #expect(await stateMachine.enteredWith == nil)
     }
 
-    @Test func enteredWithIsLastTransitionMade() async throws {
+    @Test func enteredWithIsLastTransitionEvent() async throws {
         let stateMachine = try StateMachine(transitions: OrderFixture.transitions, initialState: .cart)
 
         await stateMachine.process(.checkOut)
-        #expect(await stateMachine.enteredWith == TransitionMade(from: .cart, event: .checkOut, to: .checkout))
+        #expect(await stateMachine.enteredWith == TransitionEvent(from: .cart, event: .checkOut, to: .checkout))
 
         await stateMachine.process(.pay)
-        #expect(await stateMachine.enteredWith == TransitionMade(from: .checkout, event: .pay, to: .paid))
+        #expect(await stateMachine.enteredWith == TransitionEvent(from: .checkout, event: .pay, to: .paid))
 
         // A rejected event does not change how the state was entered.
         await stateMachine.process(.checkOut)
-        #expect(await stateMachine.enteredWith == TransitionMade(from: .checkout, event: .pay, to: .paid))
+        #expect(await stateMachine.enteredWith == TransitionEvent(from: .checkout, event: .pay, to: .paid))
     }
 
     @Test(arguments: [0, 1, nil] as [UInt?])
@@ -349,6 +349,6 @@ struct StateMachineTests {
         await stateMachine.process(.checkOut)
         await stateMachine.process(.pay)
 
-        #expect(await stateMachine.enteredWith == TransitionMade(from: .checkout, event: .pay, to: .paid))
+        #expect(await stateMachine.enteredWith == TransitionEvent(from: .checkout, event: .pay, to: .paid))
     }
 }

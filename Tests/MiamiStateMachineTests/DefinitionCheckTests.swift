@@ -85,7 +85,7 @@ struct DefinitionCheckTests {
         // A returned order can be paid again, but the transition
         // returning an order is forgotten.
         let stateMachine = try makeStateMachine(adding: [
-            StateTransition(from: .returned, event: .pay, to: .paid),
+            TransitionRule(from: .returned, event: .pay, to: .paid),
         ])
 
         #expect(stateMachine.states.contains(.returned))
@@ -106,8 +106,8 @@ struct DefinitionCheckTests {
     @Test func stateOnlyLeadingBackToItselfHasNoPathToAnEndingState() throws {
         // A paid order can be returned, but a returned order can only be edited.
         let stateMachine = try makeStateMachine(adding: [
-            StateTransition(from: .paid, event: .editCart, to: .returned),
-            StateTransition(from: .returned, event: .editCart, to: .returned),
+            TransitionRule(from: .paid, event: .editCart, to: .returned),
+            TransitionRule(from: .returned, event: .editCart, to: .returned),
         ])
 
         // Paid still leads to shipped, so only returned is without a path.
@@ -197,12 +197,12 @@ struct DefinitionCheckTests {
             // Few states and events, to get cycles, several events
             // between states, and states out of reach.
             let stateCount = Int.random(in: 1 ... 12, using: &generator)
-            var transitions: Set<StateTransition<Int, Int>> = []
+            var transitions: Set<TransitionRule<Int, Int>> = []
             for state in 0 ..< stateCount {
                 for event in 0 ..< 3 where Int.random(in: 0 ..< 3, using: &generator) == 0 {
                     // One transition at most for a state and an event, to be consistent.
                     let newState = Int.random(in: 0 ..< stateCount, using: &generator)
-                    transitions.insert(StateTransition(from: state, event: event, to: newState))
+                    transitions.insert(TransitionRule(from: state, event: event, to: newState))
                 }
             }
 

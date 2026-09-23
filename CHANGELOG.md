@@ -6,6 +6,16 @@ All changes to MiamiStateMachine that users of the package will notice. The form
 
 ## [Unreleased]
 
+### Changed
+
+- **Breaking:** `StateTransition`, a rule of the definition, is renamed to `TransitionRule`.
+- **Breaking:** `TransitionMade`, a transition made when an event was processed, is renamed to `TransitionEvent`. Its
+  property `transition` is renamed to `rule`.
+- **Breaking:** The associated type `EventSymbol` of `StateMachineEvent` is renamed to `EventTrigger`, and the property
+  `eventSymbol` to `eventTrigger`.
+
+The saved formats do not change, as the keys are the names of the properties.
+
 ## [2.0.0] - 2026-09-23
 
 Events can carry something, like the data loaded or the reason for a failure. This changes the API.

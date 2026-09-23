@@ -49,9 +49,9 @@ struct LargeDefinitionTests {
     }
 
     /// A ring of states, where the event 0 leads from every state to the next one.
-    private func makeRing() -> Set<StateTransition<Int, CountedState>> {
+    private func makeRing() -> Set<TransitionRule<Int, CountedState>> {
         Set((0 ..< stateCount).map { number in
-            StateTransition(from: state(number), event: 0, to: state(number + 1))
+            TransitionRule(from: state(number), event: 0, to: state(number + 1))
         })
     }
 
@@ -86,7 +86,7 @@ struct LargeDefinitionTests {
     @Test func checksOfTheDefinitionDoNotSearchFromEveryState() throws {
         // The ring, and a way out of it to an ending state.
         let ending = CountedState(number: stateCount, comparisons: comparisons)
-        let transitions = makeRing().union([StateTransition(from: state(0), event: 1, to: ending)])
+        let transitions = makeRing().union([TransitionRule(from: state(0), event: 1, to: ending)])
         let stateMachine = try StateMachine(transitions: transitions, initialState: state(0))
         let comparisonsBefore = comparisons.value
 
@@ -103,7 +103,7 @@ struct LargeDefinitionTests {
     }
 
     @Test func conflictIsFoundInLargeDefinition() throws {
-        let conflict = StateTransition(from: state(1_000), event: 0, to: state(7))
+        let conflict = TransitionRule(from: state(1_000), event: 0, to: state(7))
         let transitions = makeRing().union([conflict])
 
         let error = try #require(throws: StateMachine<Int, CountedState>.DefinitionError.self) {
@@ -112,7 +112,7 @@ struct LargeDefinitionTests {
 
         #expect(error.conflictingTransitions == [
             conflict,
-            StateTransition(from: state(1_000), event: 0, to: state(1_001)),
+            TransitionRule(from: state(1_000), event: 0, to: state(1_001)),
         ])
     }
 }

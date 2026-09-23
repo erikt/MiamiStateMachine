@@ -25,7 +25,7 @@ struct MermaidDiagramTests {
     private func makeStateMachine(endingAt description: String, by event: String = "go") throws -> NamedStateMachine {
         let start = NamedState(id: 0, description: "start")
         return try StateMachine(transitions: [
-            StateTransition(from: start, event: event, to: NamedState(id: 1, description: description)),
+            TransitionRule(from: start, event: event, to: NamedState(id: 1, description: description)),
         ], initialState: start)
     }
 
@@ -80,8 +80,8 @@ struct MermaidDiagramTests {
 
     @Test func diagramWithoutEndingStatesHasNoArrowToTheEnd() throws {
         let stateMachine = try OrderStateMachine(transitions: [
-            StateTransition(from: .cart, event: .checkOut, to: .checkout),
-            StateTransition(from: .checkout, event: .editCart, to: .cart),
+            TransitionRule(from: .cart, event: .checkOut, to: .checkout),
+            TransitionRule(from: .checkout, event: .editCart, to: .cart),
         ], initialState: .checkout)
 
         #expect(stateMachine.mermaidDiagram == """
@@ -117,7 +117,7 @@ struct MermaidDiagramTests {
         // Many ending states, as a few could come out sorted without being sorted.
         let endings = ["j", "c", "h", "a", "f", "i", "b", "e", "g", "d"]
         let transitions = endings.enumerated().map { number, ending in
-            StateTransition(from: start, event: "to \(ending)", to: NamedState(id: number + 1, description: ending))
+            TransitionRule(from: start, event: "to \(ending)", to: NamedState(id: number + 1, description: ending))
         }
         let stateMachine = try NamedStateMachine(transitions: Set(transitions), initialState: start)
         let lines = lines(of: stateMachine.mermaidDiagram)
@@ -161,8 +161,8 @@ struct MermaidDiagramTests {
 
     @Test func eventsBetweenTheSameStatesShareOneArrow() throws {
         let transitions = OrderFixture.transitions.union([
-            StateTransition(from: .paid, event: .shipOnInvoice, to: .shipped),
-            StateTransition(from: .paid, event: .shipExpress, to: .shipped),
+            TransitionRule(from: .paid, event: .shipOnInvoice, to: .shipped),
+            TransitionRule(from: .paid, event: .shipExpress, to: .shipped),
         ])
         let stateMachine = try StateMachine(transitions: transitions, initialState: .cart)
         let arrows = lines(of: stateMachine.mermaidDiagram).filter { $0.hasPrefix("state5 --> state6") }
@@ -177,7 +177,7 @@ struct MermaidDiagramTests {
         // Many events, as a few could come out sorted without being sorted.
         let events = ["j", "c", "h", "a", "f", "i", "b", "e", "g", "d"]
         let stateMachine = try NamedStateMachine(
-            transitions: Set(events.map { StateTransition(from: one, event: $0, to: two) }),
+            transitions: Set(events.map { TransitionRule(from: one, event: $0, to: two) }),
             initialState: one)
 
         #expect(lines(of: stateMachine.mermaidDiagram).contains("state1 --> state2: a, b, c, d, e, f, g, h, i, j"))
@@ -287,11 +287,11 @@ struct MermaidDiagramTests {
         let unicode = NamedState(id: 6, description: "åäö 日本")
 
         let stateMachine = try NamedStateMachine(transitions: [
-            StateTransition(from: quote, event: "100%", to: semicolon),
-            StateTransition(from: semicolon, event: "#1", to: html),
-            StateTransition(from: html, event: "a: b", to: lines),
-            StateTransition(from: lines, event: #"back\slash"#, to: carriage),
-            StateTransition(from: carriage, event: "{x}", to: unicode),
+            TransitionRule(from: quote, event: "100%", to: semicolon),
+            TransitionRule(from: semicolon, event: "#1", to: html),
+            TransitionRule(from: html, event: "a: b", to: lines),
+            TransitionRule(from: lines, event: #"back\slash"#, to: carriage),
+            TransitionRule(from: carriage, event: "{x}", to: unicode),
         ], initialState: quote)
 
         // A line break is written as the one piece of HTML that Mermaid draws
@@ -378,8 +378,8 @@ struct MermaidDiagramTests {
         let twinB = NamedState(id: 3, description: "twin")
 
         let stateMachine = try NamedStateMachine(transitions: [
-            StateTransition(from: start, event: "to a", to: twinA),
-            StateTransition(from: start, event: "to b", to: twinB),
+            TransitionRule(from: start, event: "to a", to: twinA),
+            TransitionRule(from: start, event: "to b", to: twinB),
         ], initialState: start)
         let lines = lines(of: stateMachine.mermaidDiagram)
 

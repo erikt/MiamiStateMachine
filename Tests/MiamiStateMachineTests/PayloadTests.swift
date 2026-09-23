@@ -2,7 +2,7 @@ import Foundation
 import Testing
 import MiamiStateMachine
 
-/// Events carrying something. The definition is written in event symbols,
+/// Events carrying something. The definition is written in event triggers,
 /// and what an event carries is delivered with it, without being looked at.
 @Suite(.timeLimit(.minutes(1)))
 struct PayloadTests {
@@ -20,11 +20,11 @@ struct PayloadTests {
         case fail(reason: String)
         case retry
 
-        enum EventSymbol: String, Codable {
+        enum EventTrigger: String, Codable {
             case start, finish, fail, retry
         }
 
-        var eventSymbol: EventSymbol {
+        var eventTrigger: EventTrigger {
             switch self {
             case .start: .start
             case .finish: .finish
@@ -34,15 +34,15 @@ struct PayloadTests {
         }
     }
 
-    typealias LoadTransition = StateTransition<LoadEvent.EventSymbol, LoadState>
+    typealias LoadTransition = TransitionRule<LoadEvent.EventTrigger, LoadState>
     typealias LoadStateMachine = StateMachine<LoadEvent, LoadState>
 
     /// Loading can fail and be tried again. Ready is an ending state.
     static let transitions: Set<LoadTransition> = [
-        StateTransition(from: .idle, event: .start, to: .loading),
-        StateTransition(from: .loading, event: .finish, to: .ready),
-        StateTransition(from: .loading, event: .fail, to: .failed),
-        StateTransition(from: .failed, event: .retry, to: .loading),
+        TransitionRule(from: .idle, event: .start, to: .loading),
+        TransitionRule(from: .loading, event: .finish, to: .ready),
+        TransitionRule(from: .loading, event: .fail, to: .failed),
+        TransitionRule(from: .failed, event: .retry, to: .loading),
     ]
 
     private func makeStateMachine(logCapacity: UInt? = nil) throws -> LoadStateMachine {
@@ -57,7 +57,7 @@ struct PayloadTests {
 
         let made = try #require(await stateMachine.process(.finish(bytes: 512)))
 
-        #expect(made == TransitionMade(from: .loading, event: .finish(bytes: 512), to: .ready))
+        #expect(made == TransitionEvent(from: .loading, event: .finish(bytes: 512), to: .ready))
         #expect(await stateMachine.state == .ready)
 
         // What is carried comes out with its type, without any casting.
@@ -68,14 +68,14 @@ struct PayloadTests {
         #expect(bytes == 512)
     }
 
-    @Test func transitionMadeHasTheTransitionOfTheDefinition() async throws {
+    @Test func transitionEventHasTheTransitionOfTheDefinition() async throws {
         let stateMachine = try makeStateMachine()
         await stateMachine.process(.start)
 
         let made = try #require(await stateMachine.process(.fail(reason: "No connection")))
 
-        #expect(made.transition == StateTransition(from: .loading, event: .fail, to: .failed))
-        #expect(Self.transitions.contains(made.transition))
+        #expect(made.rule == TransitionRule(from: .loading, event: .fail, to: .failed))
+        #expect(Self.transitions.contains(made.rule))
     }
 
     @Test(arguments: [0, 1, 512, Int.max])
@@ -102,18 +102,18 @@ struct PayloadTests {
 
     // MARK: - The transition made as a value
 
-    @Test func transitionMadeIsDescribedWithItsEvent() {
-        let made = TransitionMade<LoadEvent, LoadState>(from: .loading, event: .finish(bytes: 512), to: .ready)
+    @Test func transitionEventIsDescribedWithItsEvent() {
+        let made = TransitionEvent<LoadEvent, LoadState>(from: .loading, event: .finish(bytes: 512), to: .ready)
 
         #expect(made.description == "loading --(finish(bytes: 512))--> ready")
     }
 
-    @Test func whatIsCarriedIsPartOfATransitionMade() {
-        let made = TransitionMade<LoadEvent, LoadState>(from: .loading, event: .finish(bytes: 1), to: .ready)
-        let other = TransitionMade<LoadEvent, LoadState>(from: .loading, event: .finish(bytes: 2), to: .ready)
+    @Test func whatIsCarriedIsPartOfATransitionEvent() {
+        let made = TransitionEvent<LoadEvent, LoadState>(from: .loading, event: .finish(bytes: 1), to: .ready)
+        let other = TransitionEvent<LoadEvent, LoadState>(from: .loading, event: .finish(bytes: 2), to: .ready)
 
         // The same transition of the definition, but not the same transition made.
-        #expect(made.transition == other.transition)
+        #expect(made.rule == other.rule)
         #expect(made != other)
         #expect(Set([made, other, made]).count == 2)
     }
@@ -154,7 +154,7 @@ struct PayloadTests {
         let stateMachine = try makeStateMachine()
 
         #expect(stateMachine.events(from: .loading) == [.finish, .fail])
-        #expect(stateMachine.transition(from: .failed, for: .retry) == StateTransition(from: .failed, event: .retry, to: .loading))
+        #expect(stateMachine.transition(from: .failed, for: .retry) == TransitionRule(from: .failed, event: .retry, to: .loading))
         #expect(stateMachine.shortestPath(from: .idle, to: .ready)?.map(\.event) == [.start, .finish])
         #expect(stateMachine.endingStates == [.ready])
 
@@ -164,13 +164,13 @@ struct PayloadTests {
 
     @Test func conflictIsBetweenKindsOfEvents() throws {
         // Loaded cannot lead from loading to two states, whatever it carries.
-        let conflict = StateTransition<LoadEvent.EventSymbol, LoadState>(from: .loading, event: .finish, to: .failed)
+        let conflict = TransitionRule<LoadEvent.EventTrigger, LoadState>(from: .loading, event: .finish, to: .failed)
 
         let error = try #require(throws: LoadStateMachine.DefinitionError.self) {
             try LoadStateMachine(transitions: Self.transitions.union([conflict]), initialState: .idle)
         }
 
-        #expect(error.conflictingTransitions == [conflict, StateTransition(from: .loading, event: .finish, to: .ready)])
+        #expect(error.conflictingTransitions == [conflict, TransitionRule(from: .loading, event: .finish, to: .ready)])
     }
 
     // MARK: - Events of other sorts
@@ -181,17 +181,17 @@ struct PayloadTests {
             let data: [UInt8]
         }
 
-        enum EventSymbol {
+        enum EventTrigger {
             case received
         }
 
         let attachment: Attachment
-        var eventSymbol: EventSymbol { .received }
+        var eventTrigger: EventTrigger { .received }
     }
 
     @Test func eventDoesNotHaveToBeHashable() async throws {
         let stateMachine = try StateMachine<Message, Int>(transitions: [
-            StateTransition(from: 0, event: .received, to: 1),
+            TransitionRule(from: 0, event: .received, to: 1),
         ], initialState: 0)
 
         let made = await stateMachine.process(Message(attachment: .init(data: [1, 2, 3])))
@@ -207,13 +207,13 @@ struct PayloadTests {
         let made = try #require(await stateMachine.process(.checkOut))
 
         #expect(made.event == .checkOut)
-        #expect(made.event.eventSymbol == .checkOut)
-        #expect(made.transition == StateTransition(from: .cart, event: .checkOut, to: .checkout))
+        #expect(made.event.eventTrigger == .checkOut)
+        #expect(made.rule == TransitionRule(from: .cart, event: .checkOut, to: .checkout))
     }
 
     @Test func stringsAndIntegersAreEventsAsTheyAre() async throws {
-        let byString = try StateMachine(transitions: [StateTransition(from: 0, event: "go", to: 1)], initialState: 0)
-        let byInteger = try StateMachine(transitions: [StateTransition(from: "a", event: 7, to: "b")], initialState: "a")
+        let byString = try StateMachine(transitions: [TransitionRule(from: 0, event: "go", to: 1)], initialState: 0)
+        let byInteger = try StateMachine(transitions: [TransitionRule(from: "a", event: 7, to: "b")], initialState: "a")
 
         #expect(await byString.process("go")?.to == 1)
         #expect(await byInteger.process(7)?.to == "b")
@@ -228,12 +228,12 @@ struct PayloadTests {
         return String(decoding: try encoder.encode(value), as: UTF8.self)
     }
 
-    @Test func transitionMadeIsSavedWithWhatItsEventCarries() throws {
-        let made = TransitionMade<LoadEvent, LoadState>(from: .loading, event: .finish(bytes: 512), to: .ready)
+    @Test func transitionEventIsSavedWithWhatItsEventCarries() throws {
+        let made = TransitionEvent<LoadEvent, LoadState>(from: .loading, event: .finish(bytes: 512), to: .ready)
 
         #expect(try json(made) == #"{"event":{"finish":{"bytes":512}},"from":"loading","to":"ready"}"#)
 
-        let read = try JSONDecoder().decode(TransitionMade<LoadEvent, LoadState>.self, from: Data(try json(made).utf8))
+        let read = try JSONDecoder().decode(TransitionEvent<LoadEvent, LoadState>.self, from: Data(try json(made).utf8))
         #expect(read == made)
     }
 
@@ -250,7 +250,7 @@ struct PayloadTests {
             {"event":{"retry":{}},"from":"failed","to":"loading"}]}
             """)
 
-        let read = try JSONDecoder().decode(CapacityLog<TransitionMade<LoadEvent, LoadState>>.self, from: Data(try json(log).utf8))
+        let read = try JSONDecoder().decode(CapacityLog<TransitionEvent<LoadEvent, LoadState>>.self, from: Data(try json(log).utf8))
         #expect(Array(read) == Array(log))
     }
 
