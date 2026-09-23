@@ -42,12 +42,13 @@ Add the package to the dependencies in `Package.swift`:
 ```
 
 Then add the libraries to use to the dependencies of a target. `MiamiStateMachine` is the state machine itself.
-`MiamiUI` and `MiamiDiagrams` are only needed for what is described further down:
+`MiamiUI`, `MiamiDiagrams` and `MiamiMacros` are only needed for what is described further down:
 
 ```
 .product(name: "MiamiStateMachine", package: "MiamiStateMachine"),
 .product(name: "MiamiUI", package: "MiamiStateMachine"),
 .product(name: "MiamiDiagrams", package: "MiamiStateMachine"),
+.product(name: "MiamiMacros", package: "MiamiStateMachine"),
 ```
 
 In Xcode, add it as a package dependency of the project, with the same URL.
@@ -201,6 +202,22 @@ if let made = await stateMachine.process(.finish(bytes: 512)) {
 
 An event carrying something has to have an `EventTrigger` of its own, as above. Without one it is its own trigger,
 and what it carries then decides the transition.
+
+The `MiamiMacros` library has a macro writing the triggers, the mapping and the conformance, so the events above can
+be written as:
+
+```
+import MiamiMacros
+
+@StateMachineEvent
+enum LoadEvent {
+    case start
+    case finish(bytes: Int)
+    case fail(reason: String)
+}
+```
+
+The macro is a plugin of the compiler, and Xcode asks for it to be trusted the first time it is used.
 
 Keep in mind, the log keeps the events, including the carried values. If the values are large, keep memory consumption
 down by setting a capacity on the state machine log:

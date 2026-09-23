@@ -16,6 +16,12 @@ All changes to MiamiStateMachine that users of the package will notice. The form
 
 The saved formats do not change, as the keys are the names of the properties.
 
+### Added
+
+- The library `MiamiMacros`, with the macro `@StateMachineEvent`. Attached to an enumeration of events, it writes the
+  triggers, the mapping from an event to its trigger, and the conformance to `StateMachineEvent`. The library needs
+  swift-syntax, so only clients importing it build swift-syntax.
+
 ## [2.0.0] - 2026-09-23
 
 Events can carry something, like the data loaded or the reason for a failure. This changes the API.
