@@ -28,7 +28,7 @@ public actor VendingMachine {
 
     /// The rules defining the state machine of the vending machine.
     public static let rules: Set<TransitionRule<VendingEvent.EventTrigger, VendingState>> = {
-        var rules: Set<TransitionRule<VendingEvent.EventTrigger, VendingState>> = [
+        let rules: Set<TransitionRule<VendingEvent.EventTrigger, VendingState>> = [
             TransitionRule(from: .idle, event: .insertCoin, to: .hasCredit),
             TransitionRule(from: .hasCredit, event: .insertCoin, to: .hasCredit),
             TransitionRule(from: .drinkReady, event: .insertCoin, to: .drinkReadyWithCredit),
@@ -47,13 +47,9 @@ public actor VendingMachine {
         ]
 
         // The machine can break down at every state, and be refilled at every state.
-        for state in VendingState.allCases where state != .outOfOrder {
-            rules.insert(TransitionRule(from: state, event: .breakDown, to: .outOfOrder))
-        }
-        for state in VendingState.allCases {
-            rules.insert(TransitionRule(from: state, event: .refill, to: state))
-        }
         return rules
+            .union(TransitionRule.from(allExcept: [.outOfOrder], event: .breakDown, to: .outOfOrder))
+            .union(TransitionRule.atEveryState(event: .refill))
     }()
 
     // MARK: - Private properties
