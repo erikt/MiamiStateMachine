@@ -38,7 +38,7 @@ MiamiStateMachine is a Swift package, and needs Swift 6.3 (Xcode 26.4) or later.
 Add the package to the dependencies in `Package.swift`:
 
 ```
-.package(url: "https://github.com/erikt/MiamiStateMachine.git", from: "3.2.0")
+.package(url: "https://github.com/erikt/MiamiStateMachine.git", from: "4.0.0")
 ```
 
 Then add the libraries to use to the dependencies of a target. `MiamiStateMachine` is the state machine itself.
@@ -243,6 +243,34 @@ down by setting a capacity on the state machine log:
 StateMachine<LoadEvent, LoadState>(transitions: transitions, initialState: .idle, logCapacity: 10)
 ```
 
+## The same event from many states
+
+When the same event leads from many states to one state, like a machine that can break down whatever it is doing, the
+rules can be made from the cases of a `CaseIterable` state:
+
+```
+enum VendingState: CaseIterable {
+    case idle, hasCredit, outOfOrder
+}
+
+enum VendingEvent: StateMachineEvent {
+    case insertCoin, repair, breakDown, refill
+}
+
+let rules: Set<TransitionRule<VendingEvent, VendingState>> = [
+    TransitionRule(from: .idle, event: .insertCoin, to: .hasCredit),
+    TransitionRule(from: .outOfOrder, event: .repair, to: .idle),
+]
+let transitions = rules
+    .union(TransitionRule.from(allExcept: [.outOfOrder], event: .breakDown, to: .outOfOrder))
+    .union(TransitionRule.atEveryState(event: .refill))
+```
+
+`from(allExcept:event:to:)` makes a rule from every state but the excluded ones, and `atEveryState(event:)` a rule at
+every state, leading back to the same state. They are ordinary rules, checked like any other when the state machine is
+created. Leave the state led to out, unless it should lead back to itself: a state with a rule back to itself is not an
+ending state.
+
 ## Reacting to state changes
 
 To react to the transitions made by the state machine, ask it for a stream of transitions:
@@ -304,6 +332,21 @@ if await stateMachine.wait(for: .s3) {
 Like a stream, it only knows what happens after it is called, so a state entered and left again before that is missed.
 
 The `AsyncStream` based solution is a sort of workaround while waiting for Swift to improve observation of values in an actor.
+
+## Timing out a state
+
+To process an event after some time, if the state machine is still at a state by then, like giving up a connection,
+use `process(_:after:ifStillAt:)`:
+
+```
+Task {
+    try await connection.process(.timeout, after: .seconds(10), ifStillAt: .connecting)
+}
+```
+
+It waits for the time and processes the event, if the state machine has stayed at the state all the time. A transition
+in between, also one back to the same state, ends the waiting at once, and the event is not processed: it then returns
+nil, as for a rejected event. Cancelling the task cancels the timeout. A `clock:` can be given, for tests.
 
 ## A state machine in SwiftUI
 

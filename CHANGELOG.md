@@ -6,6 +6,8 @@ All changes to MiamiStateMachine that users of the package will notice. The form
 
 ## [Unreleased]
 
+## [4.0.0] - 2026-09-24
+
 ### Added
 
 - `TransitionRule.from(allExcept:event:to:)` and `TransitionRule.atEveryState(event:)`, for states that are
@@ -17,9 +19,9 @@ All changes to MiamiStateMachine that users of the package will notice. The form
 
 ### Changed
 
-- The package declares tvOS 18, watchOS 11 and visionOS 2, besides macOS 15 and iOS 18. They were not declared before,
-  so the oldest version a client's Xcode supports was the minimum. Xcode 27 already builds the package for these
-  versions, but a client building for older versions of them with Xcode 26 is now refused.
+- **Breaking:** The package declares tvOS 18, watchOS 11 and visionOS 2, besides macOS 15 and iOS 18. They were not
+  declared before, so the oldest version a client's Xcode supports was the minimum. Xcode 27 already builds the package
+  for these versions, but a client building for older versions of them with Xcode 26 is now refused.
 - `ObservableStateMachine` is no longer marked with `@available`, as every platform of the package has Observation.
 
 ## [3.2.0] - 2026-09-24
@@ -168,7 +170,8 @@ revision of 1.0.0 does not match a recorded value, remove the entry for 1.0.0 fr
 
 The state machine as it was in June 2023, tagged afterwards. It is the last version for Swift 5.6.
 
-[Unreleased]: https://github.com/erikt/MiamiStateMachine/compare/3.2.0...HEAD
+[Unreleased]: https://github.com/erikt/MiamiStateMachine/compare/4.0.0...HEAD
+[4.0.0]: https://github.com/erikt/MiamiStateMachine/compare/3.2.0...4.0.0
 [3.2.0]: https://github.com/erikt/MiamiStateMachine/compare/3.1.0...3.2.0
 [3.1.0]: https://github.com/erikt/MiamiStateMachine/compare/3.0.0...3.1.0
 [3.0.0]: https://github.com/erikt/MiamiStateMachine/compare/2.0.0...3.0.0
