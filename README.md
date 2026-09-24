@@ -33,7 +33,7 @@ defined for the event from the current state, the state machine's current state 
 
 ## Installation
 
-MiamiStateMachine is a Swift package, and needs Swift 6.3 (Xcode 26.4) or later. It supports macOS 15 and iOS 18.
+MiamiStateMachine is a Swift package, and needs Swift 6.3 (Xcode 26.4) or later. It supports macOS 15, iOS 18, tvOS 18, watchOS 11 and visionOS 2.
 
 Add the package to the dependencies in `Package.swift`:
 

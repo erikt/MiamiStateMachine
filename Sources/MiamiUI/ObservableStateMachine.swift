@@ -26,7 +26,6 @@ import Observation
 /// moved on. Use `process(_:)` to know what an event led to, and the state
 /// machine itself, by `stateMachine`, for anything else the observable state
 /// machine lacks.
-@available(macOS 14.0, iOS 17.0, tvOS 17.0, watchOS 10.0, visionOS 1.0, *)
 @MainActor
 @Observable
 public final class ObservableStateMachine<Event: StateMachineEvent, State: Hashable & Sendable> {
@@ -168,7 +167,6 @@ public final class ObservableStateMachine<Event: StateMachineEvent, State: Hasha
 
 // MARK: - Events sent
 
-@available(macOS 14.0, iOS 17.0, tvOS 17.0, watchOS 10.0, visionOS 1.0, *)
 extension ObservableStateMachine {
 
     /// An event waiting to be processed, and what waits for its transition.
@@ -184,7 +182,6 @@ extension ObservableStateMachine {
 
 // MARK: - Events being their own trigger
 
-@available(macOS 14.0, iOS 17.0, tvOS 17.0, watchOS 10.0, visionOS 1.0, *)
 extension ObservableStateMachine where Event.EventTrigger == Event {
 
     /// Creates an observable state machine with a new state machine, for

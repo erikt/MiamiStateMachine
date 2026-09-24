@@ -6,7 +6,7 @@ import PackageDescription
 
 let package = Package(
     name: "MiamiStateMachine",
-    platforms: [.macOS(.v15), .iOS(.v18)],
+    platforms: [.macOS(.v15), .iOS(.v18), .tvOS(.v18), .watchOS(.v11), .visionOS(.v2)],
     products: [
         // Products define the executables and libraries a package produces, and make them visible to other packages.
         // The MiamiGraph and MiamiDataStructures targets are internal to the package and deliberately not vended as products.

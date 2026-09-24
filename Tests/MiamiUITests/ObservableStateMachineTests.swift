@@ -15,7 +15,6 @@ struct ObservableStateMachineTests {
     }
 
     /// Waits for the observable door to hear that the door is at a state.
-    @available(macOS 14.0, iOS 17.0, tvOS 17.0, watchOS 10.0, visionOS 1.0, *)
     private func wait(for state: DoorState, at door: ObservableDoor) async {
         while door.state != state, !Task.isCancelled {
             await Task.yield()
@@ -24,7 +23,6 @@ struct ObservableStateMachineTests {
 
     // MARK: - State
 
-    @available(macOS 14.0, iOS 17.0, tvOS 17.0, watchOS 10.0, visionOS 1.0, *)
     @Test func startsAtTheInitialState() throws {
         let door = ObservableStateMachine(try makeStateMachine(initialState: .locked))
 
@@ -32,7 +30,6 @@ struct ObservableStateMachineTests {
         #expect(door.state == .locked)
     }
 
-    @available(macOS 14.0, iOS 17.0, tvOS 17.0, watchOS 10.0, visionOS 1.0, *)
     @Test func followsTheEventsItSends() async throws {
         let door = ObservableStateMachine(try makeStateMachine())
 
@@ -43,7 +40,6 @@ struct ObservableStateMachineTests {
         #expect(await door.stateMachine.state == .opened)
     }
 
-    @available(macOS 14.0, iOS 17.0, tvOS 17.0, watchOS 10.0, visionOS 1.0, *)
     @Test func followsEventsProcessedByOthers() async throws {
         let stateMachine = try makeStateMachine()
         let door = ObservableStateMachine(stateMachine)
@@ -54,7 +50,6 @@ struct ObservableStateMachineTests {
         #expect(door.state == .locked)
     }
 
-    @available(macOS 14.0, iOS 17.0, tvOS 17.0, watchOS 10.0, visionOS 1.0, *)
     @Test func catchesUpWithStateMachineAlreadyInUse() async throws {
         let stateMachine = try makeStateMachine()
         await stateMachine.process(.open)
@@ -67,7 +62,6 @@ struct ObservableStateMachineTests {
         #expect(door.state == .opened)
     }
 
-    @available(macOS 14.0, iOS 17.0, tvOS 17.0, watchOS 10.0, visionOS 1.0, *)
     @Test func rejectedEventChangesNothing() async throws {
         let door = ObservableStateMachine(try makeStateMachine())
 
@@ -83,7 +77,6 @@ struct ObservableStateMachineTests {
 
     // MARK: - Sending events
 
-    @available(macOS 14.0, iOS 17.0, tvOS 17.0, watchOS 10.0, visionOS 1.0, *)
     @Test func eventsAreProcessedInTheOrderSent() async throws {
         let door = ObservableStateMachine(try makeStateMachine())
 
@@ -98,7 +91,6 @@ struct ObservableStateMachineTests {
         #expect(await door.stateMachine.rejectedEventsCount == 0, "An event out of order would be rejected.")
     }
 
-    @available(macOS 14.0, iOS 17.0, tvOS 17.0, watchOS 10.0, visionOS 1.0, *)
     @Test func eventsSentAreProcessedAlsoWhenLetGoOf() async throws {
         let stateMachine = try makeStateMachine()
         let states = await stateMachine.stateStream()
@@ -118,7 +110,6 @@ struct ObservableStateMachineTests {
 
     // MARK: - Processing events
 
-    @available(macOS 14.0, iOS 17.0, tvOS 17.0, watchOS 10.0, visionOS 1.0, *)
     @Test func processingReturnsTheTransitionMade() async throws {
         let door = ObservableStateMachine(try makeStateMachine())
 
@@ -128,7 +119,6 @@ struct ObservableStateMachineTests {
         await wait(for: .opened, at: door)
     }
 
-    @available(macOS 14.0, iOS 17.0, tvOS 17.0, watchOS 10.0, visionOS 1.0, *)
     @Test func processingRejectedEventReturnsNil() async throws {
         let door = ObservableStateMachine(try makeStateMachine())
 
@@ -140,7 +130,6 @@ struct ObservableStateMachineTests {
         #expect(door.state == .closed)
     }
 
-    @available(macOS 14.0, iOS 17.0, tvOS 17.0, watchOS 10.0, visionOS 1.0, *)
     @Test func eventProcessedWaitsForTheEventsSentBeforeIt() async throws {
         let door = ObservableStateMachine(try makeStateMachine())
 
@@ -156,7 +145,6 @@ struct ObservableStateMachineTests {
 
     // MARK: - Questions about the current state
 
-    @available(macOS 14.0, iOS 17.0, tvOS 17.0, watchOS 10.0, visionOS 1.0, *)
     @Test func acceptsEventsWithTransitionFromTheCurrentState() async throws {
         let door = ObservableStateMachine(try makeStateMachine())
 
@@ -172,7 +160,6 @@ struct ObservableStateMachineTests {
         #expect(door.eventsFromCurrent == [.unlock])
     }
 
-    @available(macOS 14.0, iOS 17.0, tvOS 17.0, watchOS 10.0, visionOS 1.0, *)
     @Test func isAtEndingStateWhenNoEventsAreAccepted() async throws {
         let door = ObservableStateMachine(try makeStateMachine())
         #expect(door.isAtEndingState == false)
@@ -184,7 +171,6 @@ struct ObservableStateMachineTests {
         #expect(door.eventsFromCurrent.isEmpty)
     }
 
-    @available(macOS 14.0, iOS 17.0, tvOS 17.0, watchOS 10.0, visionOS 1.0, *)
     @Test func followsStateMachineAlreadyAtEndingState() async throws {
         let stateMachine = try makeStateMachine()
         await stateMachine.process(.breakDown)
@@ -199,7 +185,6 @@ struct ObservableStateMachineTests {
 
     // MARK: - Observation
 
-    @available(macOS 14.0, iOS 17.0, tvOS 17.0, watchOS 10.0, visionOS 1.0, *)
     @Test func changeOfStateIsObserved() async throws {
         let door = ObservableStateMachine(try makeStateMachine())
 
@@ -215,7 +200,6 @@ struct ObservableStateMachineTests {
         }
     }
 
-    @available(macOS 14.0, iOS 17.0, tvOS 17.0, watchOS 10.0, visionOS 1.0, *)
     @Test func questionsAboutTheCurrentStateAreObservedToo() async throws {
         let door = ObservableStateMachine(try makeStateMachine())
 
@@ -234,7 +218,6 @@ struct ObservableStateMachineTests {
 
     // MARK: - Life cycle
 
-    @available(macOS 14.0, iOS 17.0, tvOS 17.0, watchOS 10.0, visionOS 1.0, *)
     @Test func stopsFollowingTheStateMachineWhenLetGoOf() async throws {
         let stateMachine = try makeStateMachine()
 
@@ -253,7 +236,6 @@ struct ObservableStateMachineTests {
         #expect(await stateMachine.streamCount.states == 0)
     }
 
-    @available(macOS 14.0, iOS 17.0, tvOS 17.0, watchOS 10.0, visionOS 1.0, *)
     @Test func doesNotKeepTheStateMachineAliveWhenLetGoOf() async throws {
         weak var stateMachine: DoorStateMachine?
 
@@ -275,7 +257,6 @@ struct ObservableStateMachineTests {
 
     // MARK: - Creating the state machine
 
-    @available(macOS 14.0, iOS 17.0, tvOS 17.0, watchOS 10.0, visionOS 1.0, *)
     @Test func createsItsOwnStateMachine() async throws {
         let door = try ObservableStateMachine(transitions: DoorFixture.transitions, initialState: .closed, logCapacity: 1)
 
@@ -289,7 +270,6 @@ struct ObservableStateMachineTests {
         #expect(await door.stateMachine.transitionLog.count == 1)
     }
 
-    @available(macOS 14.0, iOS 17.0, tvOS 17.0, watchOS 10.0, visionOS 1.0, *)
     @Test func inconsistentDefinitionThrows() throws {
         // Opening a closed door would lead to both opened and broken.
         let conflict = DoorTransition(from: .closed, event: .open, to: .broken)

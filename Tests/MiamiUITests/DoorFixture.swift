@@ -17,7 +17,6 @@ enum DoorEvent: StateMachineEvent {
 typealias DoorTransition = TransitionRule<DoorEvent, DoorState>
 typealias DoorStateMachine = StateMachine<DoorEvent, DoorState>
 
-@available(macOS 14.0, iOS 17.0, tvOS 17.0, watchOS 10.0, visionOS 1.0, *)
 typealias ObservableDoor = ObservableStateMachine<DoorEvent, DoorState>
 
 enum DoorFixture {

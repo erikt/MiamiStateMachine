@@ -6,6 +6,13 @@ All changes to MiamiStateMachine that users of the package will notice. The form
 
 ## [Unreleased]
 
+### Changed
+
+- The package declares tvOS 18, watchOS 11 and visionOS 2, besides macOS 15 and iOS 18. They were not declared before,
+  so the oldest version a client's Xcode supports was the minimum. Xcode 27 already builds the package for these
+  versions, but a client building for older versions of them with Xcode 26 is now refused.
+- `ObservableStateMachine` is no longer marked with `@available`, as every platform of the package has Observation.
+
 ## [3.2.0] - 2026-09-24
 
 ### Added
