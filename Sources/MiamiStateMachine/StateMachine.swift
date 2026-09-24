@@ -12,6 +12,15 @@ import Foundation
 /// 
 /// Information about the definition of the state machine can be
 /// accessed by non-isolated methods.
+///
+/// A state machine can be followed in Instruments, with the os_signpost
+/// instrument. Every state is an interval, named by the state and ended by the
+/// trigger of the event leaving it, and every rejected event is a signpost
+/// event. Each state machine is a lane of its own. The signposts are only
+/// written while Instruments records them, and cost next to nothing otherwise,
+/// but they have to be asked for: add `MiamiStateMachine` to the subsystems
+/// for dynamic tracing, in the recording options of the instrument. Events
+/// are shown by their trigger, never with what they carry.
 public actor StateMachine<Event: StateMachineEvent, State: Hashable & Sendable> {
 
     // MARK: - Types
@@ -66,6 +75,9 @@ public actor StateMachine<Event: StateMachineEvent, State: Hashable & Sendable> 
 
     /// The state streams in use.
     private var stateStreams = StreamRegistry<State>()
+
+    /// The signposts showing the state machine in Instruments.
+    private var signposts = StateSignposts<State>()
 
     // MARK: - Public nonisolated properties
 
@@ -212,6 +224,7 @@ public actor StateMachine<Event: StateMachineEvent, State: Hashable & Sendable> 
         self.transitionLog = CapacityLog(capacity: logCapacity)
         self.initialState = initialState
         self.state = initialState
+        signposts.enter(initialState)
     }
 
     deinit {
@@ -220,6 +233,7 @@ public actor StateMachine<Event: StateMachineEvent, State: Hashable & Sendable> 
         transitionStreams.finishAll()
         rejectedEventStreams.finishAll()
         stateStreams.finishAll()
+        signposts.end()
     }
 
     // MARK: - API methods
@@ -249,11 +263,14 @@ public actor StateMachine<Event: StateMachineEvent, State: Hashable & Sendable> 
         // The transition is found by the trigger of the event. What the
         // event carries is not looked at, only delivered with the event.
         guard let t = transition(from: state, for: event.eventTrigger) else {
+            signposts.reject(event.eventTrigger, at: state)
             rejectedEventStreams.yield(RejectedEvent(event: event, state: state))
             return nil
         }
 
         let made = TransitionEvent(from: t.from, event: event, to: t.to)
+        signposts.leave(by: t.event)
+        signposts.enter(t.to)
         commit(made)
         transitionStreams.yield(made)
         stateStreams.yield(state)

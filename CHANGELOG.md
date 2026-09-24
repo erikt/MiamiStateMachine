@@ -10,6 +10,10 @@ All changes to MiamiStateMachine that users of the package will notice. The form
 
 - `wait(for:)` on `StateMachine`, which waits until the state machine is at a state, and returns if it got there. It
   returns false when the state can no longer be reached, like at another ending state, or when the task is cancelled.
+- Signposts showing a state machine in Instruments: every state as an interval, ended by the trigger of the event
+  leaving it, and every rejected event as a signpost event, with a lane for each state machine. They are only written
+  while Instruments records them, with `MiamiStateMachine` added to the subsystems for dynamic tracing of the
+  os_signpost instrument.
 
 ## [3.1.0] - 2026-09-24
 
