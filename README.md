@@ -28,7 +28,7 @@ The transitions between states are defined by `TransitionRule`, a value with the
 
 The `Event` is a type conforming to `StateMachineEvent`, usually an enum.
 
-To make the state machine process an event, the `process(:)` is used. If a transition is 
+To make the state machine process an event, the `process(_:)` is used. If a transition is 
 defined for the event from the current state, the state machine's current state will change.
 
 ## Installation
@@ -38,7 +38,7 @@ MiamiStateMachine is a Swift package, and needs Swift 6.3 (Xcode 26.4) or later.
 Add the package to the dependencies in `Package.swift`:
 
 ```
-.package(url: "https://github.com/erikt/MiamiStateMachine.git", from: "3.1.0")
+.package(url: "https://github.com/erikt/MiamiStateMachine.git", from: "3.2.0")
 ```
 
 Then add the libraries to use to the dependencies of a target. `MiamiStateMachine` is the state machine itself.
@@ -140,36 +140,37 @@ if let transition = await stateMachine.process(.e1) {
 }
 ```
 
+When a rejected event is an error, use `processOrThrow(_:)` instead. It throws the event as a `RejectedEvent`, with the
+`state` it was rejected at:
+
+```
+do {
+    let transition = try await stateMachine.processOrThrow(.e1)
+    print("Entered \(transition.to)")
+} catch {
+    print("\(error.event) was rejected at \(error.state)")
+}
+```
+
 ## Events with values
 
 An event can carry something, like the data loaded or the reason for a failure. The transitions are then written
-with the event trigger, which is the event without what it carries:
+with the event trigger, which is the event without what it carries. The `MiamiMacros` library has a macro writing the
+triggers, the mapping and the conformance:
 
 ```
+import MiamiStateMachine
+import MiamiMacros
+
 enum LoadState {
     case idle, loading, ready, failed
 }
 
-enum LoadEvent: StateMachineEvent {
+@StateMachineEvent
+enum LoadEvent {
     case start
     case finish(bytes: Int)
     case fail(reason: String)
-
-    enum EventTrigger {
-        case start, finish, fail
-    }
-
-    var eventTrigger: EventTrigger {
-        // Map event to trigger
-        switch self {
-        case LoadEvent.start:
-            return EventTrigger.start
-        case LoadEvent.finish:
-            return EventTrigger.finish
-        case LoadEvent.fail:
-            return EventTrigger.fail
-        }
-    }
 }
 
 let transitions: Set<TransitionRule<LoadEvent.EventTrigger, LoadState>> = [
@@ -181,7 +182,9 @@ let transitions: Set<TransitionRule<LoadEvent.EventTrigger, LoadState>> = [
 let stateMachine = try StateMachine<LoadEvent, LoadState>(transitions: transitions, initialState: .idle)
 ```
 
-The state machine never looks at what an event carries. It is delivered with the event, by `process(:)`, the streams
+The macro is a plugin of the compiler, and Xcode asks for it to be trusted the first time it is used.
+
+The state machine never looks at what an event carries. It is delivered with the event, by `process(_:)`, the streams
 and the log:
 
 ```
@@ -204,24 +207,34 @@ if let made = await stateMachine.process(.finish(bytes: 512)) {
 // Loaded 512 bytes
 ```
 
-An event carrying something has to have an `EventTrigger` of its own, as above. Without one it is its own trigger,
-and what it carries then decides the transition.
-
-The `MiamiMacros` library has a macro writing the triggers, the mapping and the conformance, so the events above can
-be written as:
+An event carrying something has to have an `EventTrigger` of its own. Without the macro, the triggers, the mapping and
+the conformance are written by hand:
 
 ```
-import MiamiMacros
-
-@StateMachineEvent
-enum LoadEvent {
+enum LoadEvent: StateMachineEvent {
     case start
     case finish(bytes: Int)
     case fail(reason: String)
+
+    enum EventTrigger {
+        case start, finish, fail
+    }
+
+    var eventTrigger: EventTrigger {
+        // Map event to trigger
+        switch self {
+        case LoadEvent.start:
+            return EventTrigger.start
+        case LoadEvent.finish:
+            return EventTrigger.finish
+        case LoadEvent.fail:
+            return EventTrigger.fail
+        }
+    }
 }
 ```
 
-The macro is a plugin of the compiler, and Xcode asks for it to be trusted the first time it is used.
+An event without an `EventTrigger` is its own trigger, and what it carries then decides the transition.
 
 Keep in mind, the log keeps the events, including the carried values. If the values are large, keep memory consumption
 down by setting a capacity on the state machine log:
@@ -277,6 +290,18 @@ Some things to know about the streams:
 - A transition leading back to the same state is delivered like any other, and delivers the state again on a stream of
   states.
 - Use the transition received to know the state entered, and not `state`. The state machine may have moved on.
+
+To wait for one particular state, without a stream of your own, use `wait(for:)`. It returns true when the state machine
+gets to the state, at once if it is already there. It returns false if the state can no longer be reached, like at
+another ending state, or if the task is cancelled:
+
+```
+if await stateMachine.wait(for: .s3) {
+    print("The state machine is at s3")
+}
+```
+
+Like a stream, it only knows what happens after it is called, so a state entered and left again before that is missed.
 
 The `AsyncStream` based solution is a sort of workaround while waiting for Swift to improve observation of values in an actor.
 
@@ -404,6 +429,13 @@ states that can still be reached from the current state, use `reachableStatesFro
 ## Drawing the state machine
 
 The `.dotDiagram` property on the state machine creates a [GraphViz DOT format](https://graphviz.org) string, and the `.mermaidDiagram` property creates a [Mermaid](https://mermaid.js.org) string. They can be used to render the state machine as a diagram. The `.dotDiagramWithCurrentState` and `.mermaidDiagramWithCurrentState` properties create the same strings with the current state marked, and must be awaited. The properties are in the `MiamiDiagrams` library of the package, which has to be imported.
+
+## Following the state machine in Instruments
+
+A state machine can be followed in Instruments with the os_signpost instrument. Every state is an interval, ended by
+the event leaving it, every rejected event is a signpost event, and every state machine has a lane of its own. Add
+`MiamiStateMachine` to the subsystems for dynamic tracing in the recording options of the instrument. The signposts are
+only written while Instruments records them, and cost next to nothing otherwise.
 
 ## What's with the name?
 
