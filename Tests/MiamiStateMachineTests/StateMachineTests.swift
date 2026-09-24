@@ -125,6 +125,54 @@ struct StateMachineTests {
         #expect(await stateMachine.process(.checkOut) == nil, "Every event is rejected at an ending state.")
     }
 
+    @Test func processOrThrowReturnsTheTransitionEvent() async throws {
+        let stateMachine = try makeStateMachine()
+
+        #expect(try await stateMachine.processOrThrow(.checkOut) == TransitionEvent(from: .cart, event: .checkOut, to: .checkout))
+        #expect(try await stateMachine.processOrThrow(.pay) == TransitionEvent(from: .checkout, event: .pay, to: .paid))
+        #expect(await stateMachine.state == .paid)
+    }
+
+    @Test func processOrThrowThrowsTheRejectedEvent() async throws {
+        let stateMachine = try makeStateMachine()
+
+        await #expect(throws: RejectedEvent(event: OrderEvent.ship, state: OrderState.cart)) {
+            try await stateMachine.processOrThrow(.ship)
+        }
+        #expect(await stateMachine.state == .cart)
+
+        await stateMachine.process(.cancel)
+        await #expect(throws: RejectedEvent(event: OrderEvent.checkOut, state: OrderState.cancelled)) {
+            try await stateMachine.processOrThrow(.checkOut)
+        }
+    }
+
+    @Test func rejectedEventIsThrownAsItsOwnType() async throws {
+        let stateMachine = try makeStateMachine()
+
+        do {
+            try await stateMachine.processOrThrow(.deliver)
+            Issue.record("Delivering is rejected in the cart.")
+        } catch {
+            // Typed throws: the error is a rejected event, without a cast.
+            #expect(error.event == .deliver)
+            #expect(error.state == .cart)
+            #expect(error.localizedDescription == "deliver rejected at cart")
+        }
+    }
+
+    @Test func rejectedEventThrownIsCountedAndDeliveredLikeAnyOther() async throws {
+        let stateMachine = try makeStateMachine()
+        let rejectedEvents = await stateMachine.rejectedEventStream()
+
+        _ = try? await stateMachine.processOrThrow(.ship)
+
+        #expect(await stateMachine.processedEventsCount == 1)
+        #expect(await stateMachine.rejectedEventsCount == 1)
+        var iterator = rejectedEvents.makeAsyncIterator()
+        #expect(await iterator.next() == RejectedEvent(event: .ship, state: .cart))
+    }
+
     @Test func everyTaskLearnsWhatItsOwnEventsLedTo() async throws {
         let stateMachine = try makeStateMachine()
 

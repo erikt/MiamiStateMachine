@@ -282,6 +282,33 @@ public actor StateMachine<Event: StateMachineEvent, State: Hashable & Sendable> 
         return made
     }
 
+    /// Process an event, and throw if it is rejected.
+    ///
+    /// It is `process(_:)`, for when a rejected event is an error. The event
+    /// is processed the same way: a rejected event is counted, and delivered
+    /// by the streams of rejected events, before it is thrown.
+    ///
+    ///     do {
+    ///         let transition = try await stateMachine.processOrThrow(.pay)
+    ///     } catch {
+    ///         print("\(error.event) was rejected at \(error.state)")
+    ///     }
+    ///
+    /// - Parameters:
+    ///   - event: Event to process.
+    /// - Returns: The transition made.
+    /// - Throws: The event as a `RejectedEvent`, with the state it was
+    /// rejected at, if there is no transition for it from the current state.
+    @discardableResult
+    public func processOrThrow(_ event: Event) throws(RejectedEvent<Event, State>) -> TransitionEvent<Event, State> {
+        guard let made = process(event) else {
+            // A rejected event changes nothing, so the state
+            // machine is still at the state rejecting it.
+            throw RejectedEvent(event: event, state: state)
+        }
+        return made
+    }
+
     /// Creates a stream of the transitions made from now on, in the
     /// order they are made.
     ///

@@ -1,5 +1,10 @@
+import Foundation
+
 /// An event rejected by a state machine. There was no transition for
 /// the event from the state the state machine was at.
+///
+/// It is the error thrown by `processOrThrow(_:)`. It is equatable when its
+/// event is, which events carrying something do not have to be.
 ///
 /// A rejected event can be encoded when its event and state can, and decoded
 /// when they can be decoded. The keys are `event` and `state`.
@@ -22,6 +27,7 @@ public struct RejectedEvent<Event: StateMachineEvent, State: Hashable & Sendable
 }
 
 extension RejectedEvent: Sendable { }
+extension RejectedEvent: Error { }
 extension RejectedEvent: Equatable where Event: Equatable { }
 extension RejectedEvent: Hashable where Event: Hashable { }
 extension RejectedEvent: Encodable where Event: Encodable, State: Encodable { }
@@ -30,5 +36,11 @@ extension RejectedEvent: Decodable where Event: Decodable, State: Decodable { }
 extension RejectedEvent: CustomStringConvertible {
     public var description: String {
         return "\(event) rejected at \(state)"
+    }
+}
+
+extension RejectedEvent: LocalizedError {
+    public var errorDescription: String? {
+        return description
     }
 }

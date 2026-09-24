@@ -200,6 +200,19 @@ struct PayloadTests {
         #expect(made?.to == 1)
     }
 
+    /// The rejected event cannot be compared, but it is thrown with what it carries.
+    @Test func eventThatCannotBeComparedIsThrownWithWhatItCarries() async throws {
+        let stateMachine = try StateMachine<Message, Int>(transitions: [], initialState: 0)
+
+        do {
+            try await stateMachine.processOrThrow(Message(attachment: .init(data: [4, 5])))
+            Issue.record("A state machine without transitions rejects every event.")
+        } catch {
+            #expect(error.event.attachment.data == [4, 5])
+            #expect(error.state == 0)
+        }
+    }
+
     @Test func eventWithoutAnythingToCarryIsItsOwnTrigger() async throws {
         // The type of the events is known from the transitions, as before.
         let stateMachine = try StateMachine(transitions: OrderFixture.transitions, initialState: .cart)

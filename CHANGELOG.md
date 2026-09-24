@@ -14,6 +14,8 @@ All changes to MiamiStateMachine that users of the package will notice. The form
   leaving it, and every rejected event as a signpost event, with a lane for each state machine. They are only written
   while Instruments records them, with `MiamiStateMachine` added to the subsystems for dynamic tracing of the
   os_signpost instrument.
+- `processOrThrow(_:)` on `StateMachine`, which processes an event like `process(_:)`, and throws the event as a
+  `RejectedEvent` if it is rejected, with typed throws. `RejectedEvent` is now an `Error`, and a `LocalizedError`.
 
 ## [3.1.0] - 2026-09-24
 
