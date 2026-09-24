@@ -11,6 +11,9 @@ All changes to MiamiStateMachine that users of the package will notice. The form
 - `TransitionRule.from(allExcept:event:to:)` and `TransitionRule.atEveryState(event:)`, for states that are
   `CaseIterable`. They make the rules for the same event from many states, like an event breaking a machine down at any
   state, to put together with the rest of the definition.
+- `process(_:after:ifStillAt:clock:)` on `StateMachine`, a timeout of a state: it processes an event after some time,
+  if the state machine has stayed at the state all the time. A transition in between, also one back to the same state,
+  ends the waiting at once, and the event is not processed. The clock is the continuous clock by default.
 
 ### Changed
 

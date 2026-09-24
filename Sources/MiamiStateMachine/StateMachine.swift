@@ -309,6 +309,84 @@ public actor StateMachine<Event: StateMachineEvent, State: Hashable & Sendable> 
         return made
     }
 
+    /// Process an event after some time, if the state machine is still at a
+    /// state by then, like a timeout of a state.
+    ///
+    /// It waits for the time, and then processes the event, if the state
+    /// machine has stayed at the state all the time. A transition in between
+    /// ends the waiting at once, and the event is not processed at all. A
+    /// transition leading back to the same state counts as leaving it, so an
+    /// event of activity at a state, like a coin inserted, starts it over,
+    /// when the timeout is asked for again.
+    ///
+    ///     // Give up connecting after ten seconds.
+    ///     Task {
+    ///         try await connection.process(.timeout, after: .seconds(10), ifStillAt: .connecting)
+    ///     }
+    ///
+    /// The event is processed like any other event when the time has passed,
+    /// and can be rejected like any other event.
+    ///
+    /// Cancelling the task waiting cancels the timeout, and nothing is processed.
+    /// - Parameters:
+    ///   - event: Event to process.
+    ///   - delay: How long the state machine has to stay at the state.
+    ///   - state: The state the state machine has to be at now, and stay at.
+    ///   - clock: The clock measuring the time. By default the continuous clock.
+    /// - Returns: The transition made. It is nil if the state machine was not
+    /// at the state, left it before the time had passed, or rejected the event.
+    /// - Throws: `CancellationError` if the task is cancelled while waiting.
+    @discardableResult
+    public func process<C: Clock>(_ event: Event,
+                                  after delay: C.Duration,
+                                  ifStillAt state: State,
+                                  clock: C = ContinuousClock()) async throws(CancellationError) -> TransitionEvent<Event, State>?
+    {
+        guard self.state == state else {
+            return nil
+        }
+
+        // Every transition, also one back to the same state, is counted.
+        let changesAtStart = stateChangeCount
+
+        // Whichever comes first: the time passing, or a transition. The stream
+        // keeps every state: keeping only the newest could drop the current
+        // state before it is read, and the transition would be taken for it.
+        let states = stateStream()
+        let timeHasPassed: Bool
+        do {
+            timeHasPassed = try await withThrowingTaskGroup(of: Bool?.self) { group in
+                group.addTask {
+                    try await clock.sleep(for: delay)
+                    return true
+                }
+                group.addTask {
+                    // The first state is the current one. Another one is a transition.
+                    var entered = states.makeAsyncIterator()
+                    _ = await entered.next()
+                    return await entered.next() == nil ? nil : false
+                }
+                defer { group.cancelAll() }
+
+                // A stream finished by an ending state tells nothing, so wait for the other.
+                while let result = try await group.next() {
+                    if let result {
+                        return result
+                    }
+                }
+                return false
+            }
+        } catch {
+            throw CancellationError()
+        }
+
+        // Checked and processed without any suspension, so nothing comes in between.
+        guard timeHasPassed, stateChangeCount == changesAtStart else {
+            return nil
+        }
+        return process(event)
+    }
+
     /// Creates a stream of the transitions made from now on, in the
     /// order they are made.
     ///
