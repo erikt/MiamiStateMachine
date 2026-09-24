@@ -6,6 +6,11 @@ All changes to MiamiStateMachine that users of the package will notice. The form
 
 ## [Unreleased]
 
+### Added
+
+- `wait(for:)` on `StateMachine`, which waits until the state machine is at a state, and returns if it got there. It
+  returns false when the state can no longer be reached, like at another ending state, or when the task is cancelled.
+
 ## [3.1.0] - 2026-09-24
 
 ### Added

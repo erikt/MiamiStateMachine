@@ -380,6 +380,57 @@ public actor StateMachine<Event: StateMachineEvent, State: Hashable & Sendable> 
         return stream
     }
 
+    /// Waits until the state machine is at a state.
+    ///
+    /// It returns at once if the state machine is already at the state.
+    /// Otherwise it waits for a transition leading to the state. A state
+    /// entered and left again before the waiting task runs still counts,
+    /// so read `state` to know where the state machine is by then.
+    ///
+    /// The waiting ends without the state being reached when the state
+    /// machine gets to a state from which the state can no longer be reached,
+    /// like an ending state, and when the task waiting is cancelled.
+    ///
+    /// Like a stream, it only knows the transitions made after it was
+    /// called. A state entered and left again before the call is missed,
+    /// which can happen when it is called from a new task, as the task can
+    /// start running after the events were processed. A state the state
+    /// machine stays at, like an ending state, is never missed.
+    ///
+    ///     Task {
+    ///         if await stateMachine.wait(for: .delivered) {
+    ///             print("Delivered")
+    ///         }
+    ///     }
+    ///
+    /// A task waiting keeps the state machine. For a state machine without
+    /// ending states, cancel the task when the state is no longer of interest.
+    /// - Parameter awaitedState: The state to wait for.
+    /// - Returns: If the state machine got to the state. It is false if the
+    /// state machine can no longer get there, or the task was cancelled.
+    @discardableResult
+    public func wait(for awaitedState: State) async -> Bool {
+        guard state != awaitedState else {
+            return true
+        }
+
+        // The states from which the awaited state can still be reached,
+        // found by one search backwards instead of one for every state.
+        let leadingToAwaitedState = definition.graph.states(leadingToAnyOf: [awaitedState])
+
+        for await entered in stateStream() {
+            if entered == awaitedState {
+                return true
+            }
+            guard leadingToAwaitedState.contains(entered) else {
+                return false
+            }
+        }
+
+        // The task was cancelled.
+        return false
+    }
+
     /// If the state machine can transition to a state from the current state.
     /// - Parameter newState: State to check if it's possible to transition to.
     /// - Returns: If transition is possible.
