@@ -6,6 +6,12 @@ All changes to MiamiStateMachine that users of the package will notice. The form
 
 ## [Unreleased]
 
+### Added
+
+- `TransitionRule.from(allExcept:event:to:)` and `TransitionRule.atEveryState(event:)`, for states that are
+  `CaseIterable`. They make the rules for the same event from many states, like an event breaking a machine down at any
+  state, to put together with the rest of the definition.
+
 ### Changed
 
 - The package declares tvOS 18, watchOS 11 and visionOS 2, besides macOS 15 and iOS 18. They were not declared before,

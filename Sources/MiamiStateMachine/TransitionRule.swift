@@ -39,3 +39,49 @@ extension TransitionRule: CustomStringConvertible {
     }
 }
 
+
+// MARK: - Rules for many states
+
+extension TransitionRule where State: CaseIterable {
+
+    /// Rules for the same event from every state but some, all leading to the
+    /// same state. They are ordinary rules, to put together with the rest of
+    /// the definition, like an event breaking a machine down at any state.
+    ///
+    ///     let rules: Set<TransitionRule<VendingEvent, VendingState>> = [
+    ///         TransitionRule(from: .idle, event: .insertCoin, to: .hasCredit),
+    ///     ]
+    ///     let definition = rules
+    ///         .union(TransitionRule.from(allExcept: [.outOfOrder], event: .breakDown, to: .outOfOrder))
+    ///
+    /// The rules are put together with a set of a declared type, which tells
+    /// the types of the events and the states.
+    ///
+    /// Leave the state led to out as well, unless it should lead back to
+    /// itself. A state with a rule leading back to itself is not an ending
+    /// state. A rule that conflicts with another rule of the definition is
+    /// found when the state machine is created, like any other.
+    /// - Parameters:
+    ///   - excluded: The states without the rule.
+    ///   - event: The event of every rule.
+    ///   - to: The state every rule leads to.
+    /// - Returns: A rule from every state of the type but the excluded ones.
+    public static func from(allExcept excluded: Set<State>, event: Event, to: State) -> Set<TransitionRule> {
+        return Set(State.allCases.lazy
+            .filter { !excluded.contains($0) }
+            .map { TransitionRule(from: $0, event: event, to: to) })
+    }
+
+    /// Rules for the same event at every state, each leading back to the
+    /// state it is from, like refilling a machine without changing its state.
+    ///
+    ///     let rules = TransitionRule<VendingEvent, VendingState>.atEveryState(event: .refill)
+    ///
+    /// No state is an ending state with these rules, as every state has a
+    /// rule leading back to itself.
+    /// - Parameter event: The event of every rule.
+    /// - Returns: A rule from every state of the type back to itself.
+    public static func atEveryState(event: Event) -> Set<TransitionRule> {
+        return Set(State.allCases.map { TransitionRule(from: $0, event: event, to: $0) })
+    }
+}
