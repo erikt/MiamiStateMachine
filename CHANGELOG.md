@@ -13,6 +13,8 @@ All changes to MiamiStateMachine that users of the package will notice. The form
   rules, sets of rules, `if`, `switch` and `for` can be mixed in. `StateMachine` and `ObservableStateMachine` can be
   created with it, with `init(initialState:logCapacity:rules:)`.
 - The vending machine example writes its rules with the builder.
+- `enteredAt` on `StateMachine`, when the current state was entered, as an instant of the continuous clock. The time
+  spent at the current state is `ContinuousClock.now - enteredAt`.
 
 ## [4.0.0] - 2026-09-24
 

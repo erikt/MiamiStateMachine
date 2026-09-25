@@ -117,6 +117,18 @@ public actor StateMachine<Event: StateMachineEvent, State: Hashable & Sendable> 
     /// event is kept with what it carries, until the next transition.
     public private(set) var enteredWith: TransitionEvent<Event, State>?
 
+    /// When the current state was entered, by the transition in `enteredWith`.
+    /// Until the first transition it is when the state machine was created.
+    ///
+    /// Every transition sets it, also one leading back to the same state,
+    /// and a rejected event does not. The time spent at the current state
+    /// so far is `ContinuousClock.now - enteredAt`.
+    ///
+    /// The instant is of the continuous clock, which goes on while the device
+    /// sleeps. It only means something in the process it was read in, so keep
+    /// it for measuring, not for saving.
+    public private(set) var enteredAt: ContinuousClock.Instant
+
     // MARK: - Computed properties
 
     /// Counter for the number of events processed that did
@@ -188,6 +200,7 @@ public actor StateMachine<Event: StateMachineEvent, State: Hashable & Sendable> 
         self.transitionLog = CapacityLog(capacity: logCapacity)
         self.initialState = initialState
         self.state = initialState
+        self.enteredAt = .now
         signposts.enter(initialState)
     }
 
@@ -282,6 +295,7 @@ public actor StateMachine<Event: StateMachineEvent, State: Hashable & Sendable> 
     private func commit(_ transition: TransitionEvent<Event, State>) {
         state = transition.to
         enteredWith = transition
+        enteredAt = .now
         transitionLog.append(transition)
         stateChangeCount += 1
     }

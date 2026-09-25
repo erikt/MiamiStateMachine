@@ -399,4 +399,54 @@ struct StateMachineTests {
 
         #expect(await stateMachine.enteredWith == TransitionEvent(from: .checkout, event: .pay, to: .paid))
     }
+
+    // MARK: - Entered at
+
+    // The continuous clock cannot be controlled by a test, so the instants
+    // are checked against the clock read before and after.
+
+    @Test func enteredAtIsWhenTheStateMachineWasCreated() async throws {
+        let before = ContinuousClock.now
+        let stateMachine = try makeStateMachine()
+        let after = ContinuousClock.now
+
+        let enteredAt = await stateMachine.enteredAt
+        #expect(before <= enteredAt && enteredAt <= after)
+    }
+
+    @Test func enteredAtIsWhenTheLastTransitionWasMade() async throws {
+        let stateMachine = try makeStateMachine()
+
+        let before = ContinuousClock.now
+        await stateMachine.process(.checkOut)
+        let after = ContinuousClock.now
+
+        let enteredAt = await stateMachine.enteredAt
+        #expect(before <= enteredAt && enteredAt <= after)
+    }
+
+    @Test func rejectedEventDoesNotChangeEnteredAt() async throws {
+        let stateMachine = try makeStateMachine()
+        await stateMachine.process(.checkOut)
+        let enteredAt = await stateMachine.enteredAt
+
+        // There is nothing to ship at the checkout.
+        await stateMachine.process(.ship)
+
+        #expect(await stateMachine.enteredAt == enteredAt)
+    }
+
+    @Test func transitionBackToTheSameStateSetsEnteredAt() async throws {
+        let stateMachine = try makeStateMachine()
+        let created = await stateMachine.enteredAt
+
+        // Time has to pass, for the next instant to be a later one.
+        try await Task.sleep(for: .milliseconds(1))
+        let before = ContinuousClock.now
+        await stateMachine.process(.addItem)
+
+        let enteredAt = await stateMachine.enteredAt
+        #expect(created < before)
+        #expect(before <= enteredAt)
+    }
 }
