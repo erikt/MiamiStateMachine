@@ -6,6 +6,8 @@ All changes to MiamiStateMachine that users of the package will notice. The form
 
 ## [Unreleased]
 
+## [5.0.0] - 2026-09-26
+
 ### Added
 
 - A context of any type owned by the state machine, for what the states alone do not tell, like the credit of a
@@ -194,7 +196,8 @@ revision of 1.0.0 does not match a recorded value, remove the entry for 1.0.0 fr
 
 The state machine as it was in June 2023, tagged afterwards. It is the last version for Swift 5.6.
 
-[Unreleased]: https://github.com/erikt/MiamiStateMachine/compare/4.0.0...HEAD
+[Unreleased]: https://github.com/erikt/MiamiStateMachine/compare/5.0.0...HEAD
+[5.0.0]: https://github.com/erikt/MiamiStateMachine/compare/4.0.0...5.0.0
 [4.0.0]: https://github.com/erikt/MiamiStateMachine/compare/3.2.0...4.0.0
 [3.2.0]: https://github.com/erikt/MiamiStateMachine/compare/3.1.0...3.2.0
 [3.1.0]: https://github.com/erikt/MiamiStateMachine/compare/3.0.0...3.1.0
