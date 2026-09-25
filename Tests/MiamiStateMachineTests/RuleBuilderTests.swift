@@ -197,3 +197,24 @@ struct RuleBuilderTests {
         #expect(stateMachine.transitionCount == 1)
     }
 }
+
+/// The builder can be used on the main actor. A closure written there is
+/// isolated to the main actor, unless it is `Sendable`, and could then not be
+/// given to the state machine: this did not compile before the fix.
+@MainActor
+struct RuleBuilderOnTheMainActorTests {
+    var offersExpress = true
+
+    @Test func stateMachineIsCreatedOnTheMainActor() throws {
+        let stateMachine = try OrderStateMachine(initialState: .cart) {
+            From(.cart) {
+                On(.checkOut, to: .checkout)
+                if offersExpress {
+                    On(.buyNow, to: .paid)
+                }
+            }
+        }
+
+        #expect(stateMachine.transitionCount == 2)
+    }
+}

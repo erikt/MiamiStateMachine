@@ -345,6 +345,11 @@ extension StateMachine {
     /// The types of the events and the states have to be written, as they
     /// cannot be inferred from the rules. See `TransitionRuleBuilder` for
     /// everything the rules can be written with.
+    ///
+    /// The rules are given to the state machine, an actor, so the closure
+    /// writing them is `Sendable`, and can be written on the main actor too.
+    /// There, copy what it needs from a class, like a view model, into a
+    /// constant before, and use the constant.
     /// - Parameters:
     ///   - initialState: Initial state for the state machine.
     ///   - logCapacity: Max capacity of transition log. Set to nil for unlimited
@@ -355,7 +360,7 @@ extension StateMachine {
     /// rules do not define a consistent state machine.
     public init(initialState: State,
                 logCapacity: UInt? = nil,
-                @TransitionRuleBuilder<Event.EventTrigger, State> rules: () -> Set<TransitionRule<Event.EventTrigger, State>>) throws(DefinitionError)
+                @TransitionRuleBuilder<Event.EventTrigger, State> rules: @Sendable () -> Set<TransitionRule<Event.EventTrigger, State>>) throws(DefinitionError)
     {
         try self.init(transitions: rules(), initialState: initialState, logCapacity: logCapacity)
     }
