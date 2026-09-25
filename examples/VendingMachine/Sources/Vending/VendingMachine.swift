@@ -27,30 +27,36 @@ public actor VendingMachine {
     public static let acceptedCoins: Set<Int> = [5, 10, 25, 100]
 
     /// The rules defining the state machine of the vending machine.
-    public static let rules: Set<TransitionRule<VendingEvent.EventTrigger, VendingState>> = {
-        let rules: Set<TransitionRule<VendingEvent.EventTrigger, VendingState>> = [
-            TransitionRule(from: .idle, event: .insertCoin, to: .hasCredit),
-            TransitionRule(from: .hasCredit, event: .insertCoin, to: .hasCredit),
-            TransitionRule(from: .drinkReady, event: .insertCoin, to: .drinkReadyWithCredit),
-            TransitionRule(from: .drinkReadyWithCredit, event: .insertCoin, to: .drinkReadyWithCredit),
-
+    @TransitionRuleBuilder<VendingEvent.EventTrigger, VendingState>
+    public static var rules: Set<TransitionRule<VendingEvent.EventTrigger, VendingState>> {
+        From(.idle) {
+            On(.insertCoin, to: .hasCredit)
+        }
+        From(.hasCredit) {
+            On(.insertCoin, to: .hasCredit)
             // A drink can only be bought when the pickup is empty.
-            TransitionRule(from: .hasCredit, event: .select, to: .drinkReady),
-
-            TransitionRule(from: .drinkReady, event: .takeDrink, to: .idle),
-            TransitionRule(from: .drinkReadyWithCredit, event: .takeDrink, to: .hasCredit),
-
-            TransitionRule(from: .hasCredit, event: .cancel, to: .idle),
-            TransitionRule(from: .drinkReadyWithCredit, event: .cancel, to: .drinkReady),
-
-            TransitionRule(from: .outOfOrder, event: .repair, to: .idle),
-        ]
+            On(.select, to: .drinkReady)
+            On(.cancel, to: .idle)
+        }
+        From(.drinkReady) {
+            On(.insertCoin, to: .drinkReadyWithCredit)
+            On(.takeDrink, to: .idle)
+        }
+        From(.drinkReadyWithCredit) {
+            On(.insertCoin, to: .drinkReadyWithCredit)
+            On(.takeDrink, to: .hasCredit)
+            On(.cancel, to: .drinkReady)
+        }
+        From(.outOfOrder) {
+            On(.repair, to: .idle)
+        }
 
         // The machine can break down at every state, and be refilled at every state.
-        return rules
-            .union(TransitionRule.from(allExcept: [.outOfOrder], event: .breakDown, to: .outOfOrder))
-            .union(TransitionRule.atEveryState(event: .refill))
-    }()
+        From(allExcept: [.outOfOrder]) {
+            On(.breakDown, to: .outOfOrder)
+        }
+        AtEveryState(.refill)
+    }
 
     // MARK: - Private properties
 

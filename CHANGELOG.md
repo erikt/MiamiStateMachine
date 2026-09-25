@@ -6,6 +6,14 @@ All changes to MiamiStateMachine that users of the package will notice. The form
 
 ## [Unreleased]
 
+### Added
+
+- A result builder for the rules, `TransitionRuleBuilder`, writing them state by state: `From(_:)` with the events
+  leading from a state as `On(_:to:)`, `From(allExcept:)` for every state but some, and `AtEveryState(_:)`. Plain
+  rules, sets of rules, `if`, `switch` and `for` can be mixed in. `StateMachine` and `ObservableStateMachine` can be
+  created with it, with `init(initialState:logCapacity:rules:)`.
+- The vending machine example writes its rules with the builder.
+
 ## [4.0.0] - 2026-09-24
 
 ### Added

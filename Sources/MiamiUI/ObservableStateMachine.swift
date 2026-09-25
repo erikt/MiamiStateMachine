@@ -114,6 +114,24 @@ public final class ObservableStateMachine<Event: StateMachineEvent, State: Hasha
         self.init(try StateMachine(transitions: transitions, initialState: initialState, logCapacity: logCapacity))
     }
 
+    /// Creates an observable state machine with a new state machine, from
+    /// rules written state by state, with the events leading from each state.
+    /// The types of the events and the states have to be written, as they
+    /// cannot be inferred from the rules.
+    /// - Parameters:
+    ///   - initialState: Initial state for the state machine.
+    ///   - logCapacity: Max capacity of transition log. Set to nil for unlimited
+    ///   number of entries in the transition log.
+    ///   - rules: The rules defining the state machine, in event triggers.
+    /// - Throws: A `DefinitionError` with the transitions in conflict, if the
+    /// rules do not define a consistent state machine.
+    public convenience init(initialState: State,
+                            logCapacity: UInt? = nil,
+                            @TransitionRuleBuilder<Event.EventTrigger, State> rules: () -> Set<TransitionRule<Event.EventTrigger, State>>) throws(StateMachine<Event, State>.DefinitionError)
+    {
+        self.init(try StateMachine(transitions: rules(), initialState: initialState, logCapacity: logCapacity))
+    }
+
     deinit {
         // Stop following the state machine, which then forgets the stream
         // of states. The events already sent are still processed.

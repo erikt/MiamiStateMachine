@@ -270,6 +270,40 @@ struct ObservableStateMachineTests {
         #expect(await door.stateMachine.transitionLog.count == 1)
     }
 
+    @Test func createsItsOwnStateMachineFromBuiltRules() async throws {
+        let door = try ObservableDoor(initialState: .closed, logCapacity: 1) {
+            From(.closed) {
+                On(.open, to: .opened)
+                On(.lock, to: .locked)
+            }
+            From(.opened) {
+                On(.close, to: .closed)
+            }
+        }
+
+        #expect(door.state == .closed)
+        #expect(door.eventsFromCurrent == [.open, .lock])
+        #expect(door.stateMachine.transitionCount == 3)
+
+        door.send(.open)
+        await wait(for: .opened, at: door)
+        door.send(.close)
+        await wait(for: .closed, at: door)
+
+        #expect(await door.stateMachine.transitionLog.count == 1)
+    }
+
+    @Test func conflictingBuiltRulesThrow() throws {
+        #expect(throws: DoorStateMachine.DefinitionError.self) {
+            try ObservableDoor(initialState: .closed) {
+                From(.closed) {
+                    On(.open, to: .opened)
+                    On(.open, to: .broken)
+                }
+            }
+        }
+    }
+
     @Test func inconsistentDefinitionThrows() throws {
         // Opening a closed door would lead to both opened and broken.
         let conflict = DoorTransition(from: .closed, event: .open, to: .broken)

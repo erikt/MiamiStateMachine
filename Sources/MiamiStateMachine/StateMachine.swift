@@ -658,6 +658,42 @@ extension StateMachine where Event.EventTrigger == Event {
     }
 }
 
+// MARK: - Rules built state by state
+
+extension StateMachine {
+
+    /// Creates a state machine from rules written state by state, with the
+    /// events leading from each state:
+    ///
+    ///     let stateMachine = try StateMachine<OrderEvent, OrderState>(initialState: .cart) {
+    ///         From(.cart) {
+    ///             On(.checkOut, to: .checkout)
+    ///             On(.cancel, to: .cancelled)
+    ///         }
+    ///         From(.checkout) {
+    ///             On(.pay, to: .paid)
+    ///         }
+    ///     }
+    ///
+    /// The types of the events and the states have to be written, as they
+    /// cannot be inferred from the rules. See `TransitionRuleBuilder` for
+    /// everything the rules can be written with.
+    /// - Parameters:
+    ///   - initialState: Initial state for the state machine.
+    ///   - logCapacity: Max capacity of transition log. Set to nil for unlimited
+    ///   number of entries in the transition log. The entries keep the events
+    ///   with what they carry, so an unlimited log is not for events carrying much.
+    ///   - rules: The rules defining the state machine, in event triggers.
+    /// - Throws: A `DefinitionError` with the transitions in conflict, if the
+    /// rules do not define a consistent state machine.
+    public init(initialState: State,
+                logCapacity: UInt? = nil,
+                @TransitionRuleBuilder<Event.EventTrigger, State> rules: () -> Set<TransitionRule<Event.EventTrigger, State>>) throws(DefinitionError)
+    {
+        try self.init(transitions: rules(), initialState: initialState, logCapacity: logCapacity)
+    }
+}
+
 // MARK: - Definition error
 
 extension StateMachine.DefinitionError: LocalizedError {

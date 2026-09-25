@@ -91,6 +91,23 @@ let stateMachine = try StateMachine(transitions: transitions, initialState: .s1)
 
 ![State Machine Example](images/state-machine-example.png)
 
+Alternatively, there is also a declarative result builder DSL:
+
+```
+let stateMachine = try StateMachine<MyEvent, MyState>(initialState: .s1) {
+    From(.s1) {
+        On(.e1, to: .s2)
+        On(.e3, to: .s3)
+    }
+    From(.s2) {
+        On(.e2, to: .s3)
+    }
+}
+```
+
+`From(allExcept:)` and `AtEveryState(_:)` make rules for many states, as described below, and `if` 
+and `for` can be used as in any other code. An `ObservableStateMachine` can be created the same way.
+
 Creating the state machine throws an error if the transitions define an inconsistent state
 machine. A consistent state machine is one where an event at a state always leads to the same
 transition. The error is a `DefinitionError`, and its `conflictingTransitions` tells which
@@ -270,6 +287,9 @@ let transitions = rules
 every state, leading back to the same state. They are ordinary rules, checked like any other when the state machine is
 created. Leave the state led to out, unless it should lead back to itself: a state with a rule back to itself is not an
 ending state.
+
+Written state by state, the same rules are `From(allExcept: [.outOfOrder]) { On(.breakDown, to: .outOfOrder) }` and
+`AtEveryState(.refill)`.
 
 ## Reacting to state changes
 
