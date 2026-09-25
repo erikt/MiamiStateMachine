@@ -18,7 +18,7 @@ enum OrderEvent: StateMachineEvent {
 }
 
 typealias OrderTransition = TransitionRule<OrderEvent, OrderState>
-typealias OrderStateMachine = StateMachine<OrderEvent, OrderState>
+typealias OrderStateMachine = StateMachine<OrderEvent, OrderState, Void>
 
 enum OrderFixture {
 

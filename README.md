@@ -94,7 +94,7 @@ let stateMachine = try StateMachine(transitions: transitions, initialState: .s1)
 Alternatively, there is also a declarative result builder DSL:
 
 ```
-let stateMachine = try StateMachine<MyEvent, MyState>(initialState: .s1) {
+let stateMachine = try StateMachine<MyEvent, MyState, Void>(initialState: .s1) {
     From(.s1) {
         On(.e1, to: .s2)
         On(.e3, to: .s3)
@@ -112,7 +112,7 @@ Inside the braces, `if`, `switch` and `for` work as in other Swift code, so rule
 condition or be made in a loop:
 
 ```
-let machine = try StateMachine<OrderEvent, OrderState>(initialState: .cart) {
+let machine = try StateMachine<OrderEvent, OrderState, Void>(initialState: .cart) {
     From(.paid) {
         On(.ship, to: .shipped)
         if offersExpress {                          // only when the condition holds
@@ -215,7 +215,7 @@ let transitions: Set<TransitionRule<LoadEvent.EventTrigger, LoadState>> = [
     TransitionRule(from: .loading, event: .fail, to: .failed),
 ]
 
-let stateMachine = try StateMachine<LoadEvent, LoadState>(transitions: transitions, initialState: .idle)
+let stateMachine = try StateMachine<LoadEvent, LoadState, Void>(transitions: transitions, initialState: .idle)
 ```
 
 The macro is a plugin of the compiler, and Xcode asks for it to be trusted the first time it is used.
@@ -276,8 +276,54 @@ Keep in mind, the log keeps the events, including the carried values. If the val
 down by setting a capacity on the state machine log:
 
 ```
-StateMachine<LoadEvent, LoadState>(transitions: transitions, initialState: .idle, logCapacity: 10)
+StateMachine<LoadEvent, LoadState, Void>(transitions: transitions, initialState: .idle, logCapacity: 10)
 ```
+
+## A context
+
+What the states alone do not tell, like the credit of a vending machine, can be kept in a context owned by the state
+machine. Actions of the transitions, written with the rule builder, change it, and nothing else does. An action is given
+the context to change and the transition made, with what its event carries:
+
+```
+enum CoinState {
+    case idle, hasCredit
+}
+
+@StateMachineEvent
+enum CoinEvent {
+    case insert(cents: Int)
+    case cancel
+}
+
+struct Credit: Sendable {
+    var cents = 0
+}
+
+let machine = try StateMachine<CoinEvent, CoinState, Credit>(initialState: .idle, context: Credit()) {
+    From(.idle) {
+        On(.insert, to: .hasCredit) { credit, transition in
+            if case .insert(let cents) = transition.event {
+                credit.cents += cents
+            }
+        }
+    }
+    From(.hasCredit) {
+        On(.cancel, to: .idle) { credit, _ in
+            credit.cents = 0
+        }
+    }
+}
+
+await machine.process(.insert(cents: 25))
+await machine.context.cents  // 25
+```
+
+An action runs as part of its transition, after the state has changed and before the streams deliver the transition, so
+nothing comes in between. The context never decides whether an event is accepted: that is still the state and the
+event trigger alone, so the checks of the definition, the shortest path and the diagrams hold. A state machine without a
+context has `Void` as its context, and is created without `context:`. That is why the other examples write
+`StateMachine<MyEvent, MyState, Void>`.
 
 ## The same event from many states
 
@@ -399,7 +445,7 @@ import MiamiStateMachine
 import MiamiUI
 
 struct MyView: View {
-    let stateMachine: ObservableStateMachine<MyEvent, MyState>
+    let stateMachine: ObservableStateMachine<MyEvent, MyState, Void>
 
     var body: some View {
         Text("The state is \(String(describing: stateMachine.state))")

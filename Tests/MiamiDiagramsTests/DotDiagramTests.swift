@@ -15,7 +15,7 @@ struct DotDiagramTests {
         let description: String
     }
 
-    typealias NamedStateMachine = StateMachine<String, NamedState>
+    typealias NamedStateMachine = StateMachine<String, NamedState, Void>
 
     /// The lines of a diagram, without the indentation.
     private func lines(of diagram: String) -> [String] {

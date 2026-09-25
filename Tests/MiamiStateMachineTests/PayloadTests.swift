@@ -35,7 +35,7 @@ struct PayloadTests {
     }
 
     typealias LoadTransition = TransitionRule<LoadEvent.EventTrigger, LoadState>
-    typealias LoadStateMachine = StateMachine<LoadEvent, LoadState>
+    typealias LoadStateMachine = StateMachine<LoadEvent, LoadState, Void>
 
     /// Loading can fail and be tried again. Ready is an ending state.
     static let transitions: Set<LoadTransition> = [
@@ -190,7 +190,7 @@ struct PayloadTests {
     }
 
     @Test func eventDoesNotHaveToBeHashable() async throws {
-        let stateMachine = try StateMachine<Message, Int>(transitions: [
+        let stateMachine = try StateMachine<Message, Int, Void>(transitions: [
             TransitionRule(from: 0, event: .received, to: 1),
         ], initialState: 0)
 
@@ -202,7 +202,7 @@ struct PayloadTests {
 
     /// The rejected event cannot be compared, but it is thrown with what it carries.
     @Test func eventThatCannotBeComparedIsThrownWithWhatItCarries() async throws {
-        let stateMachine = try StateMachine<Message, Int>(transitions: [], initialState: 0)
+        let stateMachine = try StateMachine<Message, Int, Void>(transitions: [], initialState: 0)
 
         do {
             try await stateMachine.processOrThrow(Message(attachment: .init(data: [4, 5])))

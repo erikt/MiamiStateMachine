@@ -121,7 +121,7 @@ struct LargeDefinitionTests {
         let conflict = TransitionRule(from: state(1_000), event: 0, to: state(7))
         let transitions = makeRing().union([conflict])
 
-        let error = try #require(throws: StateMachine<Int, CountedState>.DefinitionError.self) {
+        let error = try #require(throws: StateMachine<Int, CountedState, Void>.DefinitionError.self) {
             try StateMachine(transitions: transitions, initialState: state(0))
         }
 

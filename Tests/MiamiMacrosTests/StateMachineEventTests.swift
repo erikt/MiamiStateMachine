@@ -63,7 +63,7 @@ struct StateMachineEventTests {
     // MARK: - With a state machine
 
     @Test func stateMachineUsesTheTriggers() async throws {
-        let stateMachine = try StateMachine<LoadEvent, LoadState>(transitions: Self.rules, initialState: .idle)
+        let stateMachine = try StateMachine<LoadEvent, LoadState, Void>(transitions: Self.rules, initialState: .idle)
         await stateMachine.process(.start)
         await stateMachine.process(.fail(reason: "Timeout"))
         await stateMachine.process(.retry)
@@ -76,7 +76,7 @@ struct StateMachineEventTests {
     }
 
     @Test func whatIsCarriedDoesNotDecideTheTransition() async throws {
-        let stateMachine = try StateMachine<LoadEvent, LoadState>(transitions: Self.rules, initialState: .loading)
+        let stateMachine = try StateMachine<LoadEvent, LoadState, Void>(transitions: Self.rules, initialState: .loading)
 
         // Any number of bytes, as the rule is written with the trigger.
         #expect(await stateMachine.process(.finish(bytes: 0))?.to == .ready)

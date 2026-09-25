@@ -37,7 +37,7 @@ struct ObservablePayloadTests {
         TransitionRule(from: .results, event: .clear, to: .empty),
     ]
 
-    private func makeSearch() throws -> ObservableStateMachine<SearchEvent, SearchState> {
+    private func makeSearch() throws -> ObservableStateMachine<SearchEvent, SearchState, Void> {
         ObservableStateMachine(try StateMachine(transitions: Self.transitions, initialState: .empty))
     }
 
@@ -62,7 +62,7 @@ struct ObservablePayloadTests {
     }
 
     @Test func createsItsOwnStateMachineFromRulesInTriggers() async throws {
-        let search = try ObservableStateMachine<SearchEvent, SearchState>(transitions: Self.transitions, initialState: .results, logCapacity: 1)
+        let search = try ObservableStateMachine<SearchEvent, SearchState, Void>(transitions: Self.transitions, initialState: .results, logCapacity: 1)
         #expect(search.state == .results)
 
         // One event at a time, as only the newest state is kept for the main actor.

@@ -1,6 +1,9 @@
 import Testing
 import MiamiStateMachine
 
+/// Rules of the order fixture as the rule builder writes them, without a context.
+private typealias OrderRules = TransitionRules<OrderEvent, OrderState, Void>
+
 /// Rules written state by state with the rule builder.
 struct RuleBuilderTests {
 
@@ -11,8 +14,8 @@ struct RuleBuilderTests {
 
     // MARK: - The order fixture, built
 
-    @TransitionRuleBuilder<OrderEvent, OrderState>
-    private var builtFixture: Set<OrderTransition> {
+    @TransitionRuleBuilder<OrderEvent, OrderState, Void>
+    private var builtFixture: OrderRules {
         From(.cart) {
             On(.addItem, to: .cart)
             On(.checkOut, to: .checkout)
@@ -34,7 +37,7 @@ struct RuleBuilderTests {
     }
 
     @Test func builtRulesAreTheRulesWrittenOut() {
-        #expect(builtFixture == OrderFixture.transitions)
+        #expect(builtFixture.rules == OrderFixture.transitions)
     }
 
     @Test func stateMachineIsCreatedFromBuiltRules() async throws {
@@ -71,44 +74,44 @@ struct RuleBuilderTests {
     // MARK: - Many states
 
     @Test func fromEveryStateButSome() {
-        @TransitionRuleBuilder<OrderEvent, OrderState>
-        var built: Set<OrderTransition> {
+        @TransitionRuleBuilder<OrderEvent, OrderState, Void>
+        var built: OrderRules {
             From(allExcept: [.cancelled, .delivered]) {
                 On(.cancel, to: .cancelled)
                 On(.editCart, to: .cart)
             }
         }
 
-        #expect(built == OrderTransition.from(allExcept: [.cancelled, .delivered], event: .cancel, to: .cancelled)
+        #expect(built.rules == OrderTransition.from(allExcept: [.cancelled, .delivered], event: .cancel, to: .cancelled)
             .union(OrderTransition.from(allExcept: [.cancelled, .delivered], event: .editCart, to: .cart)))
     }
 
     @Test func atEveryState() {
-        @TransitionRuleBuilder<OrderEvent, OrderState>
-        var built: Set<OrderTransition> {
+        @TransitionRuleBuilder<OrderEvent, OrderState, Void>
+        var built: OrderRules {
             AtEveryState(.addItem)
         }
 
-        #expect(built == OrderTransition.atEveryState(event: .addItem))
+        #expect(built.rules == OrderTransition.atEveryState(event: .addItem))
     }
 
     // MARK: - Mixed with code
 
     @Test func plainRulesAndSetsOfRules() {
-        @TransitionRuleBuilder<OrderEvent, OrderState>
-        var built: Set<OrderTransition> {
+        @TransitionRuleBuilder<OrderEvent, OrderState, Void>
+        var built: OrderRules {
             OrderTransition(from: .cart, event: .checkOut, to: .checkout)
             OrderTransition.from(allExcept: [.cancelled], event: .cancel, to: .cancelled)
         }
 
-        #expect(built == Set([OrderTransition(from: .cart, event: .checkOut, to: .checkout)])
+        #expect(built.rules == Set([OrderTransition(from: .cart, event: .checkOut, to: .checkout)])
             .union(OrderTransition.from(allExcept: [.cancelled], event: .cancel, to: .cancelled)))
     }
 
     @Test(arguments: [true, false])
     func conditions(express: Bool) {
-        @TransitionRuleBuilder<OrderEvent, OrderState>
-        var built: Set<OrderTransition> {
+        @TransitionRuleBuilder<OrderEvent, OrderState, Void>
+        var built: OrderRules {
             if express {
                 From(.paid) {
                     On(.shipExpress, to: .shipped)
@@ -129,14 +132,14 @@ struct RuleBuilderTests {
         let paid = OrderTransition(from: .paid, event: express ? .shipExpress : .ship, to: .shipped)
         let delivered = OrderTransition(from: .shipped, event: .deliver, to: .delivered)
         let invoice = OrderTransition(from: .shipped, event: .shipOnInvoice, to: .shipped)
-        #expect(built == (express ? [paid, delivered, invoice] : [paid, delivered]))
+        #expect(built.rules == (express ? [paid, delivered, invoice] : [paid, delivered]))
     }
 
     @Test func loops() {
         let states: [OrderState] = [.cart, .checkout, .paid]
 
-        @TransitionRuleBuilder<OrderEvent, OrderState>
-        var built: Set<OrderTransition> {
+        @TransitionRuleBuilder<OrderEvent, OrderState, Void>
+        var built: OrderRules {
             for state in states {
                 From(state) {
                     On(.cancel, to: .cancelled)
@@ -149,7 +152,7 @@ struct RuleBuilderTests {
             }
         }
 
-        #expect(built == [
+        #expect(built.rules == [
             OrderTransition(from: .cart, event: .cancel, to: .cancelled),
             OrderTransition(from: .checkout, event: .cancel, to: .cancelled),
             OrderTransition(from: .paid, event: .cancel, to: .cancelled),

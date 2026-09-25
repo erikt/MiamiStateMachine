@@ -13,6 +13,10 @@ import Foundation
 /// Information about the definition of the state machine can be
 /// accessed by non-isolated methods.
 ///
+/// A state machine can own a context, of any type, for what the states alone
+/// do not tell, like the credit of a vending machine. Only the actions of its
+/// transitions change it. A state machine without one has `Void` as its context.
+///
 /// A state machine can be followed in Instruments, with the os_signpost
 /// instrument. Every state is an interval, named by the state and ended by the
 /// trigger of the event leaving it, and every rejected event is a signpost
@@ -21,7 +25,7 @@ import Foundation
 /// but they have to be asked for: add `MiamiStateMachine` to the subsystems
 /// for dynamic tracing, in the recording options of the instrument. Events
 /// are shown by their trigger, never with what they carry.
-public actor StateMachine<Event: StateMachineEvent, State: Hashable & Sendable> {
+public actor StateMachine<Event: StateMachineEvent, State: Hashable & Sendable, Context: Sendable> {
 
     // MARK: - Types
 
@@ -77,6 +81,9 @@ public actor StateMachine<Event: StateMachineEvent, State: Hashable & Sendable> 
     /// The signposts showing the state machine in Instruments.
     private var signposts = StateSignposts<State>()
 
+    /// The actions of the rules having any, in the order they were written.
+    private let actions: [TransitionRule<Event.EventTrigger, State>: [TransitionAction<Event, State, Context>]]
+
     // MARK: - Public nonisolated properties
 
     /// The starting state for the state machine. It is part of the
@@ -87,6 +94,11 @@ public actor StateMachine<Event: StateMachineEvent, State: Hashable & Sendable> 
 
     /// The current state of the state machine.
     public private(set) var state: State
+
+    /// The context of the state machine, for what the states alone do not
+    /// tell. Only the actions of the transitions change it, as part of the
+    /// transition, so it always agrees with `state`.
+    public private(set) var context: Context
 
     /// A log keeping track of all processed transitions
     /// of the state machine. The log has a max capacity of
@@ -155,7 +167,7 @@ public actor StateMachine<Event: StateMachineEvent, State: Hashable & Sendable> 
     
     // MARK: - Initialization
     
-    /// Creates a new state machine.
+    /// Creates a new state machine, with a context.
     ///
     /// The transitions have to define a consistent state machine, where an
     /// event processed at a state leads to one single state. Several events
@@ -165,13 +177,18 @@ public actor StateMachine<Event: StateMachineEvent, State: Hashable & Sendable> 
     /// Any initial state is accepted, also a state without transitions
     /// leading from it. Such a state machine is at an ending state from
     /// the start, and rejects every event.
+    ///
     /// The transitions are written in event triggers, which does not tell the
     /// type of the events, so it has to be written: `StateMachine<LoadEvent,
-    /// LoadState>(transitions:initialState:)`. It is known from the transitions
-    /// only for events being their own trigger.
+    /// LoadState, Progress>(transitions:initialState:context:)`. It is known
+    /// from the transitions only for events being their own trigger.
+    ///
+    /// Transitions given as a set have no actions, so the context stays as it
+    /// is given. Actions are written with the rule builder.
     /// - Parameters:
     ///   - transitions: Transitions defining the state machine.
     ///   - initialState: Initial state for the state machine.
+    ///   - context: Initial context for the state machine.
     ///   - logCapacity: Max capacity of transition log. Set to nil for unlimited
     ///   number of entries in the transition log. The entries keep the events
     ///   with what they carry, so an unlimited log is not for events carrying much.
@@ -180,26 +197,30 @@ public actor StateMachine<Event: StateMachineEvent, State: Hashable & Sendable> 
     /// to different states.
     public init(transitions: Set<TransitionRule<Event.EventTrigger, State>>,
                 initialState: State,
+                context: Context,
                 logCapacity: UInt? = nil) throws(DefinitionError)
     {
-        try self.init(definedBy: transitions, initialState: initialState, logCapacity: logCapacity)
+        try self.init(definedBy: TransitionRules(transitions), initialState: initialState, context: context, logCapacity: logCapacity)
     }
 
     /// Creates a state machine. It is what the other initializers do, which
     /// have the same names for their parameters, and cannot call each other.
-    private init(definedBy transitions: Set<TransitionRule<Event.EventTrigger, State>>,
+    private init(definedBy rules: TransitionRules<Event, State, Context>,
                  initialState: State,
+                 context: Context,
                  logCapacity: UInt?) throws(DefinitionError)
     {
         do {
-            self.definition = try StateMachineDefinition(rules: transitions)
+            self.definition = try StateMachineDefinition(rules: rules.rules)
         } catch {
             throw DefinitionError(conflictingTransitions: error.rules)
         }
 
+        self.actions = rules.actions
         self.transitionLog = CapacityLog(capacity: logCapacity)
         self.initialState = initialState
         self.state = initialState
+        self.context = context
         self.enteredAt = .now
         signposts.enter(initialState)
     }
@@ -249,6 +270,13 @@ public actor StateMachine<Event: StateMachineEvent, State: Hashable & Sendable> 
         signposts.leave(by: t.event)
         signposts.enter(t.to)
         commit(made)
+        if !actions.isEmpty, let actionsOfRule = actions[t] {
+            // Part of the transition: nothing comes in between, and the
+            // streams deliver the transition with the context changed.
+            for action in actionsOfRule {
+                action(&context, made)
+            }
+        }
         transitionStreams.yield(made)
         stateStreams.yield(state)
         if isAtEndingState {
@@ -306,9 +334,73 @@ public actor StateMachine<Event: StateMachineEvent, State: Hashable & Sendable> 
 
 extension StateMachine where Event.EventTrigger == Event {
 
-    /// Creates a state machine for events being their own trigger, which
-    /// events without anything to carry are. The type of the events is
-    /// then known from the transitions, and does not have to be written.
+    /// Creates a state machine with a context, for events being their own
+    /// trigger, which events without anything to carry are. The type of the
+    /// events is then known from the transitions, and does not have to be written.
+    /// - Parameters:
+    ///   - transitions: Transitions defining the state machine.
+    ///   - initialState: Initial state for the state machine.
+    ///   - context: Initial context for the state machine.
+    ///   - logCapacity: Max capacity of transition log. Set to nil for unlimited
+    ///   number of entries in the transition log. The entries keep the events
+    ///   with what they carry, so an unlimited log is not for events carrying much.
+    /// - Throws: A `DefinitionError` with the transitions in conflict, if the
+    /// transitions do not define a consistent state machine.
+    public init(transitions: Set<TransitionRule<Event, State>>,
+                initialState: State,
+                context: Context,
+                logCapacity: UInt? = nil) throws(DefinitionError)
+    {
+        try self.init(definedBy: TransitionRules(transitions), initialState: initialState, context: context, logCapacity: logCapacity)
+    }
+}
+
+// MARK: - Without a context
+
+extension StateMachine where Context == Void {
+
+    /// Creates a new state machine without a context.
+    ///
+    /// The transitions have to define a consistent state machine, where an
+    /// event processed at a state leads to one single state. See
+    /// `init(transitions:initialState:context:logCapacity:)`.
+    /// - Parameters:
+    ///   - transitions: Transitions defining the state machine.
+    ///   - initialState: Initial state for the state machine.
+    ///   - logCapacity: Max capacity of transition log. Set to nil for unlimited
+    ///   number of entries in the transition log. The entries keep the events
+    ///   with what they carry, so an unlimited log is not for events carrying much.
+    /// - Throws: A `DefinitionError` with the transitions in conflict, if two
+    /// or more transitions lead from the same state, for the same event,
+    /// to different states.
+    public init(transitions: Set<TransitionRule<Event.EventTrigger, State>>,
+                initialState: State,
+                logCapacity: UInt? = nil) throws(DefinitionError)
+    {
+        try self.init(definedBy: TransitionRules(transitions), initialState: initialState, context: (), logCapacity: logCapacity)
+    }
+
+    /// Creates a state machine without a context, from rules written state
+    /// by state. See `init(initialState:context:logCapacity:rules:)`.
+    /// - Parameters:
+    ///   - initialState: Initial state for the state machine.
+    ///   - logCapacity: Max capacity of transition log. Set to nil for unlimited
+    ///   number of entries in the transition log.
+    ///   - rules: The rules defining the state machine, in event triggers.
+    /// - Throws: A `DefinitionError` with the transitions in conflict, if the
+    /// rules do not define a consistent state machine.
+    public init(initialState: State,
+                logCapacity: UInt? = nil,
+                @TransitionRuleBuilder<Event, State, Context> rules: @Sendable () -> TransitionRules<Event, State, Context>) throws(DefinitionError)
+    {
+        try self.init(definedBy: rules(), initialState: initialState, context: (), logCapacity: logCapacity)
+    }
+}
+
+extension StateMachine where Event.EventTrigger == Event, Context == Void {
+
+    /// Creates a state machine without a context, for events being their own
+    /// trigger. The type of the events is then known from the transitions.
     /// - Parameters:
     ///   - transitions: Transitions defining the state machine.
     ///   - initialState: Initial state for the state machine.
@@ -321,7 +413,7 @@ extension StateMachine where Event.EventTrigger == Event {
                 initialState: State,
                 logCapacity: UInt? = nil) throws(DefinitionError)
     {
-        try self.init(definedBy: transitions, initialState: initialState, logCapacity: logCapacity)
+        try self.init(definedBy: TransitionRules(transitions), initialState: initialState, context: (), logCapacity: logCapacity)
     }
 }
 
@@ -329,22 +421,23 @@ extension StateMachine where Event.EventTrigger == Event {
 
 extension StateMachine {
 
-    /// Creates a state machine from rules written state by state, with the
-    /// events leading from each state:
+    /// Creates a state machine with a context, from rules written state by
+    /// state, with the events leading from each state, and the actions
+    /// changing the context when their transitions are made:
     ///
-    ///     let stateMachine = try StateMachine<OrderEvent, OrderState>(initialState: .cart) {
-    ///         From(.cart) {
-    ///             On(.checkOut, to: .checkout)
-    ///             On(.cancel, to: .cancelled)
-    ///         }
-    ///         From(.checkout) {
-    ///             On(.pay, to: .paid)
+    ///     let machine = try StateMachine<CoinEvent, CoinState, Credit>(initialState: .idle, context: Credit()) {
+    ///         From(.idle) {
+    ///             On(.insert, to: .hasCredit) { credit, transition in
+    ///                 if case .insert(let cents) = transition.event {
+    ///                     credit.cents += cents
+    ///                 }
+    ///             }
     ///         }
     ///     }
     ///
-    /// The types of the events and the states have to be written, as they
-    /// cannot be inferred from the rules. See `TransitionRuleBuilder` for
-    /// everything the rules can be written with.
+    /// The types of the events, the states and the context have to be written,
+    /// as they cannot be inferred from the rules. See `TransitionRuleBuilder`
+    /// for everything the rules can be written with.
     ///
     /// The rules are given to the state machine, an actor, so the closure
     /// writing them is `Sendable`, and can be written on the main actor too.
@@ -352,6 +445,7 @@ extension StateMachine {
     /// constant before, and use the constant.
     /// - Parameters:
     ///   - initialState: Initial state for the state machine.
+    ///   - context: Initial context for the state machine.
     ///   - logCapacity: Max capacity of transition log. Set to nil for unlimited
     ///   number of entries in the transition log. The entries keep the events
     ///   with what they carry, so an unlimited log is not for events carrying much.
@@ -359,10 +453,11 @@ extension StateMachine {
     /// - Throws: A `DefinitionError` with the transitions in conflict, if the
     /// rules do not define a consistent state machine.
     public init(initialState: State,
+                context: Context,
                 logCapacity: UInt? = nil,
-                @TransitionRuleBuilder<Event.EventTrigger, State> rules: @Sendable () -> Set<TransitionRule<Event.EventTrigger, State>>) throws(DefinitionError)
+                @TransitionRuleBuilder<Event, State, Context> rules: @Sendable () -> TransitionRules<Event, State, Context>) throws(DefinitionError)
     {
-        try self.init(transitions: rules(), initialState: initialState, logCapacity: logCapacity)
+        try self.init(definedBy: rules(), initialState: initialState, context: context, logCapacity: logCapacity)
     }
 }
 

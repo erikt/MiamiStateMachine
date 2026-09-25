@@ -121,7 +121,7 @@ struct MiamiStateMachineTests {
     }
 
     @Test func illegalStateMachineDefinition() {
-        #expect(throws: StateMachine<E2, S2>.DefinitionError.self,
+        #expect(throws: StateMachine<E2, S2, Void>.DefinitionError.self,
                 "Should not be possible to create an inconsistent state machine definition.") {
             try StateMachine(transitions: illegalT, initialState: .s1)
         }

@@ -15,7 +15,7 @@ struct ObservableStateMachineTests {
     }
 
     /// Waits for the observable door to hear that the door is at a state.
-    private func wait(for state: DoorState, at door: ObservableDoor) async {
+    private func wait<Context>(for state: DoorState, at door: ObservableStateMachine<DoorEvent, DoorState, Context>) async {
         while door.state != state, !Task.isCancelled {
             await Task.yield()
         }
@@ -311,6 +311,29 @@ struct ObservableStateMachineTests {
         await wait(for: .closed, at: door)
 
         #expect(await door.stateMachine.transitionLog.count == 1)
+    }
+
+    @Test func createsItsOwnStateMachineWithAContext() async throws {
+        // How many times the door was opened.
+        let door = try ObservableStateMachine<DoorEvent, DoorState, Int>(initialState: .closed, context: 0) {
+            From(.closed) {
+                On(.open, to: .opened) { openings, _ in
+                    openings += 1
+                }
+            }
+            From(.opened) {
+                On(.close, to: .closed)
+            }
+        }
+
+        door.send(.open)
+        await wait(for: .opened, at: door)
+        door.send(.close)
+        await wait(for: .closed, at: door)
+        door.send(.open)
+        await wait(for: .opened, at: door)
+
+        #expect(await door.stateMachine.context == 2)
     }
 
     @Test func conflictingBuiltRulesThrow() throws {

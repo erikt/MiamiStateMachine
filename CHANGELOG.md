@@ -8,13 +8,27 @@ All changes to MiamiStateMachine that users of the package will notice. The form
 
 ### Added
 
+- A context of any type owned by the state machine, for what the states alone do not tell, like the credit of a
+  vending machine: `StateMachine<Event, State, Context>`, with `context`. Actions of the transitions change it, and
+  nothing else does. An action is a `TransitionAction`, given the context and the transition made, with what its event
+  carries. It runs as part of the transition, before the streams deliver it. The context never decides whether an
+  event is accepted.
 - A result builder for the rules, `TransitionRuleBuilder`, writing them state by state: `From(_:)` with the events
-  leading from a state as `On(_:to:)`, `From(allExcept:)` for every state but some, and `AtEveryState(_:)`. Plain
-  rules, sets of rules, `if`, `switch` and `for` can be mixed in. `StateMachine` and `ObservableStateMachine` can be
-  created with it, with `init(initialState:logCapacity:rules:)`.
-- The vending machine example writes its rules with the builder.
+  leading from a state as `On(_:to:)`, `From(allExcept:)` for every state but some, and `AtEveryState(_:)`, each event
+  with an action or without. Plain rules, sets of rules, `if`, `switch` and `for` can be mixed in. It builds
+  `TransitionRules`, the rules and their actions. `StateMachine` and `ObservableStateMachine` can be created with it,
+  with `init(initialState:context:logCapacity:rules:)`, and without `context:` for a state machine without one.
+- The vending machine example writes its rules with the builder, and keeps its credit, pickup and stock in the context,
+  changed by actions.
 - `enteredAt` on `StateMachine`, when the current state was entered, as an instant of the continuous clock. The time
   spent at the current state is `ContinuousClock.now - enteredAt`.
+
+### Changed
+
+- **Breaking:** `StateMachine` and `ObservableStateMachine` have a third generic parameter, the type of the context.
+  A state machine without a context has `Void`, so code writing the types needs it added:
+  `StateMachine<OrderEvent, OrderState, Void>`. Initializers without `context:` are for `Void` only, so code creating a
+  state machine without writing the types is unchanged.
 
 ## [4.0.0] - 2026-09-24
 

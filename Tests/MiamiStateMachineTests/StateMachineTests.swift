@@ -50,7 +50,7 @@ struct StateMachineTests {
         let names = ["j", "c", "h", "a", "f", "i", "b", "e", "g", "d"]
         let transitions = Set(names.map { TransitionRule(from: "start", event: "go", to: $0) })
 
-        let error = try #require(throws: StateMachine<String, String>.DefinitionError.self) {
+        let error = try #require(throws: StateMachine<String, String, Void>.DefinitionError.self) {
             try StateMachine(transitions: transitions, initialState: "start")
         }
 

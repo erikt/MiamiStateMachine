@@ -15,9 +15,9 @@ enum DoorEvent: StateMachineEvent {
 }
 
 typealias DoorTransition = TransitionRule<DoorEvent, DoorState>
-typealias DoorStateMachine = StateMachine<DoorEvent, DoorState>
+typealias DoorStateMachine = StateMachine<DoorEvent, DoorState, Void>
 
-typealias ObservableDoor = ObservableStateMachine<DoorEvent, DoorState>
+typealias ObservableDoor = ObservableStateMachine<DoorEvent, DoorState, Void>
 
 enum DoorFixture {
 

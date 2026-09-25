@@ -6,7 +6,7 @@ import Observation
 /// view using `state` is updated when the state machine makes a transition.
 ///
 ///     struct DoorView: View {
-///         @State private var door: ObservableStateMachine<DoorEvent, DoorState>
+///         @State private var door: ObservableStateMachine<DoorEvent, DoorState, Void>
 ///
 ///         var body: some View {
 ///             Text("The door is \(String(describing: door.state))")
@@ -28,12 +28,12 @@ import Observation
 /// machine lacks.
 @MainActor
 @Observable
-public final class ObservableStateMachine<Event: StateMachineEvent, State: Hashable & Sendable> {
+public final class ObservableStateMachine<Event: StateMachineEvent, State: Hashable & Sendable, Context: Sendable> {
 
     // MARK: - Public properties
 
     /// The state machine being observed.
-    public let stateMachine: StateMachine<Event, State>
+    public let stateMachine: StateMachine<Event, State, Context>
 
     /// The current state, as last heard from the state machine.
     ///
@@ -73,7 +73,7 @@ public final class ObservableStateMachine<Event: StateMachineEvent, State: Hasha
     /// Creates an observable state machine following a state machine.
     /// - Parameter stateMachine: The state machine to observe. It can be
     /// in use already, and be used by others at the same time.
-    public init(_ stateMachine: StateMachine<Event, State>) {
+    public init(_ stateMachine: StateMachine<Event, State, Context>) {
         self.stateMachine = stateMachine
         self.state = stateMachine.initialState
 
@@ -99,37 +99,45 @@ public final class ObservableStateMachine<Event: StateMachineEvent, State: Hasha
         }
     }
 
-    /// Creates an observable state machine with a new state machine.
+    /// Creates an observable state machine with a new state machine, with a
+    /// context. Transitions given as a set have no actions.
     /// - Parameters:
     ///   - transitions: Transitions defining the state machine.
     ///   - initialState: Initial state for the state machine.
+    ///   - context: Initial context for the state machine.
     ///   - logCapacity: Max capacity of transition log. Set to nil for unlimited
     ///   number of entries in the transition log.
     /// - Throws: A `DefinitionError` with the transitions in conflict, if the
     /// transitions do not define a consistent state machine.
     public convenience init(transitions: Set<TransitionRule<Event.EventTrigger, State>>,
                             initialState: State,
-                            logCapacity: UInt? = nil) throws(StateMachine<Event, State>.DefinitionError)
+                            context: Context,
+                            logCapacity: UInt? = nil) throws(StateMachine<Event, State, Context>.DefinitionError)
     {
-        self.init(try StateMachine(transitions: transitions, initialState: initialState, logCapacity: logCapacity))
+        self.init(try StateMachine(transitions: transitions, initialState: initialState, context: context, logCapacity: logCapacity))
     }
 
-    /// Creates an observable state machine with a new state machine, from
-    /// rules written state by state, with the events leading from each state.
-    /// The types of the events and the states have to be written, as they
-    /// cannot be inferred from the rules.
+    /// Creates an observable state machine with a new state machine, with a
+    /// context, from rules written state by state, with the events leading
+    /// from each state and the actions of their transitions. The types of the
+    /// events, the states and the context have to be written, as they cannot
+    /// be inferred from the rules.
     /// - Parameters:
     ///   - initialState: Initial state for the state machine.
+    ///   - context: Initial context for the state machine.
     ///   - logCapacity: Max capacity of transition log. Set to nil for unlimited
     ///   number of entries in the transition log.
     ///   - rules: The rules defining the state machine, in event triggers.
     /// - Throws: A `DefinitionError` with the transitions in conflict, if the
     /// rules do not define a consistent state machine.
     public convenience init(initialState: State,
+                            context: Context,
                             logCapacity: UInt? = nil,
-                            @TransitionRuleBuilder<Event.EventTrigger, State> rules: () -> Set<TransitionRule<Event.EventTrigger, State>>) throws(StateMachine<Event, State>.DefinitionError)
+                            @TransitionRuleBuilder<Event, State, Context> rules: () -> TransitionRules<Event, State, Context>) throws(StateMachine<Event, State, Context>.DefinitionError)
     {
-        self.init(try StateMachine(transitions: rules(), initialState: initialState, logCapacity: logCapacity))
+        // Built here, so only the rules, which are values, go to the state machine.
+        let built = rules()
+        self.init(try StateMachine(initialState: initialState, context: context, logCapacity: logCapacity) { built })
     }
 
     deinit {
@@ -202,9 +210,72 @@ extension ObservableStateMachine {
 
 extension ObservableStateMachine where Event.EventTrigger == Event {
 
-    /// Creates an observable state machine with a new state machine, for
-    /// events being their own trigger, which events without anything to carry
-    /// are. The type of the events is then known from the transitions.
+    /// Creates an observable state machine with a new state machine, with a
+    /// context, for events being their own trigger, which events without
+    /// anything to carry are. The type of the events is then known from the
+    /// transitions.
+    /// - Parameters:
+    ///   - transitions: Transitions defining the state machine.
+    ///   - initialState: Initial state for the state machine.
+    ///   - context: Initial context for the state machine.
+    ///   - logCapacity: Max capacity of transition log. Set to nil for unlimited
+    ///   number of entries in the transition log.
+    /// - Throws: A `DefinitionError` with the transitions in conflict, if the
+    /// transitions do not define a consistent state machine.
+    public convenience init(transitions: Set<TransitionRule<Event, State>>,
+                            initialState: State,
+                            context: Context,
+                            logCapacity: UInt? = nil) throws(StateMachine<Event, State, Context>.DefinitionError)
+    {
+        self.init(try StateMachine(transitions: transitions, initialState: initialState, context: context, logCapacity: logCapacity))
+    }
+}
+
+// MARK: - Without a context
+
+extension ObservableStateMachine where Context == Void {
+
+    /// Creates an observable state machine with a new state machine, without
+    /// a context.
+    /// - Parameters:
+    ///   - transitions: Transitions defining the state machine.
+    ///   - initialState: Initial state for the state machine.
+    ///   - logCapacity: Max capacity of transition log. Set to nil for unlimited
+    ///   number of entries in the transition log.
+    /// - Throws: A `DefinitionError` with the transitions in conflict, if the
+    /// transitions do not define a consistent state machine.
+    public convenience init(transitions: Set<TransitionRule<Event.EventTrigger, State>>,
+                            initialState: State,
+                            logCapacity: UInt? = nil) throws(StateMachine<Event, State, Context>.DefinitionError)
+    {
+        self.init(try StateMachine(transitions: transitions, initialState: initialState, logCapacity: logCapacity))
+    }
+
+    /// Creates an observable state machine with a new state machine, without
+    /// a context, from rules written state by state. The types of the events
+    /// and the states have to be written, as they cannot be inferred from the rules.
+    /// - Parameters:
+    ///   - initialState: Initial state for the state machine.
+    ///   - logCapacity: Max capacity of transition log. Set to nil for unlimited
+    ///   number of entries in the transition log.
+    ///   - rules: The rules defining the state machine, in event triggers.
+    /// - Throws: A `DefinitionError` with the transitions in conflict, if the
+    /// rules do not define a consistent state machine.
+    public convenience init(initialState: State,
+                            logCapacity: UInt? = nil,
+                            @TransitionRuleBuilder<Event, State, Context> rules: () -> TransitionRules<Event, State, Context>) throws(StateMachine<Event, State, Context>.DefinitionError)
+    {
+        // Built here, so only the rules, which are values, go to the state machine.
+        let built = rules()
+        self.init(try StateMachine(initialState: initialState, logCapacity: logCapacity) { built })
+    }
+}
+
+extension ObservableStateMachine where Event.EventTrigger == Event, Context == Void {
+
+    /// Creates an observable state machine with a new state machine, without
+    /// a context, for events being their own trigger. The type of the events
+    /// is then known from the transitions.
     /// - Parameters:
     ///   - transitions: Transitions defining the state machine.
     ///   - initialState: Initial state for the state machine.
@@ -214,7 +285,7 @@ extension ObservableStateMachine where Event.EventTrigger == Event {
     /// transitions do not define a consistent state machine.
     public convenience init(transitions: Set<TransitionRule<Event, State>>,
                             initialState: State,
-                            logCapacity: UInt? = nil) throws(StateMachine<Event, State>.DefinitionError)
+                            logCapacity: UInt? = nil) throws(StateMachine<Event, State, Context>.DefinitionError)
     {
         self.init(try StateMachine(transitions: transitions, initialState: initialState, logCapacity: logCapacity))
     }

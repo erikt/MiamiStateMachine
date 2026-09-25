@@ -344,7 +344,7 @@ struct CodableTests {
         let transitions = try decoded(Set<LightTransition>.self, from: saved)
         #expect(transitions.count == 2)
 
-        let error = try #require(throws: StateMachine<LightEvent, LightState>.DefinitionError.self) {
+        let error = try #require(throws: StateMachine<LightEvent, LightState, Void>.DefinitionError.self) {
             try StateMachine(transitions: transitions, initialState: .red)
         }
         #expect(error.conflictingTransitions == transitions)
