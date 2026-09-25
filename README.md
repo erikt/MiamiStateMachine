@@ -105,8 +105,27 @@ let stateMachine = try StateMachine<MyEvent, MyState>(initialState: .s1) {
 }
 ```
 
-`From(allExcept:)` and `AtEveryState(_:)` make rules for many states, as described below, and `if` 
-and `for` can be used as in any other code. An `ObservableStateMachine` can be created the same way.
+`From(allExcept:)` and `AtEveryState(_:)` make rules for many states, as described below. An
+`ObservableStateMachine` can be created the same way.
+
+Inside the braces, `if`, `switch` and `for` work as in other Swift code, so rules can depend on a
+condition or be made in a loop:
+
+```
+let machine = try StateMachine<OrderEvent, OrderState>(initialState: .cart) {
+    From(.paid) {
+        On(.ship, to: .shipped)
+        if offersExpress {                          // only when the condition holds
+            On(.shipExpress, to: .shipped)
+        }
+    }
+    for state in [OrderState.cart, .checkout] {     // one From per state
+        From(state) {
+            On(.cancel, to: .cancelled)
+        }
+    }
+}
+```
 
 Creating the state machine throws an error if the transitions define an inconsistent state
 machine. A consistent state machine is one where an event at a state always leads to the same
