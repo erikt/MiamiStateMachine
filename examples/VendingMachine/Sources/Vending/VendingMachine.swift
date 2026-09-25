@@ -8,10 +8,13 @@ import VendingModel
 /// The state machine decides which events are accepted: a drink can only
 /// be bought with credit and an empty pickup, the credit can only be
 /// cancelled when there is some, and a broken machine only accepts being
-/// repaired and refilled. It never looks at what an event carries, so the
-/// vending machine keeps the amounts itself, and checks them before an
-/// event is processed: that a coin is one the machine takes, that a drink
-/// is not sold out, and that the credit covers its price.
+/// repaired and refilled. The credit, the pickup and the stock are its
+/// context, changed by the actions of its transitions, with what the events
+/// carry. It never looks at them to choose a transition, so the vending
+/// machine checks them before an event is processed: that a coin is one the
+/// machine takes, that a drink is not sold out, and that the credit covers
+/// its price. The coin return is kept by the vending machine, as coins get
+/// there without a transition too.
 ///
 /// Requests are served one at a time. The state machine is an actor of
 /// its own, so a request waits for it, and another request could otherwise
@@ -26,54 +29,81 @@ public actor VendingMachine {
     /// The coins the machine takes, in cents.
     public static let acceptedCoins: Set<Int> = [5, 10, 25, 100]
 
-    /// The rules defining the state machine of the vending machine.
-    @TransitionRuleBuilder<VendingEvent.EventTrigger, VendingState>
-    public static var rules: Set<TransitionRule<VendingEvent.EventTrigger, VendingState>> {
+    /// The rules defining the state machine of the vending machine, with the
+    /// actions changing its context.
+    @TransitionRuleBuilder<VendingEvent, VendingState, VendingContext>
+    public static var rules: TransitionRules<VendingEvent, VendingState, VendingContext> {
         From(.idle) {
-            On(.insertCoin, to: .hasCredit)
+            On(.insertCoin, to: .hasCredit, action: addCoin)
         }
         From(.hasCredit) {
-            On(.insertCoin, to: .hasCredit)
+            On(.insertCoin, to: .hasCredit, action: addCoin)
             // A drink can only be bought when the pickup is empty.
-            On(.select, to: .drinkReady)
-            On(.cancel, to: .idle)
+            On(.select, to: .drinkReady, action: sell)
+            On(.cancel, to: .idle, action: clearCredit)
         }
         From(.drinkReady) {
-            On(.insertCoin, to: .drinkReadyWithCredit)
-            On(.takeDrink, to: .idle)
+            On(.insertCoin, to: .drinkReadyWithCredit, action: addCoin)
+            On(.takeDrink, to: .idle, action: emptyPickup)
         }
         From(.drinkReadyWithCredit) {
-            On(.insertCoin, to: .drinkReadyWithCredit)
-            On(.takeDrink, to: .hasCredit)
-            On(.cancel, to: .drinkReady)
+            On(.insertCoin, to: .drinkReadyWithCredit, action: addCoin)
+            On(.takeDrink, to: .hasCredit, action: emptyPickup)
+            On(.cancel, to: .drinkReady, action: clearCredit)
         }
         From(.outOfOrder) {
-            On(.repair, to: .idle)
+            // The technician clears the pickup.
+            On(.repair, to: .idle, action: emptyPickup)
         }
 
         // The machine can break down at every state, and be refilled at every state.
         From(allExcept: [.outOfOrder]) {
-            On(.breakDown, to: .outOfOrder)
+            // The credit of a broken machine is lost.
+            On(.breakDown, to: .outOfOrder, action: clearCredit)
         }
-        AtEveryState(.refill)
+        AtEveryState(.refill) { context, _ in
+            context.stock = fullStock
+        }
+    }
+
+    // MARK: - Actions
+
+    /// Adds an inserted coin to the credit.
+    private static let addCoin: TransitionAction<VendingEvent, VendingState, VendingContext> = { context, transition in
+        if case .insertCoin(let cents) = transition.event {
+            context.credit += cents
+        }
+    }
+
+    /// Puts the drink selected in the pickup, and spends the credit. What is
+    /// left of the credit is returned by the vending machine.
+    private static let sell: TransitionAction<VendingEvent, VendingState, VendingContext> = { context, transition in
+        if case .select(let drink) = transition.event {
+            context.stock[drink, default: 0] -= 1
+            context.pickup = drink
+            context.credit = 0
+        }
+    }
+
+    /// Clears the credit, returned by the vending machine when cancelled,
+    /// and lost when the machine breaks down.
+    private static let clearCredit: TransitionAction<VendingEvent, VendingState, VendingContext> = { context, _ in
+        context.credit = 0
+    }
+
+    /// Empties the pickup.
+    private static let emptyPickup: TransitionAction<VendingEvent, VendingState, VendingContext> = { context, _ in
+        context.pickup = nil
     }
 
     // MARK: - Private properties
 
-    /// The state machine deciding which events are accepted.
-    private let stateMachine: StateMachine<VendingEvent, VendingState>
-
-    /// The coins inserted and not yet spent, in cents.
-    private var credit = 0
+    /// The state machine deciding which events are accepted, with the credit,
+    /// the pickup and the stock as its context.
+    private let stateMachine: StateMachine<VendingEvent, VendingState, VendingContext>
 
     /// The coins in the coin return, in cents.
     private var coinReturn = 0
-
-    /// The drink in the pickup, if there is one.
-    private var pickup: Drink?
-
-    /// How many of each drink are left.
-    private var stock = VendingMachine.fullStock
 
     /// If a request is being served.
     private var isServing = false
@@ -82,7 +112,7 @@ public actor VendingMachine {
     private var waitingInLine: [CheckedContinuation<Void, Never>] = []
 
     /// Every drink, as many as the machine holds.
-    private static var fullStock: [Drink: Int] {
+    static var fullStock: [Drink: Int] {
         Dictionary(uniqueKeysWithValues: Drink.allCases.map { ($0, capacity) })
     }
 
@@ -91,7 +121,7 @@ public actor VendingMachine {
     /// Creates a vending machine, idle and full of drinks.
     public init() {
         do {
-            stateMachine = try StateMachine(transitions: Self.rules, initialState: .idle)
+            stateMachine = try StateMachine(initialState: .idle, context: VendingContext()) { Self.rules }
         } catch {
             fatalError("The rules of the vending machine are in conflict: \(error.conflictingTransitions)")
         }
@@ -126,12 +156,13 @@ public actor VendingMachine {
             throw .notAccepted(event: event.eventTrigger, at: state)
         }
 
+        let context = await stateMachine.context
         if case .select(let drink) = event {
-            guard stock[drink, default: 0] > 0 else {
+            guard context.stock[drink, default: 0] > 0 else {
                 throw .soldOut(drink: drink)
             }
-            guard credit >= drink.price else {
-                throw .notEnoughCredit(for: drink, credit: credit)
+            guard context.credit >= drink.price else {
+                throw .notEnoughCredit(for: drink, credit: context.credit)
             }
         }
 
@@ -139,27 +170,15 @@ public actor VendingMachine {
             throw .notAccepted(event: event.eventTrigger, at: state)
         }
 
+        // The actions have changed the context. What they spent of the
+        // credit and did not keep goes to the coin return.
         switch event {
-        case .insertCoin(let cents):
-            credit += cents
         case .select(let drink):
-            stock[drink, default: 0] -= 1
-            pickup = drink
-            coinReturn += credit - drink.price
-            credit = 0
-        case .takeDrink:
-            pickup = nil
+            coinReturn += context.credit - drink.price
         case .cancel:
-            coinReturn += credit
-            credit = 0
-        case .breakDown:
-            // The credit of a broken machine is lost.
-            credit = 0
-        case .repair:
-            // The technician clears the pickup.
-            pickup = nil
-        case .refill:
-            stock = Self.fullStock
+            coinReturn += context.credit
+        default:
+            break
         }
         return transition
     }
@@ -182,12 +201,13 @@ public actor VendingMachine {
         defer { endTurn() }
 
         let state = await stateMachine.state
+        let context = await stateMachine.context
         let acceptedEvents = stateMachine.events(from: state)
         return VendingStatus(state: state,
-                             credit: credit,
+                             credit: context.credit,
                              coinReturn: coinReturn,
-                             pickup: pickup,
-                             stock: stock,
+                             pickup: context.pickup,
+                             stock: context.stock,
                              acceptedEvents: VendingEvent.EventTrigger.allCases.filter(acceptedEvents.contains))
     }
 
@@ -225,4 +245,20 @@ public actor VendingMachine {
             waitingInLine.removeFirst().resume()
         }
     }
+}
+
+// MARK: - Context
+
+/// What the transitions of the vending machine change besides its state:
+/// the credit, the drink in the pickup, and the drinks left.
+public struct VendingContext: Sendable, Equatable {
+
+    /// The coins inserted and not yet spent, in cents.
+    public var credit = 0
+
+    /// The drink in the pickup, if there is one.
+    public var pickup: Drink?
+
+    /// How many of each drink are left.
+    public var stock = VendingMachine.fullStock
 }

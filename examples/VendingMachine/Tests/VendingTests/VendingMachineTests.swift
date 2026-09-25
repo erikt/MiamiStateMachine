@@ -15,7 +15,7 @@ struct VendingMachineTests {
     // MARK: - The definition
 
     @Test func definitionIsConsistentAndEveryStateIsReachable() throws {
-        let stateMachine = try StateMachine<VendingEvent, VendingState>(transitions: VendingMachine.rules, initialState: .idle)
+        let stateMachine = try StateMachine<VendingEvent, VendingState, Void>(transitions: VendingMachine.rules.rules, initialState: .idle)
 
         #expect(stateMachine.transitionCount == 19)
         #expect(stateMachine.unreachableStates.isEmpty)
@@ -23,7 +23,7 @@ struct VendingMachineTests {
     }
 
     @Test func everyStateCanBreakDownAndBeRefilled() throws {
-        let stateMachine = try StateMachine<VendingEvent, VendingState>(transitions: VendingMachine.rules, initialState: .idle)
+        let stateMachine = try StateMachine<VendingEvent, VendingState, Void>(transitions: VendingMachine.rules.rules, initialState: .idle)
 
         for state in VendingState.allCases {
             #expect(stateMachine.transition(from: state, for: .refill)?.to == state)
