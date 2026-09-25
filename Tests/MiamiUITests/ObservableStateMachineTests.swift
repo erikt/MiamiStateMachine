@@ -216,6 +216,26 @@ struct ObservableStateMachineTests {
         }
     }
 
+    /// Outside of views, the state can be followed with `Observations`, as for
+    /// any observable class. Only on the OS 26 releases and later, and skipped before.
+    @available(macOS 26.0, iOS 26.0, tvOS 26.0, watchOS 26.0, visionOS 26.0, *)
+    @Test func stateCanBeFollowedWithObservations() async throws {
+        let door = ObservableStateMachine(try makeStateMachine())
+
+        // One event at a time, as the states in between are not always seen.
+        door.send(.open)
+        for await state in Observations({ door.state }) where state == .opened {
+            break
+        }
+        door.send(.close)
+        for await state in Observations({ door.state }) where state == .closed {
+            break
+        }
+
+        #expect(door.state == .closed)
+        #expect(await door.stateMachine.stateChangeCount == 2)
+    }
+
     // MARK: - Life cycle
 
     @Test func stopsFollowingTheStateMachineWhenLetGoOf() async throws {

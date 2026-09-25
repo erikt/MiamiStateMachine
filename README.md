@@ -427,6 +427,14 @@ there as `stateMachine`.
 
 It follows the state machine with `stateStream()`, and stops when it is no longer in use.
 
+Outside of views, from the OS 26 releases, its state can be followed with `Observations`, as for any observable class:
+
+```
+for await state in Observations({ observableStateMachine.state }) {
+    print("The state is \(state)")
+}
+```
+
 ## The transition log
 
 The state machine keeps a log of the transitions made. The log is a collection, from the oldest transition to the newest:
