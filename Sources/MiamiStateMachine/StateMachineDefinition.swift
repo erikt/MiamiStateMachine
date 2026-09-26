@@ -23,6 +23,12 @@ struct StateMachineDefinition<Event: Hashable & Sendable, State: Hashable & Send
 
     // MARK: - Properties
 
+    /// All the rules, collected from the index. Made anew every time, for
+    /// the snapshots of a state machine, which are not made often.
+    var rules: Set<TransitionRule<Event, State>> {
+        return Set(rulesByStateAndEvent.values.lazy.flatMap(\.values))
+    }
+
     /// The number of rules.
     let ruleCount: Int
 

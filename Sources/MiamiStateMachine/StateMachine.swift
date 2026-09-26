@@ -60,6 +60,35 @@ public actor StateMachine<Event: StateMachineEvent, State: Hashable & Sendable, 
         }
     }
 
+    /// The reason a state machine cannot be restored from a snapshot.
+    ///
+    /// A snapshot fits the rules when every rule it was made with is still one
+    /// of them. Rules added since keep it fitting, while a rule removed, or
+    /// changed to lead to another state, makes it a snapshot of another state
+    /// machine. Problems with the saved data itself, like a state or a context
+    /// that no longer decodes, are thrown by the decoder, before restoring.
+    public enum RestoreError: Error, CustomStringConvertible {
+
+        /// The rules given conflict, as for any state machine.
+        case conflictingRules(DefinitionError)
+
+        /// The snapshot was made with rules that are no longer among the rules
+        /// given. It holds the rules missing.
+        case incompatibleSnapshot(missingRules: Set<TransitionRule<Event.EventTrigger, State>>)
+
+        public var description: String {
+            switch self {
+            case .conflictingRules(let error):
+                return error.description
+            case .incompatibleSnapshot(let missingRules):
+                // Sorted, as the same error should have the same description every time.
+                let missing = missingRules.map { "\($0)" }.sorted().joined(separator: ", ")
+                return "The snapshot was made with rules that are no longer part of the "
+                    + "definition: \(missing)"
+            }
+        }
+    }
+
     // MARK: - Internal and private properties
 
     // Internal where the extensions in the other files of the state machine
@@ -223,6 +252,50 @@ public actor StateMachine<Event: StateMachineEvent, State: Hashable & Sendable, 
         self.context = context
         self.enteredAt = .now
         signposts.enter(initialState)
+    }
+
+    /// Creates a state machine restored from a snapshot. It is what the
+    /// restoring initializers do.
+    /// - Parameters:
+    ///   - rules: The rules defining the state machine, with their actions.
+    ///   - initialState: Initial state for the state machine.
+    ///   - snapshot: The snapshot to restore.
+    ///   - logCapacity: Max capacity of transition log.
+    /// - Throws: A `RestoreError`, if the rules conflict, or the snapshot
+    /// was made with rules that are no longer among them.
+    private init(definedBy rules: TransitionRules<Event, State, Context>,
+                 initialState: State,
+                 restoring snapshot: Snapshot,
+                 logCapacity: UInt?) throws(RestoreError)
+    {
+        do {
+            self.definition = try StateMachineDefinition(rules: rules.rules)
+        } catch {
+            throw .conflictingRules(DefinitionError(conflictingTransitions: error.rules))
+        }
+
+        // Rules added since the snapshot are fine, and missing ones are not.
+        let missingRules = snapshot.rules.subtracting(rules.rules)
+        guard missingRules.isEmpty else {
+            throw .incompatibleSnapshot(missingRules: missingRules)
+        }
+
+        // The capacity is the one given, keeping the newest of the saved transitions.
+        var transitionLog = CapacityLog<TransitionEvent<Event, State>>(capacity: logCapacity)
+        for transition in snapshot.transitionLog {
+            transitionLog.append(transition)
+        }
+
+        self.actions = rules.actions
+        self.transitionLog = transitionLog
+        self.initialState = initialState
+        self.state = snapshot.state
+        self.context = snapshot.context
+        self.processedEventsCount = snapshot.processedEventsCount
+        self.stateChangeCount = snapshot.stateChangeCount
+        self.enteredWith = snapshot.enteredWith
+        self.enteredAt = .now
+        signposts.enter(snapshot.state)
     }
 
     deinit {
@@ -461,9 +534,80 @@ extension StateMachine {
     }
 }
 
+// MARK: - Restored from a snapshot
+
+extension StateMachine {
+
+    /// Creates a state machine restored from a snapshot of another one, made
+    /// with the same rules or fewer, with its state, context, transition log
+    /// and counts. Everything else comes from the arguments, as when creating
+    /// a new state machine: the rules, the initial state and the log capacity.
+    ///
+    ///     let saved = try JSONDecoder().decode(OrderStateMachine.Snapshot.self, from: data)
+    ///     let stateMachine: OrderStateMachine
+    ///     do {
+    ///         stateMachine = try StateMachine(transitions: rules, initialState: .cart, restoring: saved)
+    ///     } catch .incompatibleSnapshot {
+    ///         // The rules have changed since the snapshot was made: start over.
+    ///         stateMachine = try StateMachine(transitions: rules, initialState: .cart)
+    ///     }
+    ///
+    /// The snapshot fits the rules when every rule it was made with is still
+    /// one of them. The initial state can have changed, and it is not at the
+    /// initial state unless the snapshot was made before any transition.
+    ///
+    /// When the state was entered is not saved, as an instant only means
+    /// something in the process it was read in, so `enteredAt` is when the
+    /// state machine was restored. Transitions given as a set have no actions.
+    /// - Parameters:
+    ///   - transitions: Transitions defining the state machine.
+    ///   - initialState: Initial state for the state machine.
+    ///   - snapshot: The snapshot to restore.
+    ///   - logCapacity: Max capacity of transition log. Set to nil for unlimited
+    ///   number of entries in the transition log. A saved log with more entries
+    ///   keeps the newest.
+    /// - Throws: A `RestoreError`, if the transitions conflict, or the snapshot
+    /// was made with rules that are no longer among them.
+    public init(transitions: Set<TransitionRule<Event.EventTrigger, State>>,
+                initialState: State,
+                restoring snapshot: Snapshot,
+                logCapacity: UInt? = nil) throws(RestoreError)
+    {
+        try self.init(definedBy: TransitionRules(transitions), initialState: initialState, restoring: snapshot, logCapacity: logCapacity)
+    }
+
+    /// Creates a state machine restored from a snapshot of another one, from
+    /// rules written state by state, with their actions, which go on changing
+    /// the restored context. See `init(transitions:initialState:restoring:logCapacity:)`.
+    /// - Parameters:
+    ///   - initialState: Initial state for the state machine.
+    ///   - snapshot: The snapshot to restore.
+    ///   - logCapacity: Max capacity of transition log. Set to nil for unlimited
+    ///   number of entries in the transition log. A saved log with more entries
+    ///   keeps the newest.
+    ///   - rules: The rules defining the state machine, in event triggers.
+    /// - Throws: A `RestoreError`, if the rules conflict, or the snapshot was
+    /// made with rules that are no longer among them.
+    public init(initialState: State,
+                restoring snapshot: Snapshot,
+                logCapacity: UInt? = nil,
+                @TransitionRuleBuilder<Event, State, Context> rules: @Sendable () -> TransitionRules<Event, State, Context>) throws(RestoreError)
+    {
+        try self.init(definedBy: rules(), initialState: initialState, restoring: snapshot, logCapacity: logCapacity)
+    }
+}
+
 // MARK: - Definition error
 
 extension StateMachine.DefinitionError: LocalizedError {
+    public var errorDescription: String? {
+        return description
+    }
+}
+
+// MARK: - Restore error
+
+extension StateMachine.RestoreError: LocalizedError {
     public var errorDescription: String? {
         return description
     }

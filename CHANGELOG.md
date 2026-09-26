@@ -6,6 +6,17 @@ All changes to MiamiStateMachine that users of the package will notice. The form
 
 ## [Unreleased]
 
+### Added
+
+- Snapshots, for saving a state machine and restoring it: `snapshot` on `StateMachine` is a `Snapshot` with the state,
+  the context, the transition log, the counts and the rules it was made with. It can be encoded when the events, the
+  states and the event triggers are `Codable`, and the context too, unless it is `Void`. Decoding checks that it agrees
+  with itself.
+- `init(transitions:initialState:restoring:logCapacity:)` and `init(initialState:restoring:logCapacity:rules:)` on
+  `StateMachine`, restoring a snapshot with the rules given again. It throws a `RestoreError`: `incompatibleSnapshot`,
+  with the rules missing, when the snapshot was made with rules no longer among them, and `conflictingRules` when the
+  rules conflict.
+
 ## [5.0.0] - 2026-09-26
 
 ### Added

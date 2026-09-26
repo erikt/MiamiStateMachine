@@ -498,6 +498,32 @@ let latest = log.last
 The log keeps every transition by default. To only keep the latest, give the log a capacity when creating the state
 machine: `StateMachine(transitions: transitions, initialState: .s1, logCapacity: 10)`.
 
+## Saving and restoring
+
+A snapshot holds everything a state machine is at, apart from its definition: its state, context, transition log and
+counts, with the rules it was made with. It can be saved, and a state machine restored from it later, with its rules
+given again:
+
+```
+let data = try JSONEncoder().encode(await stateMachine.snapshot)
+
+// Later, maybe in a new version of the app:
+let saved = try JSONDecoder().decode(StateMachine<MyEvent, MyState, Void>.Snapshot.self, from: data)
+let stateMachine: StateMachine<MyEvent, MyState, Void>
+do {
+    stateMachine = try StateMachine(transitions: transitions, initialState: .s1, restoring: saved)
+} catch .incompatibleSnapshot {
+    // The rules have changed since the snapshot was saved: start over.
+    stateMachine = try StateMachine(transitions: transitions, initialState: .s1)
+}
+```
+
+A snapshot can be restored when every rule it was made with is still one of the rules. Rules added in a new version of
+an app keep it, while a rule removed, or changed to lead to another state, makes it incompatible, with the missing rules
+in the error. The initial state and the log capacity come from the code, as when creating a state machine.
+
+A snapshot can be saved when the events and the states are `Codable`, and the context too, unless it is `Void`.
+
 ## Finding the shortest path between states
 
 The state machine can tell how to get from one state to another with the fewest events:
